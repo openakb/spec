@@ -22,5 +22,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+      # Run the verifier from the trusted BASE commit, not the PR head, so a PR cannot neuter
+      # its own DCO gate by editing the script. Falls back to the head copy only during bootstrap,
+      # when the base branch does not yet contain the script.
+      - name: Fetch Verifier
+        run: git show "${{ github.event.pull_request.base.sha }}:scripts/ci/check-dco.sh" > "$RUNNER_TEMP/check-dco.sh" 2>/dev/null || cp scripts/ci/check-dco.sh "$RUNNER_TEMP/check-dco.sh"
       - name: Verify Signoff
-        run: bash scripts/ci/check-dco.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: bash "$RUNNER_TEMP/check-dco.sh" "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
