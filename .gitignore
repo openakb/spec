@@ -1,0 +1,66 @@
+# ── Internal working docs / agent state (never published) ─
+docs/superpowers/
+.superpowers/
+.worktrees/
+
+# ── Local agent / editor config ───────────────────────────
+.claude/settings.local.json
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS cruft ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Secrets / env (keep .env.example tracked) ─────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ── Rust  (packages/rust) ─────────────────────────────────
+target/
+**/*.rs.bk
+
+# ── Node / TypeScript  (packages/js) ──────────────────────
+node_modules/
+dist/
+*.tsbuildinfo
+.eslintcache
+.turbo/
+coverage/
+*.tgz
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Python  (packages/python) ─────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.eggs/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+coverage.xml
+.python-version
+
+# ── Docs-site build output (if a site gets added later) ───
+site/
+_site/
+.docusaurus/
+.cache/
+
+# ── Misc ──────────────────────────────────────────────────
+*.log
