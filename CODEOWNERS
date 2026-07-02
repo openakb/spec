@@ -1,0 +1,25 @@
+# Review routing for the OpenAKB spec repo.
+# Syntax: <path glob>  <owner...>   (last matching rule wins)
+
+# Default owner for everything.
+*                       @openakb/spec-maintainers
+
+# Governance, licensing, and security changes need steward review.
+/GOVERNANCE.md          @openakb/spec-maintainers
+/LICENSE                @openakb/spec-maintainers
+/LICENSE-DOCS           @openakb/spec-maintainers
+/SECURITY.md            @openakb/spec-maintainers
+
+# CI, workflows, and repo automation.
+/.github/               @openakb/spec-maintainers
+/scripts/               @openakb/spec-maintainers
+
+# Enhancement proposals and decision records.
+/proposals/             @openakb/spec-maintainers
+/decisions/             @openakb/spec-maintainers
+
+# Reserved for later phases (paths created in Phase 2+):
+# /specs/               @openakb/spec-maintainers
+# /schema/              @openakb/spec-maintainers
+# /packages/            @openakb/spec-maintainers
+# /conformance/         @openakb/spec-maintainers
