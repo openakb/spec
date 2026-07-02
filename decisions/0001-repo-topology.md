@@ -19,5 +19,6 @@ tooling per the razor; the shipped deliverable is the validator library, `openak
 ## Consequences
 
 Enhancement proposals land atomically across all artifacts in one PR. The conformance suite
-stays with the standard even if libraries are later extracted. The repo is polyglot, so CI is
-path-aware. The bare `openakb` name is reserved but unused.
+stays with the standard even if libraries are later extracted. The repo is polyglot, so CI
+becomes path-aware once the validators and packages land in a later phase. The bare `openakb`
+name is reserved but unused.

@@ -15,8 +15,8 @@ Adopt an "all content untrusted" posture — first-party and linked AKB content 
 prompt-injection surface. Advise resolvers to apply a URI-scheme allowlist (guarding against SSRF
 and `file:`/`data:` abuse) and size/time/redirect fetch bounds. Treat content and provenance
 hashes as attesting serving *integrity*, not *authenticity*; ship no descriptor-signing primitive
-before 1.0 and reserve an attestation layer for a post-1.0 proposal. Publish a `SECURITY.md` with
-the threat model and a coordinated-disclosure process.
+before 1.0 and reserve an attestation layer for a post-1.0 proposal. Publish a
+[`SECURITY.md`](../SECURITY.md) with the threat model and a coordinated-disclosure process.
 
 ## Consequences
 

@@ -12,11 +12,11 @@ intentions do not convince adopters; structure does.
 
 Stage governance: lightweight (issue → discussion → PR, steward has final say) before 1.0, and
 numbered AKEPs with a multi-organization steering group at/after 1.0. Commit anti-capture
-structure in `GOVERNANCE.md`: a named non-profit entity (OpenAKB.org) holds the name, domains,
+structure in [`GOVERNANCE.md`](../GOVERNANCE.md): a named non-profit entity (OpenAKB.org) holds the name, domains,
 and registries; a stated intent to donate to a vendor-neutral foundation; a falsifiable
 transition trigger (≥2 independent production implementers); and bus-factored credentials
-(≥2 admins). Bind the process to artifacts — an AKEP is Final only with spec, schema, validator,
-example, and conformance together.
+(≥2 admins). Bind the process to artifacts (see [ADR-0001](0001-repo-topology.md)) — an AKEP is
+Final only with spec, schema, validator, example, and conformance together.
 
 ## Consequences
 

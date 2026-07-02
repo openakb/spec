@@ -22,4 +22,5 @@ Start with manual prefixed tags and graduate to automated release PRs later.
 
 Streams never cross-fire (a bare `v*` tag never matches a prefixed one). `$schema` URLs are
 stable because the backend is swappable behind an owned domain. No accidental release on merge.
-Provisioning the domain and cloud account is a prerequisite (tracked in governance).
+Provisioning the domain and cloud account is a prerequisite (tracked in
+[`GOVERNANCE.md`](../GOVERNANCE.md)).

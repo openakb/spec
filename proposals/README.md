@@ -15,6 +15,12 @@ See [GOVERNANCE.md](../GOVERNANCE.md) for how the process is staged before and a
 
 `Draft → Review → Accepted → Final → (Superseded)`
 
+- **Draft** — being authored; not yet ready for wide review.
+- **Review** — open for community and editor feedback.
+- **Accepted** — approved in principle; the artifacts are being implemented.
+- **Final** — merged and in force (see the artifact bar below).
+- **Superseded** — replaced by a later AKEP, retained for the historical record.
+
 An AKEP reaches **Final** only when its specification text, JSON Schema, reference validator,
 worked example, and conformance fixtures all land together ("rough consensus and running
 code"). Additive changes are a MINOR release; breaking changes are batched into a MAJOR.
