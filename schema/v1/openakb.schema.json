@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.openakb.org/v1/openakb.schema.json",
+  "title": "OpenAKB descriptor",
+  "description": "JSON Schema for an OpenAKB descriptor (openakb.json). Lenient on unknown members by design (no additionalProperties:false on core objects); typo-catching is the validator's --strict lint (spec §8).",
+  "type": "object",
+  "required": ["$schema", "id", "title", "description", "sources", "sections"],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri" },
+    "id": { "$ref": "#/$defs/localId" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "sources": { "type": "array", "minItems": 1, "maxItems": 10000, "items": { "$ref": "#/$defs/source" } },
+    "sections": { "type": "array", "minItems": 1, "maxItems": 10000, "items": { "$ref": "#/$defs/section" } }
+  },
+  "$defs": {
+    "localId": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
+    "source": {
+      "type": "object",
+      "required": ["id", "type", "uri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "type": { "type": "string", "minLength": 1 },
+        "uri": { "type": "string", "format": "uri-reference" }
+      }
+    },
+    "section": {
+      "type": "object",
+      "required": ["id", "title", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "content_uri": { "type": "string", "format": "uri-reference" },
+        "source_ids": { "type": "array", "items": { "$ref": "#/$defs/localId" } }
+      }
+    }
+  }
+}
