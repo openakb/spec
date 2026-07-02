@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Bump GitHub Actions major-version tags when a new major is released.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+# Cargo / npm / pip ecosystems are added when packages/ lands in a later phase.

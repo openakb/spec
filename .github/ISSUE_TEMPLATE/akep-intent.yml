@@ -1,0 +1,34 @@
+name: AKEP intent
+description: Signal intent to propose a significant (normative) change via an AKEP.
+labels: ["akep", "proposal"]
+body:
+  - type: textarea
+    id: abstract
+    attributes:
+      label: Abstract
+      description: One paragraph — what you propose and why.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: The problem and why current behavior is insufficient.
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Standards (changes the descriptor model or normative behavior)
+        - Process (changes how the project operates)
+    validations:
+      required: true
+  - type: checkboxes
+    id: running-code
+    attributes:
+      label: Rough consensus and running code
+      options:
+        - label: I understand an AKEP reaches Final only with spec, schema, validator, example, and conformance together.
+          required: true

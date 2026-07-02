@@ -1,0 +1,32 @@
+name: Bug report
+description: A defect in the schema, a validator, CI, or repository content.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected versus what occurred.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps, inputs, and (if relevant) the descriptor snippet.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Affected area / version
+      description: e.g. schema v1, a package version, or a commit SHA.
+    validations:
+      required: false
+  - type: checkboxes
+    id: neutrality
+    attributes:
+      label: Vendor neutrality
+      options:
+        - label: My report contains no real product or company names.
+          required: true

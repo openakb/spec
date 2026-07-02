@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion / question
+    url: https://github.com/openakb/spec/discussions
+    about: For open-ended questions and design discussion, start a discussion.
+  - name: OpenAKB website
+    url: https://openakb.org
+    about: Project overview and background.
