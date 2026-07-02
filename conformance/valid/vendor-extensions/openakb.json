@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "valid-extensions",
+  "title": "Valid — extensions",
+  "description": "Reverse-DNS x extensions at top level, source, and section; plus a namespaced rel and inline provenance.",
+  "x": {
+    "com.example": {
+      "rank": 1
+    }
+  },
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/",
+      "x": {
+        "org.example.tools": {
+          "mirror": true
+        }
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "Section with a vendor extension, a namespaced rel, and inline provenance.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"],
+      "x": {
+        "com.example": {
+          "weight": 5
+        }
+      },
+      "provenance": [
+        {
+          "text": "An inline claim.",
+          "source_ids": ["s1"]
+        }
+      ],
+      "links": [
+        {
+          "rel": "com.example:mirrors",
+          "section_id": "root",
+          "description": "Namespaced escape-hatch rel."
+        }
+      ]
+    }
+  ]
+}

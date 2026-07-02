@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-duplicate-id",
+  "title": "Invalid — duplicate id",
+  "description": "Two sections declare the same local id.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "dup",
+      "title": "First",
+      "description": "First section using the duplicate id.",
+      "content_uri": "first.md",
+      "source_ids": ["s1"]
+    },
+    {
+      "id": "dup",
+      "title": "Second",
+      "description": "Second section using the duplicate id.",
+      "content_uri": "second.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

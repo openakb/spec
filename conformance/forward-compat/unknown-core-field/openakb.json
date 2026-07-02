@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "forward-compat",
+  "title": "Forward compatible",
+  "description": "Carries a synthetic unknown core member to prove lenient-vs-strict behavior.",
+  "future_field": "a member a later minor might add",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "The only section.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "valid-forest",
+  "title": "Valid — forest",
+  "description": "Two roots plus a container with a child; exercises the acyclic forest shape.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root-a",
+      "title": "Root A",
+      "description": "First root; a pure container."
+    },
+    {
+      "id": "child-a",
+      "parent_id": "root-a",
+      "title": "Child A",
+      "description": "Child of root A.",
+      "content_uri": "a.md",
+      "source_ids": ["s1"]
+    },
+    {
+      "id": "root-b",
+      "title": "Root B",
+      "description": "Second root with content.",
+      "content_uri": "b.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

@@ -46,6 +46,8 @@ jobs:
         run: npm ci
       - name: Validate Schema
         run: npm run check:schema
+      - name: Check Conformance Manifest
+        run: npm run check:conformance
 
   # `CI OK` is the single required status check for branch protection — do not rename casually.
   # Every new job added to this workflow MUST also be appended to this job's `needs:` to gate merges.

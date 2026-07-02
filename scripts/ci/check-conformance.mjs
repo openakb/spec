@@ -1,0 +1,217 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
+
+const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+const CATALOG = new Set([
+  'AKB001',
+  'AKB002',
+  'AKB003',
+  'AKB004',
+  'AKB005',
+  'AKB006',
+  'AKB007',
+  'AKB008',
+  'AKB009',
+  'AKB010',
+  'AKB011',
+]);
+const SCHEMA_CATCHABLE_CODES = new Set(['AKB005', 'AKB008', 'AKB009', 'AKB011']);
+const LOCAL_ID_PATTERN = /^[a-z0-9_-]{1,64}$/u;
+
+const ajv = new Ajv2020({ allErrors: true, strict: true });
+addFormats(ajv);
+const validateDescriptor = ajv.compile(readJson('schema/v1/openakb.schema.json'));
+
+let failureCount = 0;
+const declaredCodes = new Set();
+
+function rel(path) {
+  return relative(ROOT, path);
+}
+
+function report(message, file) {
+  if (file) {
+    console.error(`::error file=${rel(file)}::${message}`);
+  } else {
+    console.error(`::error::${message}`);
+  }
+  failureCount += 1;
+}
+
+function readJson(path) {
+  return JSON.parse(readFileSync(join(ROOT, path), 'utf8'));
+}
+
+function parseJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    report(`not valid JSON: ${error.message}`, file);
+    return undefined;
+  }
+}
+
+function fixtureDirs(path) {
+  const dir = join(ROOT, path);
+  if (!existsSync(dir)) {
+    report(`missing fixture directory: ${path}`);
+    return [];
+  }
+
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
+function requireFile(file) {
+  if (!existsSync(file)) {
+    report('required file missing', file);
+    return false;
+  }
+  return true;
+}
+
+function requireCatalogCodes(codes, file, fieldName) {
+  if (!Array.isArray(codes) || codes.length === 0) {
+    report(`${fieldName} must be a non-empty array`, file);
+    return [];
+  }
+
+  const validCodes = [];
+  for (const code of codes) {
+    if (!CATALOG.has(code)) {
+      report(`${fieldName} contains unknown code: ${code}`, file);
+      continue;
+    }
+    declaredCodes.add(code);
+    validCodes.push(code);
+  }
+  return validCodes;
+}
+
+function reportDescriptorErrors(file, kind) {
+  report(`${kind} descriptor schema validation failed`, file);
+  for (const error of validateDescriptor.errors ?? []) {
+    console.error(`  ${error.instancePath || '/'} ${error.message}`);
+  }
+}
+
+function descriptorPassesSchema(descriptor, file, kind) {
+  const isValid = validateDescriptor(descriptor);
+  if (!isValid && kind) {
+    reportDescriptorErrors(file, kind);
+  }
+  return isValid;
+}
+
+function validateCitationExpected(expected, expectedFile) {
+  if (!Array.isArray(expected.citations)) {
+    report('citations must be an array', expectedFile);
+    return;
+  }
+
+  expected.citations.forEach((citation, citationIndex) => {
+    if (citation === null || typeof citation !== 'object' || Array.isArray(citation)) {
+      report(`citations[${citationIndex}] must be an object`, expectedFile);
+      return;
+    }
+    if (!Array.isArray(citation.ids) || citation.ids.length === 0) {
+      report(`citations[${citationIndex}].ids must be a non-empty array`, expectedFile);
+      return;
+    }
+    citation.ids.forEach((id, idIndex) => {
+      if (typeof id !== 'string') {
+        report(`citations[${citationIndex}].ids[${idIndex}] must be a string`, expectedFile);
+        return;
+      }
+      if (!LOCAL_ID_PATTERN.test(id)) {
+        report(`citations[${citationIndex}].ids[${idIndex}] must match the local ID grammar`, expectedFile);
+      }
+    });
+  });
+}
+
+for (const caseName of fixtureDirs('conformance/valid')) {
+  const descriptorFile = join(ROOT, 'conformance/valid', caseName, 'openakb.json');
+  if (!requireFile(descriptorFile)) {
+    continue;
+  }
+  const descriptor = parseJson(descriptorFile);
+  if (descriptor !== undefined) {
+    descriptorPassesSchema(descriptor, descriptorFile, 'valid fixture');
+  }
+}
+
+for (const caseName of fixtureDirs('conformance/invalid')) {
+  const caseDir = join(ROOT, 'conformance/invalid', caseName);
+  const descriptorFile = join(caseDir, 'openakb.json');
+  const expectedFile = join(caseDir, 'expected.json');
+  const hasDescriptor = requireFile(descriptorFile);
+  const hasExpected = requireFile(expectedFile);
+
+  const descriptor = hasDescriptor ? parseJson(descriptorFile) : undefined;
+  const expected = hasExpected ? parseJson(expectedFile) : undefined;
+  let codes = [];
+
+  if (expected !== undefined) {
+    codes = requireCatalogCodes(expected.codes, expectedFile, 'codes');
+  }
+
+  if (descriptor !== undefined) {
+    const hasSchemaCatchableCode = codes.some((code) => SCHEMA_CATCHABLE_CODES.has(code));
+    const isSchemaValid = validateDescriptor(descriptor);
+    if (hasSchemaCatchableCode && isSchemaValid) {
+      report('schema-catchable invalid fixture unexpectedly validates', descriptorFile);
+    }
+    if (!hasSchemaCatchableCode && !isSchemaValid) {
+      reportDescriptorErrors(descriptorFile, 'semantic invalid fixture');
+    }
+  }
+}
+
+for (const caseName of fixtureDirs('conformance/forward-compat')) {
+  const caseDir = join(ROOT, 'conformance/forward-compat', caseName);
+  const descriptorFile = join(caseDir, 'openakb.json');
+  const expectedFile = join(caseDir, 'expected.json');
+  requireFile(descriptorFile);
+  const hasExpected = requireFile(expectedFile);
+  const expected = hasExpected ? parseJson(expectedFile) : undefined;
+
+  if (expected === undefined) {
+    continue;
+  }
+  if (expected.lenient !== 'valid') {
+    report('lenient must equal "valid"', expectedFile);
+  }
+  requireCatalogCodes(expected.strict, expectedFile, 'strict');
+}
+
+for (const caseName of fixtureDirs('conformance/content')) {
+  const caseDir = join(ROOT, 'conformance/content', caseName);
+  const contentFile = join(caseDir, 'content.md');
+  const expectedFile = join(caseDir, 'expected.json');
+  requireFile(contentFile);
+  const hasExpected = requireFile(expectedFile);
+  const expected = hasExpected ? parseJson(expectedFile) : undefined;
+
+  if (expected !== undefined) {
+    validateCitationExpected(expected, expectedFile);
+  }
+}
+
+for (const code of CATALOG) {
+  if (!declaredCodes.has(code)) {
+    report(`missing fixture declaring ${code}`);
+  }
+}
+
+if (failureCount > 0) {
+  console.error(`Conformance manifest failed: ${failureCount} failure(s).`);
+  process.exit(1);
+}
+
+console.log('Conformance manifest OK: 11/11 codes have fixtures.');

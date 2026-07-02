@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-oversized-title",
+  "title": "Invalid — oversized title",
+  "description": "A section title exceeds the schema cap.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "description": "The section title is exactly one hundred and one ASCII characters.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

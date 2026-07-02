@@ -14,3 +14,4 @@ ignores:
   - ".worktrees/**"
   - "node_modules/**"
   - "CLAUDE.md"            # symlink to AGENTS.md — lint the target once, not twice
+  - "conformance/content/**/content.md" # parser fixtures intentionally contain citation grammar edge cases
