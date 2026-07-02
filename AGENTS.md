@@ -43,8 +43,11 @@ validator, example, and conformance move together.
 **No real product or company name** appears in any public artifact — not in examples, spec
 prose, conformance fixtures, the README, or the schema. Use neutral wording. Illustrative
 material uses **fictional subjects** on the RFC 2606 reserved `example.com` / `example.org`
-domains. The single exception is `GOVERNANCE.md`, which may name the first implementer for the
-anti-capture story. This is enforced in review.
+domains. Two narrow carve-outs: `GOVERNANCE.md` may name the first implementer for the
+anti-capture story; and development-infrastructure references — the hosting platform and
+CI/coverage **status badges** (build, coverage, release) — may appear in the README and other
+meta files, since they identify tooling, not spec subjects or endorsements. This is enforced in
+review.
 
 ## Running the checks locally
 
