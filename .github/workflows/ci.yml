@@ -29,6 +29,8 @@ jobs:
       - name: Lint Workflows
         uses: docker://rhysd/actionlint:1.7.12
 
+  # `CI OK` is the single required status check for branch protection — do not rename casually.
+  # Every new job added to this workflow MUST also be appended to this job's `needs:` to gate merges.
   ci-ok:
     name: CI OK
     needs: [docs]
