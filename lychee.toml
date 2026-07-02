@@ -1,0 +1,19 @@
+# Link-check config, shared by the offline CI check (ci.yml) and the
+# scheduled external check (links.yml).
+
+# Skip paths that are not part of the published repo or are vendored.
+exclude_path = ["docs/superpowers", ".worktrees", ".git", "node_modules"]
+
+# Domains registered but not yet serving (see design §14 provisioning).
+# Remove each pattern once the endpoint is live.
+exclude = [
+  "^https://openakb\\.org",
+  "^https://.*\\.openakb\\.org",
+]
+
+# Don't attempt to verify email addresses (this is lychee's default; stated explicitly).
+# NOTE: the key is `include_mail`, NOT `exclude_mail` — an unknown key is a fatal TOML parse error.
+include_mail = false
+
+# Be tolerant of rate-limiting on the scheduled external run.
+max_retries = 2
