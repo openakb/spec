@@ -26,7 +26,7 @@
   "$defs": {
     "localId": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
     "language": { "type": "string", "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$" },
-    "timestamp": { "type": "string", "format": "date-time", "pattern": "([Zz]|[+-]00:00)$" },
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "(Z|\\+00:00)$" },
     "sriHash": { "type": "string", "pattern": "^[a-z0-9]+-[A-Za-z0-9+/]+={0,2}$" },
     "extensions": {
       "type": "object",
