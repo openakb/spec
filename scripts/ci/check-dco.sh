@@ -19,6 +19,9 @@ while IFS= read -r sha; do
   # Skip merge commits (more than one parent).
   parents="$(git rev-list --parents -n 1 "$sha" | wc -w | tr -d ' ')"
   [ "$parents" -gt 2 ] && continue
+  # Skip bot-authored commits (mirrors dco.yml's actor exemption), so a
+  # maintainer pushing to e.g. a Dependabot branch is not blocked.
+  case "$(git log -1 --format='%an' "$sha")" in *'[bot]') continue ;; esac
   signoff="$(git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha")"
   if [ -z "${signoff//[[:space:]]/}" ]; then
     echo "::error::commit $sha is missing a Signed-off-by line (DCO)"
