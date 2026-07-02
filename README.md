@@ -36,6 +36,6 @@ foundations. See [CHANGELOG.md](CHANGELOG.md) for what has landed.
 ## License
 
 Code, schema, and validators are licensed under [Apache-2.0](LICENSE). Normative prose
-(the specification and AKEPs) is licensed under [CC-BY-4.0](LICENSE-DOCS). Contributions
+(the specification and AKEPs) is licensed under [CC-BY-4.0](LICENSE-DOCS), © 2026 OpenAKB.org. Contributions
 are accepted under the [Developer Certificate of Origin](https://developercertificate.org/)
 (sign off commits with `git commit -s`).
