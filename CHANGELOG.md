@@ -14,3 +14,10 @@ at v1.0.0.
   and agent conventions, GitHub issue/PR templates and Dependabot, the AKEP process seed,
   the decision-record set, and a CI skeleton (markdown, link, and workflow lint) gated by a
   single `ci-ok` check plus a DCO check.
+- Normative v1 specification (`specs/v1/spec.md`) with RFC 2119 language, the field catalog,
+  and the `AKB001`–`AKB011` error-code catalog; the descriptor and self-describing provenance
+  JSON Schemas (`schema/v1/`), lenient on unknown members for forward compatibility;
+  vendor-neutral worked examples in both authoring and served form (minimal, widget-platform,
+  cross-link, widget-platform-served, sidecar-provenance); the conformance suite (valid /
+  invalid / forward-compat / content) with a manifest lint and traceability matrix; AKEP-0001
+  (Genesis, Draft); and `ajv`-based schema + conformance CI gates plus a neutrality check.

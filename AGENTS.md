@@ -9,11 +9,11 @@ distinct from the `AKB.md` guide that a *knowledge base described by the spec* w
 The `openakb/spec` monorepo holds the OpenAKB standard and its supporting artifacts. Current
 top-level map:
 
-- `specs/` — the normative specification *(added in a later phase)*
-- `schema/` — JSON Schema for the descriptor and provenance sidecar *(later phase)*
+- `specs/` — the normative specification
+- `schema/` — JSON Schema for the descriptor and provenance sidecar
 - `proposals/` — the AKEP process and enhancement proposals
-- `examples/` — worked, vendor-neutral example AKBs *(later phase)*
-- `conformance/` — cross-validator conformance fixtures *(later phase)*
+- `examples/` — worked, vendor-neutral example AKBs
+- `conformance/` — cross-validator conformance fixtures
 - `packages/` — validator libraries in Rust / TypeScript / Python *(later phases)*
 - `decisions/` — architecture decision records
 - `.github/`, `scripts/` — CI and automation
@@ -38,6 +38,11 @@ Any change under `schema/` or `specs/` MUST land **in the same pull request** as
 validator, conformance, and example updates. A proposal is not "done" until spec text, schema,
 validator, example, and conformance move together.
 
+Before the reference validator lands (implementation Phase 3), the committed JSON Schema and
+its `ajv` gate are the "running code" that must accompany `schema/`/`specs/` changes; the
+full validator + conformance-execution bar attaches with `packages/` in Phase 3, which is also
+when AKEP-0001 reaches Final.
+
 ## Strict vendor neutrality
 
 **No real product or company name** appears in any public artifact — not in examples, spec
@@ -46,15 +51,20 @@ material uses **fictional subjects** on the RFC 2606 reserved `example.com` / `e
 domains. Two narrow carve-outs: `GOVERNANCE.md` may name the first implementer for the
 anti-capture story; and development-infrastructure references — the hosting platform and
 CI/coverage **status badges** (build, coverage, release) — may appear in the README and other
-meta files, since they identify tooling, not spec subjects or endorsements. This is enforced in
-review.
+meta files, since they identify tooling, not spec subjects or endorsements. Prior-art and
+external technical references MAY appear as hyperlinks to the cited source (a technical
+citation, not an endorsement). This is enforced in review.
 
 ## Running the checks locally
 
 ```bash
+npm ci                                          # install ajv (first run only)
+npm run check:schema                            # examples + sidecars validate against the schema
+npm run check:conformance                       # conformance manifest is coherent
 npx --yes markdownlint-cli2 "**/*.md"          # markdown style
 lychee --offline --config lychee.toml .        # relative-link integrity
 actionlint                                     # GitHub Actions workflow lint
+bash scripts/ci/check-neutrality.sh            # public artifact neutrality
 ```
 
 Per-package tests and the conformance harness are documented here as they land.

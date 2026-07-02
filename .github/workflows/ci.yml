@@ -28,6 +28,8 @@ jobs:
         with:
           args: "--offline --config lychee.toml ."
           fail: true
+      - name: Check Neutrality
+        run: bash scripts/ci/check-neutrality.sh
       - name: Lint Workflows
         uses: docker://rhysd/actionlint:1.7.12
 

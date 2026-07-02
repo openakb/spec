@@ -20,9 +20,21 @@ trapped in one vendor's storage or serving model.
 ## Status
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
-examples, conformance suite, and reference validators are being added in phases; this
-repository currently holds the project's governance, licensing, and contribution
-foundations. See [CHANGELOG.md](CHANGELOG.md) for what has landed.
+examples, and conformance suite have landed; reference validators are forthcoming.
+See [CHANGELOG.md](CHANGELOG.md) for what has landed.
+
+## Specification
+
+- **Normative spec** — [specs/v1/spec.md](specs/v1/spec.md)
+- **JSON Schema** — [schema/v1/openakb.schema.json](schema/v1/openakb.schema.json),
+  [provenance.schema.json](schema/v1/provenance.schema.json)
+- **Worked examples** — [examples/](examples/): [minimal](examples/minimal/),
+  [widget-platform](examples/widget-platform/) (authoring) and
+  [widget-platform-served](examples/widget-platform-served/) (served form),
+  [cross-link](examples/cross-link/),
+  [sidecar-provenance](examples/sidecar-provenance/)
+- **Conformance** — [conformance/](conformance/README.md)
+- **Genesis proposal** — [AKEP-0001](proposals/akep-0001-genesis.md)
 
 ## Get involved
 
