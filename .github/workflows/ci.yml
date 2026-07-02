@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Docs Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v23
+        with:
+          globs: "**/*.md"
+      - name: Check Links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: "--offline --config lychee.toml ."
+          fail: true
+      - name: Lint Workflows
+        uses: docker://rhysd/actionlint:1.7.12
+
+  # `CI OK` is the single required status check for branch protection — do not rename casually.
+  # Every new job added to this workflow MUST also be appended to this job's `needs:` to gate merges.
+  ci-ok:
+    name: CI OK
+    needs: [docs]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Jobs
+        run: 'if [ "${{ needs.docs.result }}" != "success" ]; then echo "A required job did not succeed"; exit 1; fi'

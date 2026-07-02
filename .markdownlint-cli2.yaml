@@ -1,0 +1,16 @@
+# Markdown lint config for the OpenAKB spec repo.
+# Read automatically by markdownlint-cli2 (local `npx` runs and the CI action).
+config:
+  default: true
+  MD013: false            # line length — prose and wide tables wrap freely
+  MD024:
+    siblings_only: true   # allow repeated headings under different parents (CHANGELOG, ADRs)
+  MD033: false            # allow occasional inline HTML
+  MD041: false            # first line need not be a top-level heading (PR/issue templates)
+globs:
+  - "**/*.md"
+ignores:
+  - "docs/superpowers/**"
+  - ".worktrees/**"
+  - "node_modules/**"
+  - "CLAUDE.md"            # symlink to AGENTS.md — lint the target once, not twice
