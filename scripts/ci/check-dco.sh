@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify every non-merge, non-bot commit in BASE..HEAD carries a DCO Signed-off-by trailer.
+# Verify every non-merge commit in BASE..HEAD carries a DCO Signed-off-by trailer.
 # Usage: check-dco.sh <base-sha> <head-sha>
 set -euo pipefail
 
@@ -19,10 +19,6 @@ while IFS= read -r sha; do
   # Skip merge commits (more than one parent).
   parents="$(git rev-list --parents -n 1 "$sha" | wc -w | tr -d ' ')"
   [ "$parents" -gt 2 ] && continue
-  # Skip bot authors (e.g. dependabot[bot]) — their commits carry no sign-off by design.
-  case "$(git log -1 --format='%an' "$sha")" in
-    *'[bot]') continue ;;
-  esac
   signoff="$(git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha")"
   if [ -z "${signoff//[[:space:]]/}" ]; then
     echo "::error::commit $sha is missing a Signed-off-by line (DCO)"
