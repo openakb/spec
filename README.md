@@ -1,9 +1,16 @@
-# OpenAKB
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/openakb-horizontal-dark.png">
+    <img alt="OpenAKB" src="assets/logo/openakb-horizontal-light.png" width="280">
+  </picture>
+</h1>
 
-[![CI](https://github.com/openakb/spec/actions/workflows/ci.yml/badge.svg)](https://github.com/openakb/spec/actions/workflows/ci.yml)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Docs: CC BY 4.0](https://img.shields.io/badge/Docs-CC_BY_4.0-lightgrey.svg)](LICENSE-DOCS)
-[![Status: draft](https://img.shields.io/badge/spec-v1_draft-orange.svg)](CHANGELOG.md)
+<p align="center">
+  <a href="https://github.com/openakb/spec/actions/workflows/ci.yml"><img src="https://github.com/openakb/spec/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache-2.0"></a>
+  <a href="LICENSE-DOCS"><img src="https://img.shields.io/badge/Docs-CC_BY_4.0-lightgrey.svg" alt="Docs: CC BY 4.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/spec-v1_draft-orange.svg" alt="Status: draft"></a>
+</p>
 
 **OpenAKB** is an open, infrastructure-agnostic JSON standard for describing an
 **agentic knowledge base (AKB)** in a single portable file. One descriptor captures an
