@@ -44,7 +44,7 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 | `title` | REQUIRED | string, 1-200 chars | Display name. |
 | `description` | REQUIRED | string, 1-2000 chars | Bounded AKB abstract. |
 | `subject_type` | optional | non-empty string | Open subject classification. |
-| `tags` | optional | array, max 32 items; each `[a-z0-9-]`, max 40 chars | Discovery and filtering labels. |
+| `tags` | optional | array, max 32 unique items; each `[a-z0-9-]`, max 40 chars | Discovery and filtering labels. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Primary language of AKB content. Sections MAY override. |
 | `guide_uri` | optional | URI reference | Maintainer guide, conventionally `AKB.md`. |
 | `revision` | optional | string | Infra-minted revision marker, normally present on served descriptors. |
@@ -97,8 +97,8 @@ The Section is the atomic unit of browse, pull, and grounding. The tree is expre
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the decoded content bytes. |
 | `content_length` | optional | integer, minimum 0 | Decoded content byte count: the same bytes `content_hash` covers. This is an advisory, untrusted size hint for pull budgeting, not a token estimate. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Per-section language override. |
-| `source_ids` | conditionally REQUIRED | array of source ids, each `[a-z0-9_-]`, ≤64 chars | Every section with `content_uri` MUST cite at least one `source_ids` entry. |
-| `provenance` | optional | array of Claim objects | Inline claim-level provenance. |
+| `source_ids` | conditionally REQUIRED | array of unique source ids, each `[a-z0-9_-]`, ≤64 chars | Every section with `content_uri` MUST cite at least one `source_ids` entry. |
+| `provenance` | optional | array, 1-256 Claim objects | Inline claim-level provenance. |
 | `provenance_uri` | optional | URI reference | Per-section provenance sidecar. |
 | `provenance_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the sidecar bytes. |
 | `links` | optional | array, max 256 Link objects | Typed cross-references. |
@@ -135,9 +135,9 @@ The inline citation grammar is normative:
 
 The extraction output contract is normative. A conformant extractor reports an ordered list of citation entries, one entry per recognized marker, in document order. Each entry carries the marker's source `id` list in written order. Duplicate ids within one marker are preserved as written; a validator MAY warn on them. Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are provenance-equivalent to a combined list, but that equivalence is a statement about provenance semantics only — it is not a normalization license, and extraction MUST still report one entry per marker.
 
-Inline claim-level provenance uses the Section `provenance` array. Each Claim object has required `text` and `source_ids`; `source_ids` MUST contain at least one source id using the `[a-z0-9_-]`, ≤64 char local ID grammar. A Claim MAY include `locator` with `quote`, `page`, or `anchor`, and MAY carry its own `x` extension object, as MAY the `locator`. `page` is an integer greater than or equal to 0. Inline `provenance` is capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets.
+Inline claim-level provenance uses the Section `provenance` array. Each Claim object has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique, and each id uses the `[a-z0-9_-]`, ≤64 char local ID grammar. A Claim MAY include `locator` with `quote`, `page`, or `anchor`, and MAY carry its own `x` extension object, as MAY the `locator`. `page` is an integer greater than or equal to 0. Inline `provenance` is capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets.
 
-The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` and claim `source_ids` use the `[a-z0-9_-]`, ≤64 char local ID grammar. Its shape is:
+The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` and claim `source_ids` use the `[a-z0-9_-]`, ≤64 char local ID grammar; each sidecar claim's `source_ids` likewise contains at least one entry, and its entries are unique. Its shape is:
 
 ```json
 {
@@ -251,7 +251,7 @@ Structural validation runs offline on the descriptor and, when present, sidecar 
 
 The following structural rules are normative:
 
-- Required top-level, Source, and Section fields MUST be present.
+- Schema-required fields MUST be present at every level: top-level, Source, Section, Link, and Claim.
 - Source and Section `id`s MUST be unique across one shared id space.
 - Top-level `id`, `namespace`, Source and Section `id`, and all local ID references using the local ID grammar MUST match `[a-z0-9_-]` and be ≤64 chars. This includes `parent_id`, Section `source_ids`, Source `discovered_via_id`, sidecar `section_id`, sidecar claim `source_ids`, inline `[cite:]` ids, and local link `section_id`.
 - Every section MUST have `content_uri` or at least one child.
@@ -297,7 +297,7 @@ Error-code catalog:
 | `AKB006` | `unknown-core-property` | (**`--strict` only**) member outside the known core set and not under `x`; valid under the lenient default. |
 | `AKB007` | `unresolved-reference` | A `parent_id`, `source_ids` entry, `discovered_via_id`, inline `[cite:]` id, or local link `section_id` names an id that does not exist in the AKB. |
 | `AKB008` | `unknown-rel` | `rel` in the controlled vocab or a reverse-DNS `prefix:suffix` escape. |
-| `AKB009` | `missing-required-field` | Every required top-level/source/section field present. |
+| `AKB009` | `missing-required-field` | Every schema-required field present, at every level: top-level, source, section, link, and claim. |
 | `AKB010` | `invalid-reference-kind` | A reference resolves to an entity of the **wrong kind** (`source_ids`/`[cite:]`/`discovered_via_id` → a section; `parent_id`/local link → a source). |
 | `AKB011` | `malformed-value` | Charset (`[a-z0-9_-]`), format (RFC 3339 UTC / RFC 3986), and type constraints hold. |
 | `AKB012` | `link-missing-target` | Every link carries `section_id`, `akb_uri`, or both. |
@@ -312,7 +312,7 @@ When validation is performed with the published JSON Schema, keyword violations 
 | `required` | `AKB009` |
 | the Link target rule (the link-level `anyOf` requiring `section_id` or `akb_uri`) | `AKB012` |
 | `rel`'s `anyOf` (controlled value or reverse-DNS escape), including its branch errors | `AKB008` |
-| `pattern`, `format`, `type`, `minimum`, `minLength`, `minItems`, `uniqueItems`, `enum` (elsewhere) | `AKB011` |
+| `pattern`, `format`, `type`, `minimum`, `minLength`, `minItems`, `uniqueItems`, `propertyNames`, `enum` (elsewhere) | `AKB011` |
 
 Conformance-fixture match semantics are also normative: a validator passes an invalid fixture if and only if it emits every code listed in the fixture's `codes` array. Extra codes are permitted only when they report distinct additional violations; duplicate emissions of a code are ignored.
 

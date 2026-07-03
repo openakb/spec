@@ -15,8 +15,10 @@ found=0
 if git grep -nwEi 'LlamaIndex|LangChain|LangGraph|OpenAI|ChatGPT|Anthropic|Gemini|Copilot' -- ":!$self"; then found=1; fi
 # Vector stores, search engines, and data platforms:
 if git grep -nwEi 'Pinecone|Weaviate|Qdrant|Elasticsearch|OpenSearch|Databricks|Snowflake|Salesforce' -- ":!$self"; then found=1; fi
+# Collaboration and tracking tools whose names are not English words:
+if git grep -nwEi 'Jira' -- ":!$self"; then found=1; fi
 # Names that collide with common English words are matched case-sensitively:
-if git grep -nwE 'Notion|Confluence|Jira|Slack|Chroma' -- ":!$self"; then found=1; fi
+if git grep -nwE 'Notion|Confluence|Slack|Chroma' -- ":!$self"; then found=1; fi
 # The first-implementer name is carved out for GOVERNANCE.md only:
 if git grep -nEi 'Nurok' -- ":!GOVERNANCE.md" ":!$self"; then found=1; fi
 

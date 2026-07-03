@@ -20,8 +20,9 @@ trapped in one vendor's storage or serving model.
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
 examples, and conformance suite have landed; reference validators are forthcoming.
-Today's tooling checks JSON-Schema conformance only; the structural rules (`AKB001`
-and up) are enforced by the Phase 3 reference validator.
+Today's tooling checks JSON-Schema conformance, which covers the schema-catchable
+codes; the semantic structural rules (`AKB001`–`AKB004`, `AKB007`, `AKB010`) are
+enforced by the Phase-3 reference validator.
 See [CHANGELOG.md](CHANGELOG.md) for what has landed.
 
 ## Specification
