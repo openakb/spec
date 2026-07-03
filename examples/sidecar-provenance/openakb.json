@@ -6,8 +6,23 @@
   "description": "A sample AKB whose section carries a claim-level provenance sidecar.",
   "subject_type": "topic",
   "language": "en",
-  "sources": [{ "id": "api-reference", "type": "url", "uri": "https://docs.example.com/widget-api/", "captured_at": "2026-06-30T00:00:00Z" }],
+  "sources": [
+    {
+      "id": "api-reference",
+      "type": "url",
+      "uri": "https://docs.example.com/widget-api/",
+      "captured_at": "2026-06-30T00:00:00Z"
+    }
+  ],
   "sections": [
-    { "id": "api", "title": "API", "description": "The public request/response contract, with per-claim provenance.", "content_uri": "sections/api.md", "content_type": "text/markdown", "source_ids": ["api-reference"], "provenance_uri": "sections/api.prov.json" }
+    {
+      "id": "api",
+      "title": "API",
+      "description": "The public request/response contract, with per-claim provenance.",
+      "content_uri": "sections/api.md",
+      "content_type": "text/markdown",
+      "source_ids": ["api-reference"],
+      "provenance_uri": "sections/api.prov.json"
+    }
   ]
 }

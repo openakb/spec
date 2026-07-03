@@ -2,7 +2,18 @@
   "$schema": "https://schema.openakb.org/v1/provenance.schema.json",
   "section_id": "configuration",
   "claims": [
-    { "text": "Each widget reads its settings from a layered configuration.", "source_ids": ["product-docs"], "locator": { "anchor": "layering", "quote": "settings are read from a layered configuration" } },
-    { "text": "Environment overrides take precedence over platform defaults.", "source_ids": ["product-docs"], "locator": { "page": 12 } }
+    {
+      "text": "Each widget reads its settings from a layered configuration.",
+      "source_ids": ["product-docs"],
+      "locator": {
+        "anchor": "layering",
+        "quote": "settings are read from a layered configuration"
+      }
+    },
+    {
+      "text": "Environment overrides take precedence over platform defaults.",
+      "source_ids": ["product-docs"],
+      "locator": { "page": 12 }
+    }
   ]
 }

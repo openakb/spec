@@ -4,7 +4,7 @@
 | ----- | ----- |
 | AKEP | 0001 |
 | Title | Genesis — establishes OpenAKB v1.0 |
-| Author | Jian Fang <fj@openakb.org> |
+| Author | Frank Fang <fj@openakb.org> |
 | Status | Draft |
 | Type | Standards |
 | Created | 2026-07-02 |
