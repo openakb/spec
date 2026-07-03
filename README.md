@@ -28,13 +28,15 @@ See [CHANGELOG.md](CHANGELOG.md) for what has landed.
 ## Specification
 
 - **Normative spec** — [specs/v1/spec.md](specs/v1/spec.md)
-- **JSON Schema** — [schema/v1/openakb.schema.json](schema/v1/openakb.schema.json),
-  [provenance.schema.json](schema/v1/provenance.schema.json)
-- **Worked examples** — [examples/](examples/): [minimal](examples/minimal/),
-  [widget-platform](examples/widget-platform/) (authoring) and
-  [widget-platform-served](examples/widget-platform-served/) (served form),
-  [cross-link](examples/cross-link/),
-  [sidecar-provenance](examples/sidecar-provenance/)
+- **JSON Schema** — [schema/v1/](schema/v1/)
+  - [openakb.schema.json](schema/v1/openakb.schema.json) — the descriptor schema
+  - [provenance.schema.json](schema/v1/provenance.schema.json) — the provenance sidecar schema
+- **Worked examples** — [examples/](examples/)
+  - [minimal](examples/minimal/) — the smallest valid descriptor
+  - [widget-platform](examples/widget-platform/) — authoring form
+  - [widget-platform-served](examples/widget-platform-served/) — served (canonical) form
+  - [cross-link](examples/cross-link/) — cross-AKB links
+  - [sidecar-provenance](examples/sidecar-provenance/) — claim-level provenance sidecar
 - **Conformance** — [conformance/](conformance/README.md)
 - **Genesis proposal** — [AKEP-0001](proposals/akep-0001-genesis.md)
 
