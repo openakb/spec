@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["$schema", "id", "title", "description", "sources", "sections"],
   "properties": {
-    "$schema": { "type": "string", "format": "uri", "pattern": "^https://schema\\.openakb\\.org/v1(\\.\\d+\\.\\d+)?/openakb\\.schema\\.json$" },
+    "$schema": { "type": "string", "format": "uri", "pattern": "^https://schema\\.openakb\\.org/v1(\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*))?/openakb\\.schema\\.json$" },
     "id": { "$ref": "#/$defs/localId" },
     "namespace": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },

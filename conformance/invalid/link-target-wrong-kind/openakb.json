@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-link-target-wrong-kind",
+  "title": "Invalid — local link target is a source",
+  "description": "A local link section_id resolves to a source id instead of a section id.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "Links, by section_id, to a source id rather than a section.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"],
+      "links": [{ "rel": "see-also", "section_id": "s1" }]
+    }
+  ]
+}

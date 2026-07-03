@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["section_id", "claims"],
   "properties": {
-    "$schema": { "type": "string", "format": "uri", "pattern": "^https://schema\\.openakb\\.org/v1(\\.\\d+\\.\\d+)?/provenance\\.schema\\.json$" },
+    "$schema": { "type": "string", "format": "uri", "pattern": "^https://schema\\.openakb\\.org/v1(\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*))?/provenance\\.schema\\.json$" },
     "section_id": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
     "claims": {
       "type": "array",
