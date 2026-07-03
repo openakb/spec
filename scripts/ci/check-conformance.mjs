@@ -19,12 +19,13 @@ const CATALOG = new Set([
   'AKB011',
   'AKB012',
 ]);
-const SCHEMA_CATCHABLE_CODES = new Set(['AKB005', 'AKB008', 'AKB009', 'AKB011', 'AKB012']);
+const SCHEMA_CATCHABLE_CODES = new Set(['AKB003', 'AKB005', 'AKB008', 'AKB009', 'AKB011', 'AKB012']);
 const LOCAL_ID_PATTERN = /^[a-z0-9_-]{1,64}$/u;
 
-// Normative JSON-Schema-keyword → error-code mapping (spec §7). Special cases first:
-// the link-level anyOf (target rule) maps to AKB012 including its branch errors, and any
-// violation on `rel` (its anyOf and branch errors) maps to AKB008.
+// Normative JSON-Schema-keyword → error-code mapping (spec §7). Structural special cases are
+// resolved first (see mapErrorToCode): the link-level anyOf (target rule) → AKB012, the
+// section-level if/then (content-cite rule) → AKB003, and `rel`'s controlled-vocab anyOf →
+// AKB008. This table is the fallback for every other keyword.
 const KEYWORD_CODES = new Map([
   ['maxLength', 'AKB005'],
   ['maxItems', 'AKB005'],
@@ -44,13 +45,20 @@ const KEYWORD_CODES = new Map([
 const LINK_INSTANCE_PATTERN = /\/links\/\d+$/u;
 
 function mapErrorToCode(error) {
-  // Ajv reports schemaPath relative to the $ref-resolved link def, so the target-rule anyOf
+  // Ajv reports schemaPath relative to the $ref-resolved def. The link-level target-rule anyOf
   // (and its branch errors) is recognized as: at a link object, under an anyOf schemaPath.
   if (LINK_INSTANCE_PATTERN.test(error.instancePath) && error.schemaPath.includes('/anyOf')) {
     return 'AKB012';
   }
+  // The section content-cite rule is the only if/then in the schema; its `then` branch errors
+  // (required source_ids / minItems) are AKB003, not the generic AKB009/AKB011 those keywords map to.
+  if (error.schemaPath.includes('/then/')) {
+    return 'AKB003';
+  }
+  // On `rel`, only the controlled-vocab/reverse-DNS anyOf (and its enum/pattern branch errors)
+  // is AKB008; a wrong JSON type is a malformed value (AKB011) per spec §7.
   if (error.instancePath.endsWith('/rel')) {
-    return 'AKB008';
+    return error.keyword === 'type' ? 'AKB011' : 'AKB008';
   }
   return KEYWORD_CODES.get(error.keyword);
 }

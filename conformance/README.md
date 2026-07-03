@@ -55,9 +55,9 @@ bracketed text that does not match the grammar is literal text, never an error.
 Phase 2 executes positive descriptor validation for `valid/` and `forward-compat/`, negative
 schema assertions for `invalid/` fixtures whose declared codes are schema-catchable (including
 the keyword→code mapping check from spec §7), and the manifest lint that checks fixture shape
-and rule coverage. Execution of the semantic structural checks (`AKB001`–`AKB004`, `AKB007`,
-`AKB010`) and `content/` citation parsing lands with the Phase 3 reference validator; until
-then, those fixtures are guarded by manifest lint.
+and rule coverage. Execution of the cross-document semantic checks (`AKB001`, `AKB002`,
+`AKB004`, `AKB007`, `AKB010`) and `content/` citation parsing lands with the Phase 3 reference
+validator; until then, those fixtures are guarded by manifest lint.
 
 ## Rule traceability
 

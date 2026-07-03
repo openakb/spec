@@ -314,9 +314,10 @@ When validation is performed with the published JSON Schema, keyword violations 
 | JSON Schema keyword | Code |
 | --- | --- |
 | `maxLength`, `maxItems` (and the non-schema depth cap) | `AKB005` |
-| `required` | `AKB009` |
+| the section content-cite rule (the section-level `if`/`then` requiring a non-empty `source_ids` when `content_uri` is present), including its `required` and `minItems` branch errors | `AKB003` |
 | the Link target rule (the link-level `anyOf` requiring `section_id` or `akb_uri`) | `AKB012` |
 | `rel`'s `anyOf` (controlled value or reverse-DNS escape), including its branch errors | `AKB008` |
+| `required` (elsewhere) | `AKB009` |
 | `pattern`, `format`, `type`, `minimum`, `minLength`, `minItems`, `uniqueItems`, `propertyNames`, `enum` (elsewhere) | `AKB011` |
 
 Conformance-fixture match semantics are also normative: a validator passes an invalid fixture if and only if it emits every code listed in the fixture's `codes` array. Extra codes are permitted only when they report distinct additional violations; duplicate emissions of a code are ignored.
