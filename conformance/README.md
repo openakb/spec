@@ -69,9 +69,9 @@ then, those fixtures are guarded by manifest lint.
 | `AKB004` | The `parent_id` graph is acyclic. | `invalid/parent-cycle` |
 | `AKB005` | Length and cardinality caps are respected. | `invalid/oversized-title` |
 | `AKB006` | Strict mode rejects unknown core properties outside `x`. | `forward-compat/unknown-core-field` |
-| `AKB007` | References resolve to declared IDs. | `invalid/unresolved-parent`, `invalid/unresolved-source-ref` |
+| `AKB007` | References resolve to declared IDs. | `invalid/unresolved-parent`, `invalid/unresolved-source-ref`, `invalid/unresolved-discovered-via` |
 | `AKB008` | Link `rel` values are controlled or reverse-DNS namespaced. | `invalid/unknown-rel` |
 | `AKB009` | Required top-level, source, and section fields are present. | `invalid/missing-required-field` |
-| `AKB010` | References resolve to the expected entity kind. | `invalid/wrong-reference-kind`, `invalid/parent-is-source` |
+| `AKB010` | References resolve to the expected entity kind. | `invalid/wrong-reference-kind`, `invalid/parent-is-source`, `invalid/discovered-via-wrong-kind` |
 | `AKB011` | Charset, format, and type constraints hold. | `invalid/malformed-id`, `invalid/malformed-timestamp` |
 | `AKB012` | Every link carries `section_id`, `akb_uri`, or both. | `invalid/link-without-target` |

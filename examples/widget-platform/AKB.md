@@ -12,5 +12,8 @@ This guide is for maintainers of this example knowledge base. It complements the
 
 - One source of record (`product-docs`); cite it inline with `[cite: product-docs]` wherever a
   claim is grounded in it.
+- The product blog is monitored as a `type: "feed"` listing source (`blog-index`). Each post
+  worth grounding a section in becomes its own source carrying
+  `discovered_via_id: "blog-index"`; sections cite the post, never the index.
 - Add a new section as a child of the most specific existing section, and give every content
   section at least one `source_ids` entry.

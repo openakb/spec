@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-discovered-via-wrong-kind",
+  "title": "Invalid — discovered_via_id names a section",
+  "description": "A source discovered_via_id resolves to a section, the wrong entity kind.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/",
+      "discovered_via_id": "root"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "The discovery edge points at this declared id, but it is a section.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

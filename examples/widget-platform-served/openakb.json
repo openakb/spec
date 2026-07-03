@@ -11,10 +11,12 @@
   "base_uri": "https://kb.example.org/widget-platform/",
   "revision": "2026-06-28T12-00-00Z-a1b2c3d4",
   "sources": [
-    { "id": "product-docs", "type": "url", "uri": "https://docs.example.com/widget-platform/", "captured_at": "2026-06-28T00:00:00Z", "refresh_class": "polled", "cadence": "weekly" }
+    { "id": "product-docs", "type": "url", "uri": "https://docs.example.com/widget-platform/", "captured_at": "2026-06-28T00:00:00Z", "refresh_class": "polled", "cadence": "weekly" },
+    { "id": "blog-index", "type": "feed", "uri": "https://www.example.com/blog/", "title": "Product blog index", "refresh_class": "polled", "cadence": "weekly" },
+    { "id": "blog-widgets-launch", "type": "url", "uri": "https://www.example.com/blog/widgets-launch", "title": "Widgets launch announcement", "captured_at": "2026-06-27T00:00:00Z", "discovered_via_id": "blog-index" }
   ],
   "sections": [
-    { "id": "overview", "title": "Overview", "description": "What the Widget Platform is and its core model.", "content_uri": "https://kb.example.org/widget-platform/sections/overview.md", "content_hash": "sha256-tFynLbU1EGH6hMnjpW4fYVi5/LqbsY8tRCO0OfMVJhQ=", "content_length": 186, "refreshed_at": "2026-06-28T00:00:00Z", "source_ids": ["product-docs"] },
+    { "id": "overview", "title": "Overview", "description": "What the Widget Platform is and its core model.", "content_uri": "https://kb.example.org/widget-platform/sections/overview.md", "content_hash": "sha256-tFynLbU1EGH6hMnjpW4fYVi5/LqbsY8tRCO0OfMVJhQ=", "content_length": 186, "refreshed_at": "2026-06-28T00:00:00Z", "source_ids": ["product-docs", "blog-widgets-launch"] },
     { "id": "configuration", "parent_id": "overview", "title": "Configuration", "description": "How widgets are configured and how defaults resolve.", "purpose": "Explain configuration keys, defaults, and precedence.", "content_uri": "https://kb.example.org/widget-platform/sections/configuration.md", "content_type": "text/markdown", "content_hash": "sha256-5j6gQ/um7XOsvLy++OxHoxCgKs/jmmbi8/ezbl2rbY4=", "content_length": 182, "refreshed_at": "2026-06-28T00:00:00Z", "source_ids": ["product-docs"], "provenance_uri": "https://kb.example.org/widget-platform/sections/configuration.prov.json", "provenance_hash": "sha256-d39agkTQfu5NDGxPM5MxuDv+2oakVEjrOepnzqKErR8=",
       "links": [
         { "rel": "depends-on", "section_id": "overview" },

@@ -44,6 +44,7 @@
         "captured_at": { "$ref": "#/$defs/timestamp" },
         "refresh_class": { "type": "string", "minLength": 1 },
         "cadence": { "type": "string", "minLength": 1 },
+        "discovered_via_id": { "$ref": "#/$defs/localId" },
         "x": { "$ref": "#/$defs/extensions" }
       }
     },

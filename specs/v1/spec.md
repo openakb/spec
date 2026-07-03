@@ -14,6 +14,7 @@ OpenAKB standardizes the declarative description of an agentic knowledge base (A
 | --- | --- | --- |
 | Provenance | The binding: section to `source_ids`; source to `captured_at`. | Capturing or snapshotting sources, generating the binding, re-serving raw bytes. |
 | Freshness | Thin descriptive hints: `refresh_class`, `cadence`, and a last-edit `refreshed_at`. | The refresh loop, change detection, health polling, and honoring cadence. |
+| Discovery | The `discovered_via_id` edge from a discovered source to the listing source that surfaced it. | Monitoring feeds, detecting new entries, minting the new source. |
 | Verification | Per-section `purpose` and the structural rules a validator asserts. | Running judges or refetch validation. |
 | Addressing | The `namespace/id` grammar and URI references. | Resolving names, registry authority, and mirroring. |
 | Revisions | The `revision` marker as declarative desired state. | Copy-on-write builds, diffing, changelogs, and live-head flips. |
@@ -71,11 +72,14 @@ A Source is raw provenance material a section can be grounded in. Sources are no
 | `captured_at` | optional | RFC 3339 UTC timestamp | When the source snapshot was captured. |
 | `refresh_class` | optional | non-empty string | Freshness policy hint, such as `static`, `polled`, `event`, or `streaming`; descriptive only. |
 | `cadence` | optional | non-empty string | Expected refresh interval hint, meaningful only by convention. |
+| `discovered_via_id` | optional | source `id`, `[a-z0-9_-]`, ≤64 chars | The listing source via which this source was discovered. MUST resolve to a Source in this descriptor. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
 
 Freshness policy hints live on the Source object. There is no top-level freshness map in v1.
 
 First-party knowledge whose first written form is the AKB itself — runbooks, postmortems, tribal knowledge with no earlier document to point at — is RECOMMENDED to be represented as a source with `type: "firsthand"`. For a firsthand source, `uri` points at the accountable origin of the knowledge, such as a team or owner URI (illustrative material uses an `example.com` / `example.org` URI). The source object is then the citable record of who stands behind the content; `captured_at` MAY record when the knowledge was first written down.
+
+Some sources are listing or feed pages — for example `https://www.example.com/blog/` — that surface new material over time. A listing page is itself a source and is RECOMMENDED to use `type: "feed"`; it is the natural home for the `refresh_class` and `cadence` hints. Each discovered item is its own Source with its own `uri` and `captured_at`, carrying `discovered_via_id` naming the listing source that surfaced it. Sections cite the discovered item, not the listing; an uncited listing source is valid. The discovery graph SHOULD be acyclic; validators MAY warn on cycles, and no error code is defined for them. Monitoring the feed is infrastructure's mechanism; the `discovered_via_id` edge is the declarative record it leaves.
 
 ### §4.3 Section fields
 
@@ -225,7 +229,7 @@ Authoring form vs served form:
 | source `uri` (`type: url`) | absolute | unchanged (never rewritten) | — |
 | source `uri` (`type: file`) | relative | absolute, self-contained | provider |
 
-Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `subject_type`, `tags`, `language`, `refresh_class`, `cadence`) is author-supplied and carried verbatim. A validator running on the authoring form MUST treat every serve-only field as optional.
+Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `subject_type`, `tags`, `language`, `refresh_class`, `cadence`, `discovered_via_id`) is author-supplied — `discovered_via_id` is set by the maintainer or infrastructure at discovery time — and carried verbatim. A validator running on the authoring form MUST treat every serve-only field as optional.
 
 The directory [examples/widget-platform-served/](../../examples/widget-platform-served/) illustrates served form.
 
@@ -249,7 +253,7 @@ The following structural rules are normative:
 
 - Required top-level, Source, and Section fields MUST be present.
 - Source and Section `id`s MUST be unique across one shared id space.
-- Top-level `id`, `namespace`, Source and Section `id`, and all local ID references using the local ID grammar MUST match `[a-z0-9_-]` and be ≤64 chars. This includes `parent_id`, Section `source_ids`, sidecar `section_id`, sidecar claim `source_ids`, inline `[cite:]` ids, and local link `section_id`.
+- Top-level `id`, `namespace`, Source and Section `id`, and all local ID references using the local ID grammar MUST match `[a-z0-9_-]` and be ≤64 chars. This includes `parent_id`, Section `source_ids`, Source `discovered_via_id`, sidecar `section_id`, sidecar claim `source_ids`, inline `[cite:]` ids, and local link `section_id`.
 - Every section MUST have `content_uri` or at least one child.
 - Every section with `content_uri` MUST cite at least one `source_ids` entry.
 - The `parent_id` graph MUST be acyclic.
@@ -291,10 +295,10 @@ Error-code catalog:
 | `AKB004` | `parent-cycle` | The `parent_id` graph is acyclic. |
 | `AKB005` | `cap-exceeded` | Every length and cardinality/depth cap respected. |
 | `AKB006` | `unknown-core-property` | (**`--strict` only**) member outside the known core set and not under `x`; valid under the lenient default. |
-| `AKB007` | `unresolved-reference` | A `parent_id`, `source_ids` entry, inline `[cite:]` id, or local link `section_id` names an id that does not exist in the AKB. |
+| `AKB007` | `unresolved-reference` | A `parent_id`, `source_ids` entry, `discovered_via_id`, inline `[cite:]` id, or local link `section_id` names an id that does not exist in the AKB. |
 | `AKB008` | `unknown-rel` | `rel` in the controlled vocab or a reverse-DNS `prefix:suffix` escape. |
 | `AKB009` | `missing-required-field` | Every required top-level/source/section field present. |
-| `AKB010` | `invalid-reference-kind` | A reference resolves to an entity of the **wrong kind** (`source_ids`/`[cite:]` → a section; `parent_id`/local link → a source). |
+| `AKB010` | `invalid-reference-kind` | A reference resolves to an entity of the **wrong kind** (`source_ids`/`[cite:]`/`discovered_via_id` → a section; `parent_id`/local link → a source). |
 | `AKB011` | `malformed-value` | Charset (`[a-z0-9_-]`), format (RFC 3339 UTC / RFC 3986), and type constraints hold. |
 | `AKB012` | `link-missing-target` | Every link carries `section_id`, `akb_uri`, or both. |
 

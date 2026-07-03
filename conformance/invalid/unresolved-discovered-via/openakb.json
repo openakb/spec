@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-unresolved-discovered-via",
+  "title": "Invalid — unresolved discovered_via_id",
+  "description": "A source discovered_via_id names no declared id at all.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/",
+      "discovered_via_id": "ghost"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "Structurally sound; the only defect is the dangling discovery edge.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}
