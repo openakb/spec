@@ -29,6 +29,11 @@ at v1.0.0.
   re-servable), closing the chain from snapshot to verifiable `locator.quote` spans
   (spec §2, §4.2, §4.4, §5, §7), with schema coverage and a raw capture file in the
   widget-platform example stamped with its real hash in both authoring and served form.
+- Normative "unverifiable is not invalid" rule for `--check-content` (spec §7): content
+  checks yield verified / failed / unverifiable; an unresolvable or unfetchable URI is
+  reported as unverifiable, never as a structural failure, and a conformance verdict never
+  changes because of access. §8 notes that URIs skipped by a scheme allowlist are likewise
+  unverifiable, not failures.
 
 ### Changed
 

@@ -323,11 +323,13 @@ Conformance-fixture match semantics are also normative: a validator passes an in
 
 Deeper checks that require fetching content are opt-in under `--check-content`. Under `--check-content`, inline `[cite:]` resolution failures emit `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes. When a source carries `capture_uri`, the fetched capture can be verified against the source `content_hash`, and claim `locator.quote` values can be checked as substrings of the capture (§4.2). Validators and consumers MUST support `sha256` (§4.3); an unknown hash algorithm is an unverifiable warning, not an invalid descriptor.
 
+Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure: a hash mismatch, or a `[cite:]` id in fetched content that resolves to nothing. This completes a pattern already in the spec: cross-AKB links are best-effort rather than offline structural failures (§4.5), and an unknown hash algorithm is an unverifiable warning rather than an invalid descriptor.
+
 ## §8 Security considerations (non-normative)
 
 All AKB content is untrusted input until verified, including first-party section content and content reached through links. Descriptors and resolved payloads may be read by agents, so prompt-injection and data-exfiltration risks apply.
 
-Resolvers and validators are advised to use URI scheme allowlists per field. For example, automated fetchers can restrict remote content to `https`, and allow `file` or relative references only in a local working copy. Unexpected schemes such as `data:`, `javascript:`, and `blob:` should not be auto-fetched.
+Resolvers and validators are advised to use URI scheme allowlists per field. For example, automated fetchers can restrict remote content to `https`, and allow `file` or relative references only in a local working copy. Unexpected schemes such as `data:`, `javascript:`, and `blob:` should not be auto-fetched. A URI skipped by a scheme allowlist is reported as unverifiable, not as a failure (§7).
 
 URI resolution can create SSRF and local-file traversal risks. Fetching should be sandboxed and egress-restricted where possible.
 
