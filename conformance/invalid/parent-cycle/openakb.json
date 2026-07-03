@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-parent-cycle",
+  "title": "Invalid — parent cycle",
+  "description": "Two sections whose parent_id pointers form a cycle.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "a",
+      "parent_id": "b",
+      "title": "A",
+      "description": "Points at B.",
+      "content_uri": "a.md",
+      "source_ids": ["s1"]
+    },
+    {
+      "id": "b",
+      "parent_id": "a",
+      "title": "B",
+      "description": "Points at A.",
+      "content_uri": "b.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

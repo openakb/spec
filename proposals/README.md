@@ -36,8 +36,7 @@ code"). Additive changes are a MINOR release; breaking changes are batched into 
 
 | AKEP | Title | Status |
 | ---- | ----- | ------ |
-| 0001 | Genesis — establishes v1.0 | Planned |
+| [0001](akep-0001-genesis.md) | Genesis — establishes OpenAKB v1.0 | Draft |
 
-*(Status `Planned` = reserved but not yet drafted — a pre-lifecycle state, distinct from the
-`Draft → … → Final` states above. AKEP-0001 is authored in a later phase alongside the normative
-spec, schema, examples, and conformance suite.)*
+*(AKEP-0001 advances through Draft → Review → Accepted → Final as the reference validator
+lands; Final stays gated on the validator passing conformance execution.)*

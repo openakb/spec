@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "minimal-akb",
+  "title": "Minimal AKB",
+  "description": "The smallest valid OpenAKB descriptor: one content section grounded in one source.",
+  "sources": [
+    {
+      "id": "primary-source",
+      "type": "url",
+      "uri": "https://docs.example.com/minimal/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "description": "A single content section with the required source citation.",
+      "content_uri": "sections/overview.md",
+      "source_ids": ["primary-source"]
+    }
+  ]
+}

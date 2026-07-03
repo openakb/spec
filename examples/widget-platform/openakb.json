@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "namespace": "example",
+  "id": "widget-platform",
+  "title": "Widget Platform",
+  "description": "A sample knowledge base describing a fictional product, used to illustrate the OpenAKB format.",
+  "subject_type": "product",
+  "tags": ["sample", "documentation"],
+  "language": "en",
+  "guide_uri": "AKB.md",
+  "sources": [
+    {
+      "id": "product-docs",
+      "type": "url",
+      "uri": "https://docs.example.com/widget-platform/",
+      "captured_at": "2026-06-28T00:00:00Z",
+      "refresh_class": "polled",
+      "cadence": "weekly"
+    },
+    {
+      "id": "blog-index",
+      "type": "feed",
+      "uri": "https://www.example.com/blog/",
+      "title": "Product blog index",
+      "refresh_class": "polled",
+      "cadence": "weekly"
+    },
+    {
+      "id": "blog-widgets-launch",
+      "type": "url",
+      "uri": "https://www.example.com/blog/widgets-launch",
+      "title": "Widgets launch announcement",
+      "captured_at": "2026-06-27T00:00:00Z",
+      "content_hash": "sha256-yzPCGNBXoCbfiZ13AdgO7cF+z15Jw/b4udfu81pt68Q=",
+      "capture_uri": "captures/blog-widgets-launch.html",
+      "discovered_via_id": "blog-index"
+    }
+  ],
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "description": "What the Widget Platform is and its core model.",
+      "content_uri": "sections/overview.md",
+      "source_ids": ["product-docs", "blog-widgets-launch"]
+    },
+    {
+      "id": "configuration",
+      "parent_id": "overview",
+      "title": "Configuration",
+      "description": "How widgets are configured and how defaults resolve.",
+      "purpose": "Explain configuration keys, defaults, and precedence.",
+      "content_uri": "sections/configuration.md",
+      "content_type": "text/markdown",
+      "source_ids": ["product-docs"],
+      "provenance_uri": "sections/configuration.prov.json",
+      "links": [
+        { "rel": "depends-on", "section_id": "overview" },
+        {
+          "rel": "see-also",
+          "akb_uri": "https://kb.example.org/widget-cli.openakb.json",
+          "section_id": "commands",
+          "description": "Reference detail on the companion CLI's commands."
+        }
+      ]
+    }
+  ]
+}

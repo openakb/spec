@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-link-without-target",
+  "title": "Invalid — link without target",
+  "description": "A link carries neither section_id nor akb_uri.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "The link below names no target at all.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"],
+      "links": [
+        {
+          "rel": "see-also",
+          "description": "No section_id and no akb_uri."
+        }
+      ]
+    }
+  ]
+}

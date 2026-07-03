@@ -3,8 +3,8 @@
 # Skip paths that are not part of the published repo or are vendored.
 exclude_path = ["docs/superpowers", ".worktrees", ".git", "node_modules"]
 
-# Domains registered but not yet serving (see design §14 provisioning).
-# Remove each pattern once the endpoint is live.
+# Domains registered but not yet serving; provisioning is tracked as a prerequisite in
+# ADR-0002 (publishing & versioning). Remove each pattern once the endpoint is live.
 exclude = [
   "^https://openakb\\.org",
   "^https://.*\\.openakb\\.org",

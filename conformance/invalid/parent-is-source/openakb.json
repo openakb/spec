@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-parent-is-source",
+  "title": "Invalid — parent is a source",
+  "description": "A section parent_id resolves to a source, the wrong entity kind.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "parent_id": "s1",
+      "title": "Root",
+      "description": "The parent pointer names a declared id, but it is a source.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-malformed-timestamp",
+  "title": "Invalid — malformed timestamp",
+  "description": "A captured_at uses a space separator instead of the RFC 3339 uppercase T.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/",
+      "captured_at": "2026-06-28 00:00:00Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "The source timestamp is not in the normative UTC profile.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

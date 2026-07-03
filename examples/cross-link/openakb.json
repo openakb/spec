@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "namespace": "example",
+  "id": "widget-integrations",
+  "title": "Widget Integrations",
+  "description": "A sample AKB illustrating cross-AKB links: one pinned to a fixed revision, one floating to the target's live head.",
+  "subject_type": "topic",
+  "language": "en",
+  "sources": [
+    {
+      "id": "integration-notes",
+      "type": "file",
+      "uri": "sources/integration-notes.txt"
+    }
+  ],
+  "sections": [
+    {
+      "id": "integration",
+      "title": "Integration",
+      "description": "How this AKB references companion knowledge bases.",
+      "content_uri": "sections/integration.md",
+      "source_ids": ["integration-notes"],
+      "links": [
+        {
+          "rel": "related",
+          "section_id": "integration",
+          "description": "Self-reference kept trivial for the example."
+        },
+        {
+          "rel": "prerequisite",
+          "akb_uri": "https://kb.example.org/widget-platform.openakb.json",
+          "revision": "2026-06-28",
+          "section_id": "overview",
+          "content_hash": "sha256-3q2b7Yk9m0kZp1s5w8xR4nA6uC7dE9fG0hI1jK2lM3n=",
+          "description": "Pinned to a fixed revision for a deterministic prerequisite."
+        },
+        {
+          "rel": "see-also",
+          "akb_uri": "https://kb.example.org/widget-cli.openakb.json",
+          "section_id": "commands",
+          "description": "Floating to the companion CLI's live head; may rot, consumers tolerate."
+        }
+      ]
+    }
+  ]
+}

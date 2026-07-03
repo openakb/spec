@@ -1,7 +1,6 @@
 # OpenAKB
 
 [![CI](https://github.com/openakb/spec/actions/workflows/ci.yml/badge.svg)](https://github.com/openakb/spec/actions/workflows/ci.yml)
-[![Codecov](https://codecov.io/gh/openakb/spec/graph/badge.svg?token=ZX9H1PWLR4)](https://codecov.io/gh/openakb/spec)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Docs: CC BY 4.0](https://img.shields.io/badge/Docs-CC_BY_4.0-lightgrey.svg)](LICENSE-DOCS)
 [![Status: draft](https://img.shields.io/badge/spec-v1_draft-orange.svg)](CHANGELOG.md)
@@ -20,9 +19,26 @@ trapped in one vendor's storage or serving model.
 ## Status
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
-examples, conformance suite, and reference validators are being added in phases; this
-repository currently holds the project's governance, licensing, and contribution
-foundations. See [CHANGELOG.md](CHANGELOG.md) for what has landed.
+examples, and conformance suite have landed; reference validators are forthcoming.
+Today's tooling checks JSON-Schema conformance, which covers the schema-catchable
+codes; the cross-document semantic rules (`AKB001`, `AKB002`, `AKB004`, `AKB007`,
+`AKB010`) are enforced by the Phase-3 reference validator.
+See [CHANGELOG.md](CHANGELOG.md) for what has landed.
+
+## Specification
+
+- **Normative spec** — [specs/v1/spec.md](specs/v1/spec.md)
+- **JSON Schema** — [schema/v1/](schema/v1/)
+  - [openakb.schema.json](schema/v1/openakb.schema.json) — the descriptor schema
+  - [provenance.schema.json](schema/v1/provenance.schema.json) — the provenance sidecar schema
+- **Worked examples** — [examples/](examples/)
+  - [minimal](examples/minimal/) — the smallest valid descriptor
+  - [widget-platform](examples/widget-platform/) — authoring form
+  - [widget-platform-served](examples/widget-platform-served/) — served (canonical) form
+  - [cross-link](examples/cross-link/) — cross-AKB links
+  - [sidecar-provenance](examples/sidecar-provenance/) — claim-level provenance sidecar
+- **Conformance** — [conformance/](conformance/README.md)
+- **Genesis proposal** — [AKEP-0001](proposals/akep-0001-genesis.md)
 
 ## Get involved
 

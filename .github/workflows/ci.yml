@@ -28,16 +28,36 @@ jobs:
         with:
           args: "--offline --config lychee.toml ."
           fail: true
+      - name: Check Neutrality
+        run: bash scripts/ci/check-neutrality.sh
       - name: Lint Workflows
         uses: docker://rhysd/actionlint:1.7.12
+
+  schema:
+    name: Schema Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Set Up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install Dependencies
+        run: npm ci
+      - name: Validate Schema
+        run: npm run check:schema
+      - name: Check Conformance Manifest
+        run: npm run check:conformance
 
   # `CI OK` is the single required status check for branch protection — do not rename casually.
   # Every new job added to this workflow MUST also be appended to this job's `needs:` to gate merges.
   ci-ok:
     name: CI OK
-    needs: [docs]
+    needs: [docs, schema]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Verify Jobs
-        run: 'if [ "${{ needs.docs.result }}" != "success" ]; then echo "A required job did not succeed"; exit 1; fi'
+        run: 'if [ "${{ needs.docs.result }}" != "success" ] || [ "${{ needs.schema.result }}" != "success" ]; then echo "A required job did not succeed"; exit 1; fi'

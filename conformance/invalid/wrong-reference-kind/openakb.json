@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-wrong-reference-kind",
+  "title": "Invalid — wrong reference kind",
+  "description": "A section source_ids entry names a section instead of a source.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "This section cites another section as if it were a source.",
+      "content_uri": "root.md",
+      "source_ids": ["child"]
+    },
+    {
+      "id": "child",
+      "title": "Child",
+      "description": "The incorrectly cited section.",
+      "content_uri": "child.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

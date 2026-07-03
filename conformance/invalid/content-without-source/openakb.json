@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-content-without-source",
+  "title": "Invalid — content without source",
+  "description": "A content section omits source_ids.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "Content exists, but no sources are cited.",
+      "content_uri": "root.md"
+    }
+  ]
+}
