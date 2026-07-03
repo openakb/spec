@@ -1,9 +1,10 @@
 {
   "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
-  "id": "valid-single",
-  "title": "Valid — single section",
-  "description": "One root content section with a source; the floor of validity.",
-  "tags": ["fixtures", "single_section"],
+  "id": "malformed-guide-hash",
+  "title": "Invalid — malformed guide_hash",
+  "description": "The top-level guide_hash is not an SRI-style <algo>-<base64> value.",
+  "guide_uri": "AKB.md",
+  "guide_hash": "sha256-not!base64",
   "sources": [
     {
       "id": "s1",
@@ -15,7 +16,7 @@
     {
       "id": "root",
       "title": "Root",
-      "description": "The only section.",
+      "description": "The guide hash on this descriptor is malformed.",
       "content_uri": "root.md",
       "source_ids": ["s1"]
     }

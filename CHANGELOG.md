@@ -34,6 +34,23 @@ at v1.0.0.
   reported as unverifiable, never as a structural failure, and a conformance verdict never
   changes because of access. §8 notes that URIs skipped by a scheme allowlist are likewise
   unverifiable, not failures.
+- Guide integrity: optional top-level `guide_hash` and `guide_length`, stamped from the
+  served bytes at publish time like section `content_hash` / `content_length`, so every
+  hosted payload a descriptor references is hash-verifiable (spec §4.1, §4.7, §5, §7), with
+  schema, served-example, and conformance coverage.
+- Provider-side source redaction: a RECOMMENDED `type: "redacted"` source form whose `uri`
+  points at a provider-hosted stub as the accountable origin, a narrowly scoped exception to
+  the §5 never-rewritten-on-serve rule, and unverifiable-by-construction content checks
+  against redacted sources (spec §2, §4.2, §5, §7, §8), with a valid conformance fixture.
+- Revision-fetch convention: pinned revisions are RECOMMENDED to be served at the URI derived
+  from the descriptor's resolved fetch URI by inserting `revisions/<revision>/` before its
+  final path segment, so a consumer resolves a pinned cross-AKB link zero-knowledge from
+  `akb_uri` plus the link's `revision`; offering revision fetch and retaining revisions stay
+  provider policy (spec §4.5; ADR-0006).
+- §5.1 detach procedure: a RECOMMENDED inverse of the authoring→served transformation for
+  pull/mirror/fork tools — resolve-then-relativize hosted references, drop `base_uri` and
+  `revision`, verify-then-keep stamped hashes, keep external source URIs verbatim — so
+  independently written tools produce interoperable working copies.
 
 ### Changed
 

@@ -73,5 +73,5 @@ validator; until then, those fixtures are guarded by manifest lint.
 | `AKB008` | Link `rel` values are controlled or reverse-DNS namespaced. | `invalid/unknown-rel` |
 | `AKB009` | Required top-level, source, and section fields are present. | `invalid/missing-required-field` |
 | `AKB010` | References resolve to the expected entity kind. | `invalid/wrong-reference-kind`, `invalid/parent-is-source`, `invalid/discovered-via-wrong-kind`, `invalid/link-target-wrong-kind` |
-| `AKB011` | Charset, format, and type constraints hold. | `invalid/malformed-id`, `invalid/malformed-timestamp` |
+| `AKB011` | Charset, format, and type constraints hold. | `invalid/malformed-id`, `invalid/malformed-timestamp`, `invalid/malformed-guide-hash` |
 | `AKB012` | Every link carries `section_id`, `akb_uri`, or both. | `invalid/link-without-target` |
