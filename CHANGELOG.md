@@ -24,6 +24,11 @@ at v1.0.0.
 - Source discovery edge `discovered_via_id`: an optional Source field recording the listing
   or feed source via which a source was discovered (spec §4.2), with schema, example, and
   conformance-fixture coverage (`unresolved-discovered-via`, `discovered-via-wrong-kind`).
+- Source capture anchoring: optional Source fields `content_hash` (SRI-style integrity of the
+  captured snapshot bytes taken at `captured_at`) and `capture_uri` (where the capture is
+  re-servable), closing the chain from snapshot to verifiable `locator.quote` spans
+  (spec §2, §4.2, §4.4, §5, §7), with schema coverage and a raw capture file in the
+  widget-platform example stamped with its real hash in both authoring and served form.
 
 ### Changed
 

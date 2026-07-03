@@ -11,7 +11,7 @@
   "sources": [
     { "id": "product-docs", "type": "url", "uri": "https://docs.example.com/widget-platform/", "captured_at": "2026-06-28T00:00:00Z", "refresh_class": "polled", "cadence": "weekly" },
     { "id": "blog-index", "type": "feed", "uri": "https://www.example.com/blog/", "title": "Product blog index", "refresh_class": "polled", "cadence": "weekly" },
-    { "id": "blog-widgets-launch", "type": "url", "uri": "https://www.example.com/blog/widgets-launch", "title": "Widgets launch announcement", "captured_at": "2026-06-27T00:00:00Z", "discovered_via_id": "blog-index" }
+    { "id": "blog-widgets-launch", "type": "url", "uri": "https://www.example.com/blog/widgets-launch", "title": "Widgets launch announcement", "captured_at": "2026-06-27T00:00:00Z", "content_hash": "sha256-yzPCGNBXoCbfiZ13AdgO7cF+z15Jw/b4udfu81pt68Q=", "capture_uri": "captures/blog-widgets-launch.html", "discovered_via_id": "blog-index" }
   ],
   "sections": [
     { "id": "overview", "title": "Overview", "description": "What the Widget Platform is and its core model.", "content_uri": "sections/overview.md", "source_ids": ["product-docs", "blog-widgets-launch"] },
