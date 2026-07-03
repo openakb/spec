@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenAKB specification monorepo (workspace root; not published).",
   "type": "module",
+  "engines": { "node": ">=20.12" },
   "scripts": {
     "check:schema": "node scripts/ci/validate-schema.mjs",
     "check:conformance": "node scripts/ci/check-conformance.mjs"

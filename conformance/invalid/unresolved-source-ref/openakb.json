@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-unresolved-source-ref",
+  "title": "Invalid — unresolved source reference",
+  "description": "A section source_ids entry names no declared id at all.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "The citation names a source that does not exist.",
+      "content_uri": "root.md",
+      "source_ids": ["ghost"]
+    }
+  ]
+}

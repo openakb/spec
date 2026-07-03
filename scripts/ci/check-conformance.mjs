@@ -17,9 +17,43 @@ const CATALOG = new Set([
   'AKB009',
   'AKB010',
   'AKB011',
+  'AKB012',
 ]);
-const SCHEMA_CATCHABLE_CODES = new Set(['AKB005', 'AKB008', 'AKB009', 'AKB011']);
+const SCHEMA_CATCHABLE_CODES = new Set(['AKB005', 'AKB008', 'AKB009', 'AKB011', 'AKB012']);
 const LOCAL_ID_PATTERN = /^[a-z0-9_-]{1,64}$/u;
+
+// Normative JSON-Schema-keyword → error-code mapping (spec §7). Special cases first:
+// the link-level anyOf (target rule) maps to AKB012 including its branch errors, and any
+// violation on `rel` (its anyOf and branch errors) maps to AKB008.
+const KEYWORD_CODES = new Map([
+  ['maxLength', 'AKB005'],
+  ['maxItems', 'AKB005'],
+  ['required', 'AKB009'],
+  ['pattern', 'AKB011'],
+  ['format', 'AKB011'],
+  ['type', 'AKB011'],
+  ['minimum', 'AKB011'],
+  ['minLength', 'AKB011'],
+  ['minItems', 'AKB011'],
+  ['uniqueItems', 'AKB011'],
+  ['enum', 'AKB011'],
+  ['anyOf', 'AKB011'],
+  ['propertyNames', 'AKB011'],
+]);
+
+const LINK_INSTANCE_PATTERN = /\/links\/\d+$/u;
+
+function mapErrorToCode(error) {
+  // Ajv reports schemaPath relative to the $ref-resolved link def, so the target-rule anyOf
+  // (and its branch errors) is recognized as: at a link object, under an anyOf schemaPath.
+  if (LINK_INSTANCE_PATTERN.test(error.instancePath) && error.schemaPath.includes('/anyOf')) {
+    return 'AKB012';
+  }
+  if (error.instancePath.endsWith('/rel')) {
+    return 'AKB008';
+  }
+  return KEYWORD_CODES.get(error.keyword);
+}
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
@@ -61,10 +95,14 @@ function fixtureDirs(path) {
     return [];
   }
 
-  return readdirSync(dir, { withFileTypes: true })
+  const cases = readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+  if (cases.length === 0) {
+    report(`fixture directory has no cases: ${path}`);
+  }
+  return cases;
 }
 
 function requireFile(file) {
@@ -159,15 +197,31 @@ for (const caseName of fixtureDirs('conformance/invalid')) {
 
   if (expected !== undefined) {
     codes = requireCatalogCodes(expected.codes, expectedFile, 'codes');
+    if (expected.schema !== undefined && expected.schema !== false) {
+      report('schema, when present, must be false (not schema-catchable despite the code)', expectedFile);
+    }
   }
 
   if (descriptor !== undefined) {
-    const hasSchemaCatchableCode = codes.some((code) => SCHEMA_CATCHABLE_CODES.has(code));
+    // `"schema": false` marks a fixture whose code is normally schema-catchable but whose
+    // specific violation is not JSON-Schema-expressible (e.g., the depth cap under AKB005).
+    const schemaCatchableCodes =
+      expected?.schema === false ? [] : codes.filter((code) => SCHEMA_CATCHABLE_CODES.has(code));
     const isSchemaValid = validateDescriptor(descriptor);
-    if (hasSchemaCatchableCode && isSchemaValid) {
-      report('schema-catchable invalid fixture unexpectedly validates', descriptorFile);
-    }
-    if (!hasSchemaCatchableCode && !isSchemaValid) {
+    if (schemaCatchableCodes.length > 0) {
+      if (isSchemaValid) {
+        report('schema-catchable invalid fixture unexpectedly validates', descriptorFile);
+      } else {
+        const firedCodes = new Set(
+          (validateDescriptor.errors ?? []).map(mapErrorToCode).filter(Boolean),
+        );
+        const missing = schemaCatchableCodes.filter((code) => !firedCodes.has(code));
+        if (missing.length > 0) {
+          const fired = [...firedCodes].sort().join(', ') || '(none)';
+          report(`declared code(s) not matched by fired schema errors — declared: ${missing.join(', ')}; fired: ${fired}`, descriptorFile);
+        }
+      }
+    } else if (!isSchemaValid) {
       reportDescriptorErrors(descriptorFile, 'semantic invalid fixture');
     }
   }
@@ -214,4 +268,4 @@ if (failureCount > 0) {
   process.exit(1);
 }
 
-console.log('Conformance manifest OK: 11/11 codes have fixtures.');
+console.log(`Conformance manifest OK: ${CATALOG.size}/${CATALOG.size} codes have fixtures.`);
