@@ -9,8 +9,8 @@
     "$schema": { "type": "string", "format": "uri", "pattern": "^https://schema\\.openakb\\.org/v1(\\.\\d+\\.\\d+)?/openakb\\.schema\\.json$" },
     "id": { "$ref": "#/$defs/localId" },
     "namespace": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
-    "title": { "type": "string", "minLength": 1, "maxLength": 100 },
-    "description": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
     "subject_type": { "type": "string", "minLength": 1 },
     "tags": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 40 } },
     "language": { "$ref": "#/$defs/language" },
@@ -19,7 +19,7 @@
     "base_uri": { "type": "string", "format": "uri-reference" },
     "created_at": { "$ref": "#/$defs/timestamp" },
     "updated_at": { "$ref": "#/$defs/timestamp" },
-    "sources": { "type": "array", "minItems": 1, "maxItems": 10000, "items": { "$ref": "#/$defs/source" } },
+    "sources": { "type": "array", "minItems": 1, "maxItems": 100000, "items": { "$ref": "#/$defs/source" } },
     "sections": { "type": "array", "minItems": 1, "maxItems": 10000, "items": { "$ref": "#/$defs/section" } },
     "x": { "$ref": "#/$defs/extensions" }
   },
@@ -53,9 +53,9 @@
       "properties": {
         "id": { "$ref": "#/$defs/localId" },
         "parent_id": { "$ref": "#/$defs/localId" },
-        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "description": { "type": "string", "minLength": 1, "maxLength": 400 },
-        "purpose": { "type": "string", "maxLength": 400 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "purpose": { "type": "string", "maxLength": 2000 },
         "content_uri": { "type": "string", "format": "uri-reference" },
         "content_type": { "type": "string", "minLength": 1 },
         "content_hash": { "$ref": "#/$defs/sriHash" },
@@ -107,7 +107,7 @@
         "akb_uri": { "type": "string", "format": "uri-reference" },
         "revision": { "type": "string" },
         "content_hash": { "$ref": "#/$defs/sriHash" },
-        "description": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 500 },
         "x": { "$ref": "#/$defs/extensions" }
       }
     }

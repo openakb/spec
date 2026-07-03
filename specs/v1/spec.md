@@ -40,8 +40,8 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 | `$schema` | REQUIRED | URI | MUST be the major-keyed schema URI `https://schema.openakb.org/v1/openakb.schema.json` or an immutable SemVer pin of the form `https://schema.openakb.org/v1.X.Y/openakb.schema.json`. A v1 validator MUST reject any other value as `AKB011`. |
 | `id` | REQUIRED | `[a-z0-9_-]`, ≤64 chars | Human-readable AKB id. |
 | `namespace` | optional | `[a-z0-9_-]`, ≤64 chars | Owner or grouping segment. |
-| `title` | REQUIRED | string, 1-100 chars | Display name. |
-| `description` | REQUIRED | string, 1-600 chars | Bounded AKB abstract. |
+| `title` | REQUIRED | string, 1-200 chars | Display name. |
+| `description` | REQUIRED | string, 1-2000 chars | Bounded AKB abstract. |
 | `subject_type` | optional | non-empty string | Open subject classification. |
 | `tags` | optional | array, max 32 items; each `[a-z0-9-]`, max 40 chars | Discovery and filtering labels. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Primary language of AKB content. Sections MAY override. |
@@ -50,7 +50,7 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 | `base_uri` | optional | URI reference | Explicit base for resolving relative references. |
 | `created_at` | optional | RFC 3339 UTC timestamp | Descriptor creation timestamp. |
 | `updated_at` | optional | RFC 3339 UTC timestamp | Descriptor update timestamp. |
-| `sources` | REQUIRED | array, 1-10000 Source objects | Raw-evidence registry. |
+| `sources` | REQUIRED | array, 1-100000 Source objects | Raw-evidence registry. |
 | `sections` | REQUIRED | array, 1-10000 Section objects | Section forest. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
 
@@ -85,9 +85,9 @@ The Section is the atomic unit of browse, pull, and grounding. The tree is expre
 | --- | --- | --- | --- |
 | `id` | REQUIRED | `[a-z0-9_-]`, ≤64 chars | Stable identity; unique in the shared source and section id space. |
 | `parent_id` | optional | section `id`, `[a-z0-9_-]`, ≤64 chars | Parent section. Absence means root. |
-| `title` | REQUIRED | string, 1-100 chars | Display title. |
-| `description` | REQUIRED | string, 1-400 chars | Consumer-facing browse abstract. |
-| `purpose` | optional | string, max 400 chars | Maintainer-facing statement of what the section should cover. |
+| `title` | REQUIRED | string, 1-200 chars | Display title. |
+| `description` | REQUIRED | string, 1-2000 chars | Consumer-facing browse abstract. |
+| `purpose` | optional | string, max 2000 chars | Maintainer-facing statement of what the section should cover. |
 | `content_uri` | optional | URI reference | Location of section content. Required when the section has content; absent for pure containers. |
 | `content_type` | optional | non-empty string | Media type, default `text/markdown`; use RFC 6838 syntax by convention. |
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the decoded content bytes. |
@@ -164,7 +164,7 @@ Links are navigation, not provenance. They express related local or cross-AKB co
 | `akb_uri` | optional | URI reference | Target AKB descriptor for cross-AKB links. |
 | `revision` | optional | string | Target AKB revision to resolve. A link is pinned if and only if it carries `revision`. |
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity hint for a pinned target. |
-| `description` | optional | string, max 200 chars | Bounded description for manifest-first browsing. |
+| `description` | optional | string, max 500 chars | Bounded description for manifest-first browsing. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
 
 Every link MUST carry a target: `section_id`, `akb_uri`, or both. A link with neither is meaningless and is invalid (`AKB012`).
@@ -195,7 +195,7 @@ A curation-only or link-hub AKB with no first-party content and no raw sources i
 
 This floor is structural, not adversarial. First-party knowledge with no earlier document behind it is not a workaround case: it is cited honestly through the RECOMMENDED `type: "firsthand"` source convention (§4.2). What remains out-of-contract is the fabricated phantom source — a source that stands for nothing and answers to no one, created only so a contentless link hub can satisfy the schema — even though v1 does not block it mechanically.
 
-The 10,000-item caps on `sources` and `sections` are likewise deliberate bounded-manifest limits, not an oversight. Non-normatively, a corpus that outgrows them should be split into multiple AKBs joined by `part-of` links from a small index AKB. Deterministic multi-AKB composition semantics are a v1.1 candidate.
+The 100,000-item cap on `sources` and the 10,000-item cap on `sections` are likewise deliberate bounded-manifest limits, not an oversight. Non-normatively, a corpus that outgrows them should be split into multiple AKBs joined by `part-of` links from a small index AKB. Deterministic multi-AKB composition semantics are a v1.1 candidate.
 
 ## §5 URI resolution and authoring-vs-served form
 
@@ -263,16 +263,16 @@ Normative bounded-manifest caps:
 
 | Field or shape | Cap |
 | --- | --- |
-| top-level `title` | <=100 chars |
-| AKB `description` | <=600 chars |
-| section `title` | <=100 chars |
-| section `description` | <=400 chars |
-| section `purpose` | <=400 chars |
+| top-level `title` | <=200 chars |
+| AKB `description` | <=2000 chars |
+| section `title` | <=200 chars |
+| section `description` | <=2000 chars |
+| section `purpose` | <=2000 chars |
 | source `title` | <=200 chars |
-| link `description` | <=200 chars |
+| link `description` | <=500 chars |
 | `tags` | <=32 tags, each <=40 chars |
 | `sections` | <=10000 |
-| `sources` | <=10000 |
+| `sources` | <=100000 |
 | per-section `links` | <=256 |
 | per-section inline `provenance` | <=256 claims |
 | `parent_id` depth | <=64 |

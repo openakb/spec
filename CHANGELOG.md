@@ -21,3 +21,11 @@ at v1.0.0.
   cross-link, widget-platform-served, sidecar-provenance); the conformance suite (valid /
   invalid / forward-compat / content) with a manifest lint and traceability matrix; AKEP-0001
   (Genesis, Draft); and `ajv`-based schema + conformance CI gates plus a neutrality check.
+
+### Changed
+
+- Bounded-manifest caps raised to a generous tier, frozen for the v1 major: every `title`
+  is now one 200-char tier, AKB and section `description` and section `purpose` allow
+  2000 chars, link `description` allows 500, and `sources` allows 100,000 entries
+  (`sections` stays at 10,000). §7 clarifies that caps are properties of the interchange
+  artifact, not provider capacity declarations.
