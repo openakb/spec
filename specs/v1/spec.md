@@ -279,6 +279,8 @@ Normative bounded-manifest caps:
 
 Depth is the number of nodes on the `parent_id` chain including the section itself: a root section has depth 1, its children depth 2, and so on. The deepest permitted section has depth 64.
 
+The caps are properties of the interchange artifact, not provider capacity declarations. A provider MAY enforce stricter operational limits on what it accepts or serves; that is infrastructure policy outside this specification. A descriptor exceeding a cap is not a conformant OpenAKB descriptor even if a particular provider accepts it. Caps are fixed within a major version — raising one is a breaking change — so a corpus that outgrows them uses the multi-AKB composition pattern (§4.8) rather than a larger manifest.
+
 Error-code catalog:
 
 | Code | Name | Rule (MUST) |
