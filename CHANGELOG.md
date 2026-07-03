@@ -42,3 +42,7 @@ at v1.0.0.
   2000 chars, link `description` allows 500, and `sources` allows 100,000 entries
   (`sections` stays at 10,000). §7 clarifies that caps are properties of the interchange
   artifact, not provider capacity declarations.
+- The bare `openakb` name is designated for the project's command-line tool, planned as
+  `openakb/openakb` and scoped to validation only (schema + structural rules, `--strict`,
+  `--check-content`) as a thin front end over the `packages/` reference libraries;
+  fetch/push/pull workflow tooling remains out of scope per the razor (ADR-0001).
