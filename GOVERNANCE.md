@@ -22,6 +22,8 @@ The process is intentionally lightweight before 1.0 and formalizes as adoption g
 - The steward has final say to keep momentum. The bar is "rough consensus and running
   code": a normative change lands only with its schema, validator, example, and
   conformance updates together.
+- The genesis proposal (AKEP-0001) is authored pre-1.0 under steward sign-off, ahead of
+  the Phase 2 AKEP machinery.
 
 ### Phase 2 — at/after 1.0, once there are ≥2 independent implementers
 

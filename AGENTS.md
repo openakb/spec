@@ -40,20 +40,23 @@ validator, example, and conformance move together.
 
 Before the reference validator lands (implementation Phase 3), the committed JSON Schema and
 its `ajv` gate are the "running code" that must accompany `schema/`/`specs/` changes; the
-full validator + conformance-execution bar attaches with `packages/` in Phase 3, which is also
-when AKEP-0001 reaches Final.
+full validator + conformance-execution bar attaches with `packages/` in Phase 3, which also
+carries AKEP-0001 through its lifecycle (Draft → Review → Accepted → Final).
 
 ## Strict vendor neutrality
 
 **No real product or company name** appears in any public artifact — not in examples, spec
 prose, conformance fixtures, the README, or the schema. Use neutral wording. Illustrative
 material uses **fictional subjects** on the RFC 2606 reserved `example.com` / `example.org`
-domains. Two narrow carve-outs: `GOVERNANCE.md` may name the first implementer for the
-anti-capture story; and development-infrastructure references — the hosting platform and
-CI/coverage **status badges** (build, coverage, release) — may appear in the README and other
-meta files, since they identify tooling, not spec subjects or endorsements. Prior-art and
-external technical references MAY appear as hyperlinks to the cited source (a technical
-citation, not an endorsement). This is enforced in review.
+domains. Three narrow carve-outs: `GOVERNANCE.md` may name the first implementer for the
+anti-capture story; development tooling and infrastructure referenced in contributor/meta
+files — the hosting platform, package manager, lint/validation tooling, dependency
+automation, coding-agent configuration files, and CI/coverage **status badges** (build,
+coverage, release) — may appear in the README and other meta files, since they identify
+tooling, not spec subjects or endorsements; and prior-art and external technical references
+MAY appear as hyperlinks to the cited source (a technical citation, not an endorsement).
+This is enforced in review; `scripts/ci/check-neutrality.sh` is only a regression backstop
+whose deny-list is non-exhaustive.
 
 ## Running the checks locally
 

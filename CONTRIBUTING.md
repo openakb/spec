@@ -43,12 +43,16 @@ domains. See [AGENTS.md](AGENTS.md) for the full rule.
 The same checks CI runs:
 
 ```bash
+npm ci                                          # install ajv (first run only)
+npm run check:schema                            # examples + sidecars validate against the schema
+npm run check:conformance                       # conformance manifest is coherent
 npx --yes markdownlint-cli2 "**/*.md"          # markdown style
 lychee --offline --config lychee.toml .        # relative-link integrity
 actionlint                                     # GitHub Actions workflow lint
+bash scripts/ci/check-neutrality.sh            # public artifact neutrality
 ```
 
-Later phases add per-package tests and the conformance harness; this document is updated as
+Later phases add per-package tests and conformance execution; this document is updated as
 those land.
 
 ## Commit messages

@@ -1,7 +1,6 @@
 # OpenAKB
 
 [![CI](https://github.com/openakb/spec/actions/workflows/ci.yml/badge.svg)](https://github.com/openakb/spec/actions/workflows/ci.yml)
-[![Codecov](https://codecov.io/gh/openakb/spec/graph/badge.svg?token=ZX9H1PWLR4)](https://codecov.io/gh/openakb/spec)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Docs: CC BY 4.0](https://img.shields.io/badge/Docs-CC_BY_4.0-lightgrey.svg)](LICENSE-DOCS)
 [![Status: draft](https://img.shields.io/badge/spec-v1_draft-orange.svg)](CHANGELOG.md)
@@ -21,6 +20,8 @@ trapped in one vendor's storage or serving model.
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
 examples, and conformance suite have landed; reference validators are forthcoming.
+Today's tooling checks JSON-Schema conformance only; the structural rules (`AKB001`
+and up) are enforced by the Phase 3 reference validator.
 See [CHANGELOG.md](CHANGELOG.md) for what has landed.
 
 ## Specification

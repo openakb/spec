@@ -39,7 +39,7 @@ There is no earlier OpenAKB version to migrate from; v1.0 is the baseline. Compa
 
 AKEP-0001 remains **Draft** during the current implementation phase. The running code at this point is the schema plus the AJV-based schema gate used by CI.
 
-When the Rust reference validator and conformance execution land, and that validator passes the conformance suite and is published with the v1 artifacts, this AKEP can move from **Draft** to **Final**.
+The proposal advances through the standard lifecycle — **Draft → Review → Accepted → Final** — as the validator lands: it moves to **Review** when the Rust reference validator is open for feedback alongside the v1 artifacts, to **Accepted** when the approach is approved in principle, and to **Final** only when that validator passes conformance execution and is published with the v1 artifacts.
 
 ## Security considerations
 
@@ -59,6 +59,14 @@ This AKEP introduces no security model beyond the v1 specification. See [spec §
 - **MIT throughout** — rejected for a standard because the project needs explicit patent protection for code contributions, a separate prose license for specification text, and a contribution sign-off trail. OpenAKB uses Apache-2.0 for code and schema, CC-BY-4.0 for specification prose, and DCO sign-off for contributions.
 - **Strict-only schema** — rejected because it would make forward-compatible v1 minor additions fail against older pinned schemas. OpenAKB uses a single lenient schema plus validator strict-lint mode for typo-catching.
 - **Two schema files** — rejected because strictness is a validator mode, not a separate conformance contract. A single published schema keeps editor validation, CI validation, and forward compatibility aligned.
+
+## Future considerations (non-normative)
+
+Deferred v1.1 candidates recorded here so they are not mistaken for omissions:
+
+- **Multi-AKB composition.** The bounded-manifest caps are deliberate; corpora beyond them split into multiple AKBs joined by `part-of` links from a small index AKB. Deterministic composition semantics for such families are a v1.1 candidate.
+- **A controlled `translation-of` rel.** Parallel translations currently use a custom reverse-DNS rel.
+- **Deprecation/tombstone markers.** v1 has no way to distinguish intentional removal of a section from truncation; a declarative tombstone marker is a candidate, keeping the vocabulary/mechanism split.
 
 ## Copyright
 
