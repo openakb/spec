@@ -21,7 +21,7 @@ OpenAKB standardizes the declarative description of an agentic knowledge base (A
 
 ## §3 Naming conventions
 
-Descriptor keys use `snake_case` and lowercase. Timestamps end in `_at` and are RFC 3339 UTC values using `Z` or `+00:00`.
+Descriptor keys use `snake_case` and lowercase. Timestamps end in `_at` and are RFC 3339 UTC values. The UTC profile is explicit: the date and time are separated by an uppercase `T`, and the offset is an uppercase `Z` or `+00:00`.
 
 Related-resource URIs end in `_uri`, such as `content_uri`, `guide_uri`, `provenance_uri`, `base_uri`, and `akb_uri`. A bare `uri` is used only when the object itself is a pointer, as with a Source.
 
@@ -37,7 +37,7 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 
 | Field | Req? | Type / rule | Notes |
 | --- | --- | --- | --- |
-| `$schema` | REQUIRED | URI | Major-keyed schema URI such as `https://schema.openakb.org/v1/openakb.schema.json`, or an immutable SemVer pin such as `https://schema.openakb.org/v1.0.0/openakb.schema.json`. |
+| `$schema` | REQUIRED | URI | MUST be the major-keyed schema URI `https://schema.openakb.org/v1/openakb.schema.json` or an immutable SemVer pin of the form `https://schema.openakb.org/v1.X.Y/openakb.schema.json`. A v1 validator MUST reject any other value as `AKB011`. |
 | `id` | REQUIRED | `[a-z0-9_-]`, ≤64 chars | Human-readable AKB id. |
 | `namespace` | optional | `[a-z0-9_-]`, ≤64 chars | Owner or grouping segment. |
 | `title` | REQUIRED | string, 1-100 chars | Display name. |
@@ -56,7 +56,7 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 
 `namespace/id` is a self-declared canonical name. It is not registry-enforced and is not resolvable on its own. Resolution is always by URI, such as the URL or file path from which a descriptor was fetched. Two unrelated AKBs MAY assert the same `namespace/id`. A consumer MUST treat the fetch URI as the identity of record and MUST NOT assume `namespace/id` is globally unique.
 
-The `x` extension object MAY appear at the top level, on sources, on sections, and on links. Extension keys MUST be reverse-DNS names, such as `com.example` or `org.example.tools`, and each extension value is an object.
+The `x` extension object MAY appear at the top level, on sources, on sections, on links, and on provenance claims and their locators. Extension keys MUST be reverse-DNS names, such as `com.example` or `org.example.tools`, and each extension value is an object.
 
 ### §4.2 Source fields
 
@@ -74,6 +74,8 @@ A Source is raw provenance material a section can be grounded in. Sources are no
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
 
 Freshness policy hints live on the Source object. There is no top-level freshness map in v1.
+
+First-party knowledge whose first written form is the AKB itself — runbooks, postmortems, tribal knowledge with no earlier document to point at — is RECOMMENDED to be represented as a source with `type: "firsthand"`. For a firsthand source, `uri` points at the accountable origin of the knowledge, such as a team or owner URI (illustrative material uses an `example.com` / `example.org` URI). The source object is then the citable record of who stands behind the content; `captured_at` MAY record when the knowledge was first written down.
 
 ### §4.3 Section fields
 
@@ -101,7 +103,11 @@ The Section is the atomic unit of browse, pull, and grounding. The tree is expre
 
 A section MAY have `content_uri`, child sections, or both. It MUST NOT have neither. A section with no `content_uri` MUST have at least one child section whose `parent_id` names it.
 
+`content_hash` and `provenance_hash` use the SRI-style `<algo>-<base64>` shape. The payload is canonical base64 (RFC 4648 §4), not base64url. Validators and consumers MUST support `sha256`; publishers SHOULD stamp `sha256` digests. An unknown algorithm is an unverifiable warning, not an invalid descriptor (§7).
+
 Language inheritance is section, then descriptor, then unspecified. Validators check the language pattern and well-formedness used by the schema; v1 does not require registry-level BCP 47 validation.
+
+Non-normatively, parallel translations of the same material are represented as separate per-language AKBs, or as sibling sections, cross-linked with a custom rel such as `org.example:translation-of`. A controlled `translation-of` rel is a v1.1 candidate.
 
 ### §4.4 Provenance
 
@@ -119,12 +125,13 @@ The inline citation grammar is normative:
 - `<id-list>` is one or more source `id`s separated by commas: `[cite: a]`, `[cite: a, b, c]`.
 - Optional horizontal whitespace is allowed after `cite:` and around each comma; each `id` matches the `[a-z0-9_-]`, ≤64 char local ID grammar, so the tokens are unambiguous.
 - Each `id` MUST reference a source declared in the descriptor (checked under `--check-content`).
-- The marker is recognized only in Markdown prose; occurrences inside fenced code blocks (```` ``` ```` / `~~~`) or inline code spans (`` ` ``) are literal text and MUST be ignored.
+- Markdown structure is interpreted per [CommonMark](https://spec.commonmark.org/). The marker is recognized only in Markdown prose; occurrences inside the following CommonMark constructs are literal text and MUST be ignored: fenced code blocks (```` ``` ```` / `~~~`), indented code blocks, inline code spans (any backtick run length), HTML blocks, and HTML comments.
+- Any bracketed text that does not match the grammar exactly — for example `[cite:]` or `[cite: Bad ID]` — is ordinary literal text. It is never a marker and never an extraction error.
 - There is no escape syntax in v1; to write a literal `[cite: …]` in prose, place it in a code span.
 
-Concatenated markers, such as `[cite: a][cite: b]`, are equivalent to a combined list and are permitted.
+The extraction output contract is normative. A conformant extractor reports an ordered list of citation entries, one entry per recognized marker, in document order. Each entry carries the marker's source `id` list in written order. Duplicate ids within one marker are preserved as written; a validator MAY warn on them. Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are provenance-equivalent to a combined list, but that equivalence is a statement about provenance semantics only — it is not a normalization license, and extraction MUST still report one entry per marker.
 
-Inline claim-level provenance uses the Section `provenance` array. Each Claim object has required `text` and `source_ids`; `source_ids` MUST contain at least one source id using the `[a-z0-9_-]`, ≤64 char local ID grammar. A Claim MAY include `locator` with `quote`, `page`, or `anchor`. `page` is an integer greater than or equal to 0.
+Inline claim-level provenance uses the Section `provenance` array. Each Claim object has required `text` and `source_ids`; `source_ids` MUST contain at least one source id using the `[a-z0-9_-]`, ≤64 char local ID grammar. A Claim MAY include `locator` with `quote`, `page`, or `anchor`, and MAY carry its own `x` extension object, as MAY the `locator`. `page` is an integer greater than or equal to 0. Inline `provenance` is capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets.
 
 The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` and claim `source_ids` use the `[a-z0-9_-]`, ≤64 char local ID grammar. Its shape is:
 
@@ -152,13 +159,15 @@ Links are navigation, not provenance. They express related local or cross-AKB co
 
 | Field | Req? | Type / rule | Notes |
 | --- | --- | --- | --- |
-| `rel` | REQUIRED | controlled value or reverse-DNS escape | Controlled values are `see-also`, `related`, `depends-on`, `prerequisite`, `extends`, and `part-of`. Escape form is `prefix:suffix`, where `prefix` matches `[a-z0-9-]+(\.[a-z0-9-]+)*` and `suffix` is `[a-z0-9-]+`. |
+| `rel` | REQUIRED | controlled value or reverse-DNS escape | Controlled values are `see-also`, `related`, `depends-on`, `prerequisite`, `extends`, and `part-of`. Escape form is `prefix:suffix`, where `prefix` matches `[a-z0-9-]+(\.[a-z0-9-]+)+` — at least two dot-separated labels, the same reverse-DNS shape as `x` keys — and `suffix` is `[a-z0-9-]+`. |
 | `section_id` | optional | section id, `[a-z0-9_-]`, ≤64 chars | On local links, MUST resolve to a section in this AKB. On cross-AKB links, names a target section in the linked AKB. |
 | `akb_uri` | optional | URI reference | Target AKB descriptor for cross-AKB links. |
 | `revision` | optional | string | Target AKB revision to resolve. A link is pinned if and only if it carries `revision`. |
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity hint for a pinned target. |
 | `description` | optional | string, max 200 chars | Bounded description for manifest-first browsing. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
+
+Every link MUST carry a target: `section_id`, `akb_uri`, or both. A link with neither is meaningless and is invalid (`AKB012`).
 
 The parent tree is an acyclic forest. The link graph is a general network and MAY be cyclic.
 
@@ -184,22 +193,24 @@ The guide is not a consumer-facing connector and is not required for conformance
 
 A curation-only or link-hub AKB with no first-party content and no raw sources is intentionally unrepresentable. OpenAKB is provenance-first: an AKB with content cites raw sources, and empty nodes are forbidden.
 
-This floor is structural, not adversarial. A determined author can create a phantom source and a stub section that satisfy the schema. Such phantom-source link hubs are out-of-contract even though v1 does not block them mechanically.
+This floor is structural, not adversarial. First-party knowledge with no earlier document behind it is not a workaround case: it is cited honestly through the RECOMMENDED `type: "firsthand"` source convention (§4.2). What remains out-of-contract is the fabricated phantom source — a source that stands for nothing and answers to no one, created only so a contentless link hub can satisfy the schema — even though v1 does not block it mechanically.
+
+The 10,000-item caps on `sources` and `sections` are likewise deliberate bounded-manifest limits, not an oversight. Non-normatively, a corpus that outgrows them should be split into multiple AKBs joined by `part-of` links from a small index AKB. Deterministic multi-AKB composition semantics are a v1.1 candidate.
 
 ## §5 URI resolution and authoring-vs-served form
 
-`content_uri`, `guide_uri`, `provenance_uri`, `akb_uri`, `base_uri`, and source `uri` are RFC 3986 URI references. Relative references resolve against the explicit top-level `base_uri` if present; otherwise they resolve against the location from which the descriptor was retrieved.
+`content_uri`, `guide_uri`, `provenance_uri`, `akb_uri`, `base_uri`, and source `uri` are RFC 3986 URI references. Relative references resolve against the explicit top-level `base_uri` if present; otherwise they resolve against the location from which the descriptor was retrieved. A relative `base_uri` is itself first resolved against the retrieval URI per RFC 3986; the result then serves as the base for the descriptor's other relative references.
 
 Providers SHOULD serve absolute, self-contained URIs, or set `base_uri`, so a descriptor remains resolvable when detached from its origin.
 
-`content_uri` paths are opaque and unstandardized. A provider may serve content under any path scheme. The descriptor is only the mapping from sections to content.
+`content_uri` paths are opaque and unstandardized. A provider may serve content under any path scheme. The descriptor is only the mapping from sections to content. Fragments in `content_uri` are permitted but opaque to this specification: consumers dereference the full resource, and `content_hash` / `content_length` always cover the full resource bytes, never a fragment.
 
 | Form | `content_uri` | Who uses it |
 | --- | --- | --- |
 | Served / canonical | absolute, self-contained | Read-side consumers. |
 | Working copy | relative, with files on disk | Maintainers editing in place. |
 
-External source URLs, meaning a Source with `type` `url`, are original web locations and are never rewritten to local paths.
+External source URLs, meaning a Source with `type` `url`, are original web locations and are never rewritten to local paths. A Source with an unknown or extended `type` follows the `type: url` rule: its `uri` is never rewritten on serve.
 
 Authoring form vs served form:
 
@@ -220,11 +231,11 @@ The directory [examples/widget-platform-served/](../../examples/widget-platform-
 
 ## §6 Extensions and versioning
 
-Namespaced extensions live under `x` objects at the top level, Source level, Section level, and Link level. Extension keys MUST be reverse-DNS namespaces controlled by the extension author, such as `com.example` or `org.example.tools`. Extension values MUST be objects. Extension data MUST NOT be added as unknown core fields when it can be placed under `x`.
+Namespaced extensions live under `x` objects at the top level, Source level, Section level, Link level, and Claim level (including claim locators). Extension keys MUST be reverse-DNS namespaces controlled by the extension author, such as `com.example` or `org.example.tools`. Extension values MUST be objects. Extension data MUST NOT be added as unknown core fields when it can be placed under `x`.
 
 OpenAKB uses SemVer for spec releases. MAJOR versions are breaking. MINOR versions are additive and backward-compatible. PATCH versions are editorial or corrective. Spec releases are tagged as full SemVer, such as `v1.0.0`, `v1.0.1`, and `v1.1.0`.
 
-The descriptor `$schema` is major-keyed by default, such as `https://schema.openakb.org/v1/openakb.schema.json`, and tracks the latest backward-compatible 1.x schema. For reproducibility, a descriptor MAY point at an immutable pin such as `https://schema.openakb.org/v1.0.0/openakb.schema.json`.
+The descriptor `$schema` MUST be either the major-keyed URI `https://schema.openakb.org/v1/openakb.schema.json`, which tracks the latest backward-compatible 1.x schema, or, for reproducibility, an immutable SemVer pin of the form `https://schema.openakb.org/v1.X.Y/openakb.schema.json` such as `https://schema.openakb.org/v1.0.0/openakb.schema.json`. A v1 validator MUST reject any other `$schema` value as `AKB011`. `$schema` is also the version-detection surface: a loader that encounters a different major key MUST NOT treat the document as an OpenAKB v1 descriptor, and decides for itself whether to reject or attempt a best-effort read.
 
 The compatibility contract uses one lenient schema per major. Within a major, new minor versions add only optional core fields or optional modules. Old documents continue to validate against newer schemas because additions are optional. New-minor documents also remain usable with older schemas because core objects are lenient toward unknown members.
 
@@ -245,6 +256,7 @@ The following structural rules are normative:
 - References MUST resolve to existing ids of the right kind.
 - Local links MUST resolve. Cross-AKB links are best-effort and are not an offline structural failure.
 - `rel` MUST be in the controlled vocabulary or match the reverse-DNS escape pattern.
+- Every link MUST carry `section_id`, `akb_uri`, or both.
 - All schema type, charset, timestamp, URI-reference, language, hash, length, cardinality, and depth constraints MUST hold.
 
 Normative bounded-manifest caps:
@@ -262,7 +274,10 @@ Normative bounded-manifest caps:
 | `sections` | <=10000 |
 | `sources` | <=10000 |
 | per-section `links` | <=256 |
+| per-section inline `provenance` | <=256 claims |
 | `parent_id` depth | <=64 |
+
+Depth is the number of nodes on the `parent_id` chain including the section itself: a root section has depth 1, its children depth 2, and so on. The deepest permitted section has depth 64.
 
 Error-code catalog:
 
@@ -279,10 +294,23 @@ Error-code catalog:
 | `AKB009` | `missing-required-field` | Every required top-level/source/section field present. |
 | `AKB010` | `invalid-reference-kind` | A reference resolves to an entity of the **wrong kind** (`source_ids`/`[cite:]` → a section; `parent_id`/local link → a source). |
 | `AKB011` | `malformed-value` | Charset (`[a-z0-9_-]`), format (RFC 3339 UTC / RFC 3986), and type constraints hold. |
+| `AKB012` | `link-missing-target` | Every link carries `section_id`, `akb_uri`, or both. |
 
-The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char local ID grammar limit is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap. The schema is authoritative for mechanical field types and formats.
+The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char local ID grammar limit is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap. The schema is authoritative for mechanical field types and formats. Claim `text` is deliberately uncapped; the per-section claim-count cap bounds the manifest instead.
 
-Deeper checks that require fetching content are opt-in under `--check-content`. Under `--check-content`, inline `[cite:]` resolution failures emit `AKB007`. `content_hash` and `provenance_hash` can be verified against fetched bytes. An unknown hash algorithm is an unverifiable warning, not an invalid descriptor.
+When validation is performed with the published JSON Schema, keyword violations map to codes normatively, so independent validators emit identical codes for identical documents:
+
+| JSON Schema keyword | Code |
+| --- | --- |
+| `maxLength`, `maxItems` (and the non-schema depth cap) | `AKB005` |
+| `required` | `AKB009` |
+| the Link target rule (the link-level `anyOf` requiring `section_id` or `akb_uri`) | `AKB012` |
+| `rel`'s `anyOf` (controlled value or reverse-DNS escape), including its branch errors | `AKB008` |
+| `pattern`, `format`, `type`, `minimum`, `minLength`, `minItems`, `uniqueItems`, `enum` (elsewhere) | `AKB011` |
+
+Conformance-fixture match semantics are also normative: a validator passes an invalid fixture if and only if it emits every code listed in the fixture's `codes` array. Extra codes are permitted only when they report distinct additional violations; duplicate emissions of a code are ignored.
+
+Deeper checks that require fetching content are opt-in under `--check-content`. Under `--check-content`, inline `[cite:]` resolution failures emit `AKB007`. `content_hash` and `provenance_hash` can be verified against fetched bytes. Validators and consumers MUST support `sha256` (§4.3); an unknown hash algorithm is an unverifiable warning, not an invalid descriptor.
 
 ## §8 Security considerations (non-normative)
 
@@ -345,9 +373,11 @@ The Widget Platform organizes work as a set of configurable widgets [cite: produ
 - [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)
 - [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339)
 - [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986)
+- [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648)
 - [RFC 6838](https://www.rfc-editor.org/rfc/rfc6838)
 - [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)
 - [BCP 47](https://www.rfc-editor.org/info/bcp47)
 - [Subresource Integrity](https://www.w3.org/TR/SRI/)
+- [CommonMark](https://spec.commonmark.org/)
 
 This document is licensed under [CC-BY-4.0](../../LICENSE-DOCS).

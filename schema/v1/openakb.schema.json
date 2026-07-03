@@ -2,17 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schema.openakb.org/v1/openakb.schema.json",
   "title": "OpenAKB descriptor",
-  "description": "JSON Schema for an OpenAKB descriptor (openakb.json). Lenient on unknown members by design (no additionalProperties:false on core objects) so minor versions stay forward-compatible; typo-catching is the validator's --strict lint (spec §8).",
+  "description": "JSON Schema for an OpenAKB descriptor (openakb.json). Lenient on unknown members by design (no additionalProperties:false on core objects) so minor versions stay forward-compatible; typo-catching is the validator's --strict lint (spec §6).",
   "type": "object",
   "required": ["$schema", "id", "title", "description", "sources", "sections"],
   "properties": {
-    "$schema": { "type": "string", "format": "uri" },
+    "$schema": { "type": "string", "format": "uri", "pattern": "^https://schema\\.openakb\\.org/v1(\\.\\d+\\.\\d+)?/openakb\\.schema\\.json$" },
     "id": { "$ref": "#/$defs/localId" },
     "namespace": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
     "title": { "type": "string", "minLength": 1, "maxLength": 100 },
     "description": { "type": "string", "minLength": 1, "maxLength": 600 },
     "subject_type": { "type": "string", "minLength": 1 },
-    "tags": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 40 } },
+    "tags": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 40 } },
     "language": { "$ref": "#/$defs/language" },
     "guide_uri": { "type": "string", "format": "uri-reference" },
     "revision": { "type": "string" },
@@ -26,7 +26,7 @@
   "$defs": {
     "localId": { "type": "string", "pattern": "^[a-z0-9_-]+$", "maxLength": 64 },
     "language": { "type": "string", "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$" },
-    "timestamp": { "type": "string", "format": "date-time", "pattern": "(Z|\\+00:00)$" },
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$", "description": "RFC 3339 UTC profile: uppercase T separator, uppercase Z or +00:00 offset. The pattern pins the grammar; full calendar validation (month/day ranges) additionally requires a format-asserting validator." },
     "sriHash": { "type": "string", "pattern": "^[a-z0-9]+-[A-Za-z0-9+/]+={0,2}$" },
     "extensions": {
       "type": "object",
@@ -39,7 +39,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/localId" },
         "type": { "type": "string", "minLength": 1 },
-        "uri": { "type": "string", "format": "uri-reference" },
+        "uri": { "type": "string", "format": "uri-reference", "minLength": 1 },
         "title": { "type": "string", "maxLength": 200 },
         "captured_at": { "$ref": "#/$defs/timestamp" },
         "refresh_class": { "type": "string", "minLength": 1 },
@@ -61,8 +61,8 @@
         "content_hash": { "$ref": "#/$defs/sriHash" },
         "content_length": { "type": "integer", "minimum": 0 },
         "language": { "$ref": "#/$defs/language" },
-        "source_ids": { "type": "array", "items": { "$ref": "#/$defs/localId" } },
-        "provenance": { "type": "array", "items": { "$ref": "#/$defs/claim" } },
+        "source_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/localId" } },
+        "provenance": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/claim" } },
         "provenance_uri": { "type": "string", "format": "uri-reference" },
         "provenance_hash": { "$ref": "#/$defs/sriHash" },
         "links": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/link" } },
@@ -75,26 +75,32 @@
       "required": ["text", "source_ids"],
       "properties": {
         "text": { "type": "string", "minLength": 1 },
-        "source_ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/localId" } },
+        "source_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/localId" } },
         "locator": {
           "type": "object",
           "properties": {
             "quote": { "type": "string" },
             "page": { "type": "integer", "minimum": 0 },
-            "anchor": { "type": "string" }
+            "anchor": { "type": "string" },
+            "x": { "$ref": "#/$defs/extensions" }
           }
-        }
+        },
+        "x": { "$ref": "#/$defs/extensions" }
       }
     },
     "link": {
       "type": "object",
       "required": ["rel"],
+      "anyOf": [
+        { "required": ["section_id"], "properties": { "section_id": true } },
+        { "required": ["akb_uri"], "properties": { "akb_uri": true } }
+      ],
       "properties": {
         "rel": {
           "type": "string",
           "anyOf": [
             { "enum": ["see-also", "related", "depends-on", "prerequisite", "extends", "part-of"] },
-            { "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)*:[a-z0-9-]+$" }
+            { "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+:[a-z0-9-]+$" }
           ]
         },
         "section_id": { "$ref": "#/$defs/localId" },
