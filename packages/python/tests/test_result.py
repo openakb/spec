@@ -2,6 +2,8 @@
 
 from openakb_validate.result import Advisory, Finding, ValidationResult, json_pointer
 
+__all__ = ()
+
 
 def test_json_pointer_builds_and_escapes() -> None:
     assert json_pointer([]) == ""

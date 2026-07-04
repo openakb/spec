@@ -5,6 +5,8 @@ from importlib.resources import files
 
 import openakb_validate
 
+__all__ = ()
+
 
 def test_version_is_exposed() -> None:
     assert openakb_validate.__version__ == "0.1.0"
