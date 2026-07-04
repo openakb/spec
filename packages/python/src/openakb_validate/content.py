@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from urllib.parse import urldefrag, urljoin, urlparse
 from ._shape import indexed_dicts, reference_code
 from .citations import extract_citations
 from .result import Advisory, Finding, json_pointer
+from .schema import provenance_validator, schema_findings
 
 __all__ = [
     "FAILED",
@@ -134,9 +136,12 @@ def check_content(descriptor: object, resolver: Resolver) -> ContentReport:
     checks: list[ContentCheck] = []
     checks.extend(_guide_check(descriptor, base_uri, resolver, local))
     checks.extend(_section_checks(graph, base_uri, resolver, local))
-    _capture_checks(descriptor, resolver)
-    _sidecar_checks(descriptor, resolver)
-    _quote_checks(descriptor, resolver)
+    sidecars = _sidecar_checks(graph, base_uri, resolver, local)
+    checks.extend(sidecars.checks)
+    quote_claims = [*_inline_quote_claims(graph), *sidecars.claims]
+    captures = _capture_checks(graph, base_uri, resolver, local, quote_claims)
+    checks.extend(captures.checks)
+    checks.extend(_quote_checks(graph, captures.payloads, quote_claims))
     return ContentReport(checks=tuple(checks))
 
 
@@ -152,6 +157,33 @@ class _ResolvedContent:
 class _UnfetchedContent:
     index: int
     error: Unfetchable
+
+
+@dataclass(frozen=True)
+class _ResolvedCapture:
+    source_index: int
+    source: dict[str, Any]
+    uri: str
+    payload: bytes
+
+
+@dataclass(frozen=True)
+class _CaptureResult:
+    payloads: dict[str, bytes]
+    checks: list[ContentCheck]
+
+
+@dataclass(frozen=True)
+class _QuoteClaim:
+    path: list[str | int]
+    quote: str
+    source_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _SidecarResult:
+    claims: list[_QuoteClaim]
+    checks: list[ContentCheck]
 
 
 @dataclass(frozen=True)
@@ -293,16 +325,121 @@ def _effective_reference(reference: str, base_uri: str | None, local: bool) -> s
         return Unfetchable(str(error))
 
 
-def _capture_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> dict[str, Any]:
-    return {}
+def _capture_checks(
+    graph: _Graph,
+    base_uri: str | None,
+    resolver: Resolver,
+    local: bool,
+    quote_claims: list[_QuoteClaim],
+) -> _CaptureResult:
+    payloads: dict[str, bytes] = {}
+    checks: list[ContentCheck] = []
+    quote_source_ids = _quote_source_ids(quote_claims)
+    for index, source in graph.sources:
+        source_id = source.get("id")
+        path: list[str | int] = ["sources", index, "content_hash"]
+        if source.get("type") == "redacted":
+            if isinstance(source.get("capture_uri"), str) or isinstance(
+                source.get("content_hash"), str
+            ):
+                checks.append(
+                    _check(UNVERIFIABLE, "capture", ["sources", index], "redacted source")
+                )
+            continue
+        reference = source.get("capture_uri")
+        has_hash = isinstance(source.get("content_hash"), str)
+        hash_check = _parse_sri("capture", path, source["content_hash"]) if has_hash else None
+        if not isinstance(reference, str):
+            if has_hash:
+                checks.append(_check(UNVERIFIABLE, "capture", path, "missing capture_uri"))
+            continue
+        source_quoted = isinstance(source_id, str) and source_id in quote_source_ids
+        if isinstance(hash_check, ContentCheck) and not source_quoted:
+            checks.append(hash_check)
+            continue
+        if not has_hash and not source_quoted:
+            continue
+        resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
+        if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
+            payloads[source_id] = resolved.payload
+        if has_hash:
+            if isinstance(hash_check, ContentCheck):
+                checks.append(hash_check)
+            elif isinstance(resolved, _UnfetchedContent):
+                checks.append(_check(UNVERIFIABLE, "capture", path, str(resolved.error)))
+            else:
+                assert isinstance(hash_check, bytes)
+                checks.append(_compare_sri("capture", path, resolved.payload, hash_check))
+    return _CaptureResult(payloads=payloads, checks=checks)
 
 
-def _sidecar_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> None:
-    return None
+def _sidecar_checks(
+    graph: _Graph, base_uri: str | None, resolver: Resolver, local: bool
+) -> _SidecarResult:
+    claims: list[_QuoteClaim] = []
+    checks: list[ContentCheck] = []
+    for index, section in graph.sections:
+        reference = section.get("provenance_uri")
+        if not isinstance(reference, str):
+            continue
+        resolved = _fetch_sidecar(index, section, reference, base_uri, resolver, local)
+        if isinstance(section.get("provenance_hash"), str):
+            checks.append(_sidecar_hash_check(index, section["provenance_hash"], resolved))
+        if isinstance(resolved, _UnfetchedContent):
+            checks.append(
+                _check(UNVERIFIABLE, "sidecar", _sidecar_path(index), str(resolved.error))
+            )
+            continue
+        sidecar, parse_error = _parse_sidecar(resolved.payload)
+        if parse_error is not None:
+            checks.append(_check(FAILED, "sidecar", _sidecar_path(index), parse_error))
+            continue
+        findings, binding_mismatch = _sidecar_findings(graph, index, section, sidecar)
+        claims.extend(_sidecar_quote_claims(index, sidecar))
+        checks.append(
+            ContentCheck(
+                kind="sidecar",
+                path=json_pointer(_sidecar_path(index)),
+                outcome=FAILED if findings or binding_mismatch else VERIFIED,
+                detail="provenance sidecar checked",
+                findings=tuple(findings),
+            )
+        )
+    return _SidecarResult(claims=claims, checks=checks)
 
 
-def _quote_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> None:
-    return None
+def _quote_checks(
+    graph: _Graph, captures: dict[str, bytes], quote_claims: list[_QuoteClaim]
+) -> list[ContentCheck]:
+    checks: list[ContentCheck] = []
+    for claim in quote_claims:
+        available = [captures[source_id] for source_id in claim.source_ids if source_id in captures]
+        warnings = _redacted_warnings(graph, claim.path, claim.source_ids)
+        if not available:
+            checks.append(
+                ContentCheck(
+                    kind="quote",
+                    path=json_pointer([*claim.path, "locator", "quote"]),
+                    outcome=UNVERIFIABLE,
+                    detail="no cited source capture fetched",
+                    warnings=tuple(warnings),
+                )
+            )
+            continue
+        needle = claim.quote.encode("utf-8")
+        outcome = VERIFIED if any(needle in payload for payload in available) else FAILED
+        checks.append(
+            ContentCheck(
+                kind="quote",
+                path=json_pointer([*claim.path, "locator", "quote"]),
+                outcome=outcome,
+                detail="quote found in capture"
+                if outcome == VERIFIED
+                else "quote absent from capture",
+                warnings=tuple(warnings),
+            )
+        )
+    return checks
 
 
 def _local_raw_reference_error(reference: str) -> Unfetchable | None:
@@ -311,6 +448,179 @@ def _local_raw_reference_error(reference: str) -> Unfetchable | None:
     if "?" in raw_reference or ";" in raw_path or "\\" in raw_path or ".." in raw_path.split("/"):
         return Unfetchable(f"outside local base: {reference}")
     return None
+
+
+def _fetch_capture(
+    index: int,
+    source: dict[str, Any],
+    reference: str,
+    base_uri: str | None,
+    resolver: Resolver,
+    local: bool,
+) -> _ResolvedCapture | _UnfetchedContent:
+    uri = _effective_reference(reference, base_uri, local)
+    if isinstance(uri, Unfetchable):
+        return _UnfetchedContent(index=index, error=uri)
+    try:
+        return _ResolvedCapture(index, source, uri, resolver.fetch(uri))
+    except Unfetchable as error:
+        return _UnfetchedContent(index=index, error=error)
+
+
+def _fetch_sidecar(
+    index: int,
+    section: dict[str, Any],
+    reference: str,
+    base_uri: str | None,
+    resolver: Resolver,
+    local: bool,
+) -> _ResolvedContent | _UnfetchedContent:
+    return _fetch_section(index, section, reference, base_uri, resolver, local)
+
+
+def _sidecar_hash_check(
+    index: int, sri: str, resolved: _ResolvedContent | _UnfetchedContent
+) -> ContentCheck:
+    return _check_sri("sidecar", ["sections", index, "provenance_hash"], sri, resolved)
+
+
+def _parse_sidecar(payload: bytes) -> tuple[object, str | None]:
+    try:
+        return json.loads(payload.decode("utf-8")), None
+    except UnicodeDecodeError as error:
+        return None, str(error)
+    except json.JSONDecodeError as error:
+        return None, error.msg
+
+
+def _sidecar_findings(
+    graph: _Graph,
+    section_index: int,
+    section: dict[str, Any],
+    sidecar: object,
+) -> tuple[list[Finding], bool]:
+    findings = schema_findings(sidecar, validator=provenance_validator())
+    if not isinstance(sidecar, dict):
+        return findings, False
+    section_id = sidecar.get("section_id")
+    binding_mismatch = False
+    if code := reference_code(section_id, "section", graph.source_ids, graph.section_ids):
+        findings.append(
+            Finding(
+                code=code,
+                path=json_pointer([*_sidecar_path(section_index), "section_id"]),
+                message=f"sidecar section_id {section_id!r} does not resolve to a section",
+            )
+        )
+    elif isinstance(section_id, str) and section_id != section.get("id"):
+        binding_mismatch = True
+    for claim_index, claim in indexed_dicts(sidecar.get("claims")):
+        _append_sidecar_source_findings(findings, graph, section_index, claim_index, claim)
+    return sorted(findings), binding_mismatch
+
+
+def _append_sidecar_source_findings(
+    findings: list[Finding],
+    graph: _Graph,
+    section_index: int,
+    claim_index: int,
+    claim: dict[str, Any],
+) -> None:
+    source_ids = claim.get("source_ids")
+    if not isinstance(source_ids, list):
+        return
+    for source_index, source_id in enumerate(source_ids):
+        if code := reference_code(source_id, "source", graph.source_ids, graph.section_ids):
+            findings.append(
+                Finding(
+                    code=code,
+                    path=json_pointer(
+                        [
+                            *_sidecar_path(section_index),
+                            "claims",
+                            claim_index,
+                            "source_ids",
+                            source_index,
+                        ]
+                    ),
+                    message=f"sidecar claim source id {source_id!r} does not resolve to a source",
+                )
+            )
+
+
+def _inline_quote_claims(graph: _Graph) -> list[_QuoteClaim]:
+    claims: list[_QuoteClaim] = []
+    for section_index, section in graph.sections:
+        for claim_index, claim in indexed_dicts(section.get("provenance")):
+            quote = _claim_quote(claim)
+            source_ids = _claim_source_ids(claim)
+            if quote is not None and source_ids:
+                claims.append(
+                    _QuoteClaim(
+                        path=["sections", section_index, "provenance", claim_index],
+                        quote=quote,
+                        source_ids=source_ids,
+                    )
+                )
+    return claims
+
+
+def _sidecar_quote_claims(section_index: int, sidecar: object) -> list[_QuoteClaim]:
+    if not isinstance(sidecar, dict):
+        return []
+    claims: list[_QuoteClaim] = []
+    for claim_index, claim in indexed_dicts(sidecar.get("claims")):
+        quote = _claim_quote(claim)
+        source_ids = _claim_source_ids(claim)
+        if quote is not None and source_ids:
+            claims.append(
+                _QuoteClaim(
+                    path=[*_sidecar_path(section_index), "claims", claim_index],
+                    quote=quote,
+                    source_ids=source_ids,
+                )
+            )
+    return claims
+
+
+def _claim_quote(claim: dict[str, Any]) -> str | None:
+    locator = claim.get("locator")
+    quote = locator.get("quote") if isinstance(locator, dict) else None
+    if not isinstance(quote, str):
+        return None
+    return quote
+
+
+def _claim_source_ids(claim: dict[str, Any]) -> tuple[str, ...]:
+    source_ids = claim.get("source_ids")
+    if not isinstance(source_ids, list):
+        return ()
+    return tuple(source_id for source_id in source_ids if isinstance(source_id, str))
+
+
+def _quote_source_ids(claims: list[_QuoteClaim]) -> frozenset[str]:
+    return frozenset(source_id for claim in claims for source_id in claim.source_ids)
+
+
+def _redacted_warnings(
+    graph: _Graph, path: list[str | int], source_ids: tuple[str, ...]
+) -> list[Advisory]:
+    redacted = sorted(
+        source_id
+        for source_id in source_ids
+        if any(
+            source.get("id") == source_id and source.get("type") == "redacted"
+            for _, source in graph.sources
+        )
+    )
+    if not redacted:
+        return []
+    return [
+        Advisory(
+            path=json_pointer([*path, "locator", "quote"]),
+            message=f"quote cites redacted source(s): {', '.join(redacted)}",
+        )
+    ]
 
 
 def _fetch_section(
@@ -404,6 +714,10 @@ def _warning_check(kind: str, path: list[str | int], detail: str) -> ContentChec
 
 def _content_path(index: int) -> list[str | int]:
     return ["sections", index, "content_uri"]
+
+
+def _sidecar_path(index: int) -> list[str | int]:
+    return ["sections", index, "provenance_uri"]
 
 
 def _is_markdown(content_type: object) -> bool:

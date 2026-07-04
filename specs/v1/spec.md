@@ -156,7 +156,7 @@ The inline citation grammar is normative:
 - A citation is `[cite: <id-list>]` -- literal `[cite:`, the list, literal `]`.
 - `<id-list>` is one or more source `id`s separated by commas: `[cite: a]`, `[cite: a, b, c]`.
 - Optional horizontal whitespace is allowed after `cite:` and around each comma; each `id` matches the `[a-z0-9_-]`, ≤64 char local ID grammar, so the tokens are unambiguous.
-- Each `id` MUST reference a source declared in the descriptor (checked under `--check-content`).
+- Each `id` MUST reference a source declared in the descriptor (checked during content verification, §7).
 - Markdown structure is interpreted per [CommonMark](https://spec.commonmark.org/). The marker is recognized only in Markdown prose; occurrences inside the following CommonMark constructs are literal text and MUST be ignored: fenced code blocks (```` ``` ```` / `~~~`), indented code blocks, inline code spans (any backtick run length), HTML blocks, and HTML comments.
 - Any bracketed text that does not match the grammar exactly — for example `[cite:]` or `[cite: Bad ID]` — is ordinary literal text. It is never a marker and never an extraction error.
 - There is no escape syntax in v1; to write a literal `[cite: …]` in prose, place it in a code span.
@@ -315,7 +315,7 @@ The descriptor `$schema` MUST be either the major-keyed URI `https://schema.open
 
 The compatibility contract uses one lenient schema per major. Within a major, new minor versions add only optional core fields or optional modules. Old documents continue to validate against newer schemas because additions are optional. New-minor documents also remain usable with older schemas because core objects are lenient toward unknown members.
 
-Strictness is a validator mode, not a second schema. The lenient default tolerates unknown core members for forward compatibility. A validator `--strict` lint flags a member outside the known core set and not under `x` as `AKB006 unknown-core-property`.
+Strictness is a validator mode, not a second schema. The lenient default tolerates unknown core members for forward compatibility. In its optional **strict mode**, a validator flags a member outside the known core set and not under `x` as `AKB006 unknown-core-property`. How a validator exposes strict mode — a command-line flag, an API parameter, a configuration toggle — is an implementation choice outside this specification.
 
 ## §7 Validation and error codes
 
@@ -368,7 +368,7 @@ Error-code catalog:
 | `AKB003` | `missing-source-cite` | Every section with `content_uri` cites ≥1 `source_ids`. |
 | `AKB004` | `parent-cycle` | The `parent_id` graph is acyclic. |
 | `AKB005` | `cap-exceeded` | Every length and cardinality/depth cap respected. |
-| `AKB006` | `unknown-core-property` | (**`--strict` only**) member outside the known core set and not under `x`; valid under the lenient default. |
+| `AKB006` | `unknown-core-property` | (**strict mode only**) member outside the known core set and not under `x`; valid under the lenient default. |
 | `AKB007` | `unresolved-reference` | A `parent_id`, `source_ids` entry, `discovered_via_id`, inline `[cite:]` id, or local link `section_id` names an id that does not exist in the AKB. |
 | `AKB008` | `unknown-rel` | `rel` in the controlled vocab or a reverse-DNS `prefix:suffix` escape. |
 | `AKB009` | `missing-required-field` | Every schema-required field present, at every level: top-level, source, section, link, and claim. |
@@ -393,7 +393,9 @@ When validation is performed with the published JSON Schema, keyword violations 
 
 Conformance-fixture match semantics are also normative: a validator passes an invalid fixture if and only if it emits every code listed in the fixture's `codes` array. Extra codes are permitted only when they report distinct additional violations; duplicate emissions of a code are ignored.
 
-Deeper checks that require fetching content are opt-in under `--check-content`. Under `--check-content`, inline `[cite:]` resolution failures emit `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes, and the top-level `guide_hash` likewise against the fetched guide bytes.
+Deeper checks that require fetching referenced content are an opt-in **content-verification** mode, distinct from the default offline structural validation. Whether a validator offers content verification, and how it is invoked — a command-line flag, a separate API entry point, a configuration option — is an implementation choice this specification does not constrain; the spec defines only which checks run and what each yields. During content verification, inline `[cite:]` resolution failures emit `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes, and the top-level `guide_hash` likewise against the fetched guide bytes.
+
+A fetched provenance sidecar is additionally checked against the descriptor: it MUST conform to `schema/v1/provenance.schema.json`, its `section_id` and claim `source_ids` MUST resolve to declared ids of the right kind per `AKB007`/`AKB010`, and a fetched sidecar whose `section_id` names a section other than the one referencing it via `provenance_uri` (§4.4) is a failed content check.
 
 When a source carries `capture_uri`, the fetched capture can be verified against the source `content_hash`, and claim `locator.quote` values can be checked as substrings of the capture (§4.2). Validators and consumers MUST support `sha256` (§4.3); an unknown hash algorithm is an unverifiable warning, not an invalid descriptor.
 

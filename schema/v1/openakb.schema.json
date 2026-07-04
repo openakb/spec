@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schema.openakb.org/v1/openakb.schema.json",
   "title": "OpenAKB descriptor",
-  "description": "JSON Schema for an OpenAKB descriptor (openakb.json). Lenient on unknown members by design (no additionalProperties:false on core objects) so minor versions stay forward-compatible; typo-catching is the validator's --strict lint (spec §6).",
+  "description": "JSON Schema for an OpenAKB descriptor (openakb.json). Lenient on unknown members by design (no additionalProperties:false on core objects) so minor versions stay forward-compatible; typo-catching is the validator's strict mode (spec §6).",
   "type": "object",
   "required": ["$schema", "id", "title", "description", "sources", "sections"],
   "properties": {
