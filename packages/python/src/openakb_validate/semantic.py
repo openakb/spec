@@ -64,15 +64,15 @@ class _Graph:
 
 def _duplicate_ids(graph: _Graph) -> list[Finding]:
     findings: list[Finding] = []
-    seen: set[str] = set()
-    for entry in _entries(graph.sources, "source"):
-        if entry.value in seen:
-            findings.append(_finding("AKB001", [f"{entry.kind}s", entry.index, "id"]))
-        seen.add(entry.value)
-    for entry in _entries(graph.sections, "section"):
-        if entry.value in seen:
-            findings.append(_finding("AKB001", [f"{entry.kind}s", entry.index, "id"]))
-        seen.add(entry.value)
+    first_seen: dict[str, str] = {}
+    entries = [*_entries(graph.sources, "source"), *_entries(graph.sections, "section")]
+    for entry in entries:
+        path: list[str | int] = [f"{entry.kind}s", entry.index, "id"]
+        if entry.value in first_seen:
+            message = f'duplicate id "{entry.value}" first declared at {first_seen[entry.value]}'
+            findings.append(_finding("AKB001", path, message=message))
+        else:
+            first_seen[entry.value] = json_pointer(path)
     return findings
 
 
@@ -83,7 +83,11 @@ def _empty_sections(graph: _Graph) -> list[Finding]:
         if is_local_id(section.get("parent_id"))
     }
     return [
-        _finding("AKB002", ["sections", index])
+        _finding(
+            "AKB002",
+            ["sections", index],
+            message=f'section "{section["id"]}" has neither content_uri nor a child section',
+        )
         for index, section in graph.sections
         if "content_uri" not in section
         and is_local_id(section.get("id"))
@@ -143,7 +147,8 @@ def _source_cycle_warnings(graph: _Graph) -> list[Advisory]:
         path: list[str | int] = ["sources", index_by_id.get(cycle[0], 0), "discovered_via_id"]
         warnings.append(
             Advisory(
-                path=json_pointer(path), message=f"discovered_via_id cycle: {' -> '.join(cycle)}"
+                path=json_pointer(path),
+                message=f"discovered_via_id cycle: {_render_cycle(cycle)}",
             )
         )
     return warnings
@@ -158,7 +163,15 @@ def _append_ref(
     path: list[str | int],
 ) -> None:
     if code := reference_code(value, expected, graph.source_ids, graph.section_ids):
-        finding.append(_finding(code, path))
+        finding.append(_finding(code, path, message=_reference_message(code, value, expected)))
+
+
+def _reference_message(code: str, value: object, expected: _Kind) -> str:
+    # reference_code only returns a code for grammar-valid string tokens, so value is a str here.
+    token = value if isinstance(value, str) else repr(value)
+    if code == "AKB010":
+        return f'reference "{token}" resolves to the wrong kind; expected a {expected}'
+    return f'unresolved reference "{token}"; no declared {expected} has this id'
 
 
 def _append_source_ids(
@@ -218,7 +231,11 @@ def _parent_cycle_findings(
 ) -> list[Finding]:
     index_by_id = _index_by_id(graph.sections)
     return [
-        _finding("AKB004", ["sections", index_by_id.get(cycle[0], 0), "parent_id"])
+        _finding(
+            "AKB004",
+            ["sections", index_by_id.get(cycle[0], 0), "parent_id"],
+            message=f"parent_id cycle: {_render_cycle(cycle)}",
+        )
         for cycle in sorted(_cycles(parent_by_id))
     ]
 
@@ -231,7 +248,15 @@ def _depth_findings(
     for section_id, index in _index_by_id(graph.sections).items():
         depth = _section_depth(section_id, parent_by_id)
         if depth > PARENT_DEPTH_MAX:
-            findings.append(_finding("AKB005", ["sections", index, "parent_id"]))
+            findings.append(
+                _finding(
+                    "AKB005",
+                    ["sections", index, "parent_id"],
+                    message=(
+                        f"parent_id chain depth {depth} exceeds the maximum of {PARENT_DEPTH_MAX}"
+                    ),
+                )
+            )
     return findings
 
 
@@ -251,20 +276,29 @@ def _section_depth(section_id: str, parent_by_id: dict[str, str]) -> int:
 
 
 def _cycles(next_by_id: dict[str, str]) -> set[tuple[str, ...]]:
+    """Every distinct cycle in the functional graph `next_by_id`, in O(n) total.
+
+    Each node has at most one outgoing edge, so a global `done` set lets every node
+    be walked exactly once across all starts: a walk stops the moment it reaches a
+    node already resolved by an earlier walk, and a node revisited within the current
+    walk closes a cycle from its first position to the walk's tail.
+    """
     cycles: set[tuple[str, ...]] = set()
+    done: set[str] = set()
     for start in next_by_id:
-        path: list[str] = []
+        if start in done:
+            continue
         position: dict[str, int] = {}
+        path: list[str] = []
         current = start
-        while current in next_by_id:
+        while current in next_by_id and current not in done:
             if current in position:
                 cycles.add(_canonical_cycle(path[position[current] :]))
-                break
-            if current in path:
                 break
             position[current] = len(path)
             path.append(current)
             current = next_by_id[current]
+        done.update(path)
     return cycles
 
 
@@ -273,6 +307,11 @@ def _canonical_cycle(cycle: list[str]) -> tuple[str, ...]:
         return (cycle[0],)
     rotations = [tuple(cycle[index:] + cycle[:index]) for index in range(len(cycle))]
     return min(rotations)
+
+
+def _render_cycle(cycle: tuple[str, ...]) -> str:
+    """Render a cycle as a closed chain, e.g. ('a', 'b') -> 'a -> b -> a'."""
+    return " -> ".join([*cycle, cycle[0]])
 
 
 def _parent_by_id(graph: _Graph) -> dict[str, str]:
@@ -301,5 +340,5 @@ def _ids(items: Iterable[tuple[int, dict[str, Any]]]) -> list[str]:
     return [item["id"] for _, item in items if is_local_id(item.get("id"))]
 
 
-def _finding(code: str, path: list[str | int]) -> Finding:
-    return Finding(code=code, path=json_pointer(path), message=code)
+def _finding(code: str, path: list[str | int], *, message: str) -> Finding:
+    return Finding(code=code, path=json_pointer(path), message=message)

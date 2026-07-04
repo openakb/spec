@@ -1,10 +1,19 @@
 """Cross-document semantic rules: AKB001/002/004/005/007/010 + MAY-warn advisories."""
 
+import time
 from typing import Any
 
+from openakb_validate import validate
+from openakb_validate.catalog import PARENT_DEPTH_MAX
+from openakb_validate.result import Finding
 from openakb_validate.semantic import semantic_findings, semantic_warnings
 
 __all__ = ()
+
+# A parent chain long enough that the pre-fix O(n^3) cycle scan would take minutes; the
+# linear rework must clear it well within the ceiling on ordinary hardware.
+_LARGE_CHAIN_SECTIONS = 3000
+_LARGE_CHAIN_CEILING_SECONDS = 2.0
 
 
 def _descriptor(**overrides: object) -> dict[str, Any]:
@@ -224,3 +233,124 @@ def test_acyclic_discovery() -> None:
         {"id": "b", "discovered_via_id": "a"},
     ]
     assert semantic_warnings(_descriptor(sources=sources)) == []
+
+
+def _sole_finding(descriptor: object, code: str) -> Finding:
+    matches = [finding for finding in semantic_findings(descriptor) if finding.code == code]
+    assert len(matches) == 1, f"expected exactly one {code}, got {matches}"
+    return matches[0]
+
+
+def test_akb001_message_names_duplicate() -> None:
+    """The duplicate-id message quotes the id and its first-declared location."""
+    descriptor = _descriptor(sections=[_section("dup"), _section("dup")])
+    finding = _sole_finding(descriptor, "AKB001")
+    assert '"dup"' in finding.message
+    assert "/sections/0/id" in finding.message
+
+
+def test_akb001_duplicate_source_ids() -> None:
+    """Two sources sharing an id emit a single AKB001 at the second source."""
+    sources = [
+        {"id": "dup", "type": "url", "uri": "https://docs.example.com/a/"},
+        {"id": "dup", "type": "url", "uri": "https://docs.example.com/b/"},
+    ]
+    descriptor = _descriptor(sources=sources, sections=[_section("root", source_ids=["dup"])])
+    findings = semantic_findings(descriptor)
+    assert [(finding.code, finding.path) for finding in findings] == [("AKB001", "/sources/1/id")]
+
+
+def test_akb002_message_names_section() -> None:
+    """The empty-section message quotes the offending section id."""
+    section = _section("lonely")
+    del section["content_uri"]
+    finding = _sole_finding(_descriptor(sections=[section]), "AKB002")
+    assert '"lonely"' in finding.message
+
+
+def test_akb004_message_renders_cycle() -> None:
+    """The parent-cycle message renders the closed chain a -> b -> a."""
+    sections = [_section("a", parent_id="b"), _section("b", parent_id="a")]
+    finding = _sole_finding(_descriptor(sections=sections), "AKB004")
+    assert "a -> b -> a" in finding.message
+
+
+def test_akb005_message_states_depth() -> None:
+    """The cap message states the offending depth and the maximum."""
+    sections = [
+        _section(f"n{index}", **({"parent_id": f"n{index - 1}"} if index else {}))
+        for index in range(PARENT_DEPTH_MAX + 1)
+    ]
+    finding = _sole_finding(_descriptor(sections=sections), "AKB005")
+    assert str(PARENT_DEPTH_MAX + 1) in finding.message
+    assert str(PARENT_DEPTH_MAX) in finding.message
+
+
+def test_akb007_message_names_reference() -> None:
+    """The unresolved-reference message quotes the offending id."""
+    descriptor = _descriptor(sections=[_section("root", parent_id="ghost")])
+    finding = _sole_finding(descriptor, "AKB007")
+    assert '"ghost"' in finding.message
+
+
+def test_akb010_message_states_kind() -> None:
+    """The wrong-kind message quotes the id and names the expected kind."""
+    descriptor = _descriptor(sections=[_section("root", parent_id="s1")])
+    finding = _sole_finding(descriptor, "AKB010")
+    assert '"s1"' in finding.message
+    assert "section" in finding.message
+
+
+def test_advisory_message_renders_cycle() -> None:
+    """The discovery-cycle advisory renders the closed chain a -> b -> a."""
+    sources = [
+        {"id": "a", "discovered_via_id": "b"},
+        {"id": "b", "discovered_via_id": "a"},
+    ]
+    warnings = semantic_warnings(_descriptor(sources=sources))
+    assert "a -> b -> a" in warnings[0].message
+
+
+def test_parent_cycle_three_nodes() -> None:
+    """A three-section parent cycle collapses to one AKB004."""
+    sections = [
+        _section("a", parent_id="c"),
+        _section("b", parent_id="a"),
+        _section("c", parent_id="b"),
+    ]
+    findings = semantic_findings(_descriptor(sections=sections))
+    assert [finding.code for finding in findings].count("AKB004") == 1
+
+
+def test_chain_into_cycle_once() -> None:
+    """A tail feeding a cycle reports that cycle a single time."""
+    sections = [
+        _section("tail", parent_id="a"),
+        _section("a", parent_id="b"),
+        _section("b", parent_id="a"),
+    ]
+    findings = semantic_findings(_descriptor(sections=sections))
+    assert [finding.code for finding in findings].count("AKB004") == 1
+
+
+def test_discovery_cycle_three_nodes() -> None:
+    """A three-source discovery cycle yields exactly one advisory."""
+    sources = [
+        {"id": "a", "discovered_via_id": "c"},
+        {"id": "b", "discovered_via_id": "a"},
+        {"id": "c", "discovered_via_id": "b"},
+    ]
+    assert len(semantic_warnings(_descriptor(sources=sources))) == 1
+
+
+def test_validate_large_chain_fast() -> None:
+    """A long linear parent chain validates well within the perf ceiling (S11)."""
+    sections = [
+        _section(f"n{index}", **({"parent_id": f"n{index - 1}"} if index else {}))
+        for index in range(_LARGE_CHAIN_SECTIONS)
+    ]
+    descriptor = _descriptor(sections=sections)
+    start = time.perf_counter()
+    validate(descriptor)
+    elapsed = time.perf_counter() - start
+    assert elapsed < _LARGE_CHAIN_CEILING_SECONDS, f"validate() took {elapsed:.2f}s"

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-duplicate-source-id",
+  "title": "Invalid — duplicate source id",
+  "description": "Two sources declare the same local id in the shared id space.",
+  "sources": [
+    {
+      "id": "dup",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    },
+    {
+      "id": "dup",
+      "type": "url",
+      "uri": "https://docs.example.com/b/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "A section citing the duplicated source id.",
+      "content_uri": "root.md",
+      "source_ids": ["dup"]
+    }
+  ]
+}

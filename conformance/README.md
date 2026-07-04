@@ -102,7 +102,7 @@ error codes.
 
 | Code | Rule | Fixture |
 | --- | --- | --- |
-| `AKB001` | IDs are unique across the shared source and section ID space. | `invalid/duplicate-id` |
+| `AKB001` | IDs are unique across the shared source and section ID space. | `invalid/duplicate-id`, `invalid/duplicate-source-id` |
 | `AKB002` | Every section has `content_uri` or at least one child. | `invalid/empty-section` |
 | `AKB003` | Every section with `content_uri` cites at least one source. | `invalid/content-without-source` |
 | `AKB004` | The `parent_id` graph is acyclic. | `invalid/parent-cycle` |
