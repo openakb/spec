@@ -319,7 +319,7 @@ Strictness is a validator mode, not a second schema. The lenient default tolerat
 
 ## §7 Validation and error codes
 
-Structural validation runs offline on the descriptor and, when present, sidecar files. Validators MUST emit stable error codes for violations. Conformance is asserted on error codes, not only on pass/fail verdicts.
+Structural validation runs offline on the descriptor. A provenance sidecar (§4.4) is a separate fetched artifact, so its checks are part of content verification, not structural validation. Validators MUST emit stable error codes for violations. Conformance is asserted on error codes, not only on pass/fail verdicts.
 
 The following structural rules are normative:
 

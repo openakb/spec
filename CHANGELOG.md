@@ -28,8 +28,9 @@ at v1.0.0.
 - Source capture anchoring: optional Source fields `content_hash` (SRI-style integrity of the
   captured snapshot bytes taken at `captured_at`) and `capture_uri` (where the capture is
   re-servable), closing the chain from snapshot to verifiable `locator.quote` spans
-  (spec §2, §4.2, §4.4, §5, §7), with schema coverage and a raw capture file in the
-  widget-platform example stamped with its real hash in both authoring and served form.
+  (spec §2, §4.2, §4.4, §5, §7), with schema coverage — a present `locator.quote` is a
+  non-empty string — and a raw capture file in the widget-platform example stamped with
+  its real hash in both authoring and served form.
 - Normative "unverifiable is not invalid" rule for content verification (spec §7): content
   checks yield verified / failed / unverifiable; an unresolvable or unfetchable URI is
   reported as unverifiable, never as a structural failure, and a conformance verdict never
@@ -55,10 +56,12 @@ at v1.0.0.
 - Python reference validator `openakb-validate` (`packages/python`): bundled-schema
   validation with the normative keyword→code mapping, the cross-document semantic
   rules (`AKB001`/`AKB002`/`AKB004`/depth-cap `AKB005`/`AKB007`/`AKB010`), the
-  strict lint (`AKB006`), the normative `[cite:]` extraction grammar over
-  CommonMark, opt-in content checks (citations, content/guide/sidecar/capture
+  strict lint (`AKB006`), and the normative `[cite:]` raw-source extraction grammar
+  (§4.4) — each finding carrying its stable code, a JSON-pointer path, and a
+  human-readable message; opt-in content checks (citations, content/guide/sidecar/capture
   hashes, sidecar binding, quote spans, redacted sources unverifiable by construction)
-  with verified / failed / unverifiable outcomes plus a `validate_with_content` facade
+  with verified, failed, or unverifiable outcomes the content report groups for callers,
+  plus a `validate_with_content` facade
   that runs structural validation and content verification in one call, and advisory
   warnings for the spec's MAY-warn surfaces (discovery-graph cycles, duplicate ids
   within one citation marker, a `locator.quote` citing a redacted source); the
@@ -90,6 +93,10 @@ at v1.0.0.
   implementation choice. The spec prescribes behavior and error codes, not any tool's
   CLI; the reference library realizes the modes as `validate(strict=…)` and
   `check_content()`.
+- Spec §7 now states that structural validation runs offline on the descriptor and that a
+  provenance sidecar, a separately fetched artifact, is checked during content verification
+  rather than structural validation — matching the reference validator, which validates
+  sidecars only under opt-in content checks.
 - ADR-0001 now states that the validator packages are pure libraries: no
   command-line entrypoint in any language (no Python console script, no Rust binary
   target, no npm `bin`). The `openakb/openakb` tool remains the only planned
