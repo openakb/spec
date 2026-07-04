@@ -13,6 +13,8 @@ import pytest
 from openakb_validate import FullReport, validate_with_content
 from openakb_validate.content import (
     FAILED,
+    KIND_CAPTURE,
+    KIND_GUIDE_HASH,
     UNVERIFIABLE,
     VERIFIED,
     ContentCheck,
@@ -607,6 +609,40 @@ def test_backslash_join_guide(tmp_path: Path) -> None:
 
     assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
     assert report.ok
+
+
+def test_report_partitions_by_outcome() -> None:
+    """verified/failed/unverifiable each collect only their outcome's checks."""
+    verified = ContentCheck(kind=KIND_CAPTURE, path="/a", outcome=VERIFIED, detail="")
+    failed = ContentCheck(kind=KIND_CAPTURE, path="/b", outcome=FAILED, detail="")
+    unverifiable = ContentCheck(kind=KIND_CAPTURE, path="/c", outcome=UNVERIFIABLE, detail="")
+    report = ContentReport(checks=(verified, failed, unverifiable))
+
+    assert report.verified == (verified,)
+    assert report.failed == (failed,)
+    assert report.unverifiable == (unverifiable,)
+
+
+def test_all_unverifiable_report_is_silently_ok() -> None:
+    """ok can be True with nothing verified; unverifiable exposes the silent case."""
+    unverifiable = ContentCheck(
+        kind=KIND_GUIDE_HASH, path="/guide_hash", outcome=UNVERIFIABLE, detail="missing guide_uri"
+    )
+    report = ContentReport(checks=(unverifiable,))
+
+    assert report.ok
+    assert report.verified == ()
+    assert report.unverifiable == (unverifiable,)
+
+
+def test_local_resolver_accepts_str_base_dir(tmp_path: Path) -> None:
+    """A str base_dir is coerced to Path so fetch and check_content do not crash."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    resolver = LocalFileResolver(base_dir=str(tmp_path))
+
+    assert resolver.base_dir == tmp_path
+    assert resolver.fetch("root.md") == b"See [cite: s1]."
+    assert check_content(_descriptor(), resolver).ok
 
 
 def test_local_resolver_confines(tmp_path: Path) -> None:

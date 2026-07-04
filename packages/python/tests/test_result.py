@@ -16,6 +16,12 @@ def test_finding_name_derives_from_catalog() -> None:
     assert finding.name == "parent-cycle"
 
 
+def test_finding_name_unknown_code_echoes_code() -> None:
+    """An out-of-catalog code returns the code itself, never a bare KeyError."""
+    finding = Finding(code="AKB999", path="/x", message="m")
+    assert finding.name == "AKB999"
+
+
 def test_findings_sort_order() -> None:
     a = Finding(code="AKB001", path="/z", message="m")
     b = Finding(code="AKB002", path="/a", message="m")

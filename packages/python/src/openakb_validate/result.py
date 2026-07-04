@@ -25,7 +25,12 @@ class Finding:
 
     @property
     def name(self) -> str:
-        return CODE_NAMES[self.code]
+        """Public finding name for this code; unknown codes echo the code itself.
+
+        `Finding` is user-constructible, so an out-of-catalog code returns the code
+        rather than raising, keeping the accessor total for callers.
+        """
+        return CODE_NAMES.get(self.code, self.code)
 
 
 @dataclass(frozen=True)

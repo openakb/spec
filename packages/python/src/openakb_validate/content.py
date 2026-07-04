@@ -6,6 +6,7 @@ import base64
 import binascii
 import hashlib
 import json
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,12 @@ from .schema import provenance_validator, schema_findings
 
 __all__ = [
     "FAILED",
+    "KIND_CAPTURE",
+    "KIND_CITATIONS",
+    "KIND_CONTENT_HASH",
+    "KIND_GUIDE_HASH",
+    "KIND_QUOTE",
+    "KIND_SIDECAR",
     "UNVERIFIABLE",
     "VERIFIED",
     "ContentCheck",
@@ -29,9 +36,22 @@ __all__ = [
     "check_content",
 ]
 
+# The three outcomes a content check can report (spec §7).
 VERIFIED = "verified"
 FAILED = "failed"
 UNVERIFIABLE = "unverifiable"
+
+# The `ContentCheck.kind` values, named so callers can filter without hard-coding the
+# strings. Each names what a check proves: a hash over the authoring guide, a section's
+# content, or a source capture; the citation markers inside fetched Markdown; a
+# provenance sidecar; or a claim quote located in a fetched capture.
+KIND_GUIDE_HASH = "guide-hash"
+KIND_CONTENT_HASH = "content-hash"
+KIND_CITATIONS = "citations"
+KIND_SIDECAR = "sidecar"
+KIND_CAPTURE = "capture"
+KIND_QUOTE = "quote"
+
 _MARKDOWN_TYPE = "text/markdown"
 _SHA256 = "sha256"
 _SHA256_LENGTH = 32
@@ -42,7 +62,23 @@ class Unfetchable(Exception):
 
 
 class Resolver(Protocol):
-    """Injected content resolver; implementations decide what URI schemes exist."""
+    """Injected content resolver; implementations decide what URI schemes exist.
+
+    `check_content` calls `fetch` with the *effective reference*: the descriptor
+    reference (a `content_uri`, `capture_uri`, `guide_uri`, or `provenance_uri`)
+    already joined onto the descriptor's `base_uri` when one is present, with any
+    `#fragment` stripped -- fragments are client-side identifiers that never change
+    the fetched bytes. The `uri` is therefore ready to dereference as-is.
+
+    An implementation MUST return the resource `bytes` or raise `Unfetchable`; any
+    other exception propagates to the caller. Anything a resolver cannot fetch is an
+    `Unfetchable`, which `check_content` records as an `unverifiable` outcome -- never
+    an error and never a `failed` verdict.
+
+    The pre-fetch path policing that `LocalFileResolver` applies (rejecting absolute
+    paths, `..` traversal, queries, and path parameters) is specific to that concrete
+    class; a custom resolver receives no such guard and owns its own safety.
+    """
 
     def fetch(self, uri: str) -> bytes:
         """Return bytes for uri or raise Unfetchable."""
@@ -52,12 +88,19 @@ class Resolver(Protocol):
 class LocalFileResolver:
     """Resolve scheme-less relative paths under one local base directory.
 
-    URI fragments are client-side identifiers and do not affect the fetched bytes.
-    Queries and path parameters are rejected because they would otherwise alias to
-    the same local path.
+    `base_dir` may be a `str` or any `os.PathLike[str]`; it is coerced to a `Path` on
+    construction. URI fragments are client-side identifiers and do not affect the
+    fetched bytes. Queries and path parameters are rejected because they would
+    otherwise alias to the same local path. This pre-fetch policing is unique to this
+    resolver -- the `Resolver` protocol imposes none of it on custom implementations.
     """
 
-    base_dir: Path
+    base_dir: str | os.PathLike[str]
+
+    def __post_init__(self) -> None:
+        # base_dir is a frozen field; coerce a str/PathLike to Path here so downstream
+        # path handling never sees a raw str (which has no `.resolve()`).
+        object.__setattr__(self, "base_dir", Path(self.base_dir))
 
     def fetch(self, uri: str) -> bytes:
         try:
@@ -84,7 +127,9 @@ class LocalFileResolver:
             or Path(parsed.path).is_absolute()
         ):
             raise Unfetchable(f"outside local base: {uri}")
-        base = self.base_dir.resolve()
+        # base_dir is coerced to Path in __post_init__; Path(...) reassures the type
+        # checker without changing the runtime value.
+        base = Path(self.base_dir).resolve()
         path = (base / parsed.path).resolve()
         if path != base and base not in path.parents:
             raise Unfetchable(f"outside local base: {uri}")
@@ -118,11 +163,22 @@ class ContentReport:
         return tuple(warning for check in self.checks for warning in check.warnings)
 
     @property
+    def verified(self) -> tuple[ContentCheck, ...]:
+        return tuple(check for check in self.checks if check.outcome == VERIFIED)
+
+    @property
     def failed(self) -> tuple[ContentCheck, ...]:
         return tuple(check for check in self.checks if check.outcome == FAILED)
 
     @property
+    def unverifiable(self) -> tuple[ContentCheck, ...]:
+        return tuple(check for check in self.checks if check.outcome == UNVERIFIABLE)
+
+    @property
     def ok(self) -> bool:
+        # `ok` is true when nothing failed and no structural finding was raised -- which
+        # includes the all-unverifiable case where nothing was actually verified. Callers
+        # that must distinguish "all good" from "nothing checked" read `verified`.
         return not self.failed and not self.findings
 
 
@@ -225,7 +281,7 @@ def _section_checks(
         hash_check = None
         if has_content_hash:
             hash_check = _parse_sri(
-                "content-hash",
+                KIND_CONTENT_HASH,
                 ["sections", index, "content_hash"],
                 section["content_hash"],
             )
@@ -239,7 +295,7 @@ def _section_checks(
             else:
                 checks.append(
                     _check_sri(
-                        "content-hash",
+                        KIND_CONTENT_HASH,
                         ["sections", index, "content_hash"],
                         section["content_hash"],
                         resolved,
@@ -256,21 +312,21 @@ def _guide_check(
     if not isinstance(descriptor.get("guide_hash"), str):
         return []
     path: list[str | int] = ["guide_hash"]
-    expected = _parse_sri("guide-hash", path, descriptor["guide_hash"])
+    expected = _parse_sri(KIND_GUIDE_HASH, path, descriptor["guide_hash"])
     if isinstance(expected, ContentCheck):
         return [expected]
     # Mirror a source content_hash with no capture_uri: a guide_hash with nothing to
     # fetch is unverifiable, not silently dropped.
     if not isinstance(descriptor.get("guide_uri"), str):
-        return [_check(UNVERIFIABLE, "guide-hash", path, "missing guide_uri")]
+        return [_check(UNVERIFIABLE, KIND_GUIDE_HASH, path, "missing guide_uri")]
     uri = _effective_reference(descriptor["guide_uri"], base_uri, local)
     if isinstance(uri, Unfetchable):
-        return [_check(UNVERIFIABLE, "guide-hash", path, str(uri))]
+        return [_check(UNVERIFIABLE, KIND_GUIDE_HASH, path, str(uri))]
     try:
         payload = resolver.fetch(uri)
     except Unfetchable as error:
-        return [_check(UNVERIFIABLE, "guide-hash", path, str(error))]
-    return [_compare_sri("guide-hash", path, payload, expected)]
+        return [_check(UNVERIFIABLE, KIND_GUIDE_HASH, path, str(error))]
+    return [_compare_sri(KIND_GUIDE_HASH, path, payload, expected)]
 
 
 def _check_sri(
@@ -291,7 +347,7 @@ def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedConten
     if isinstance(resolved, _UnfetchedContent):
         return _check(
             UNVERIFIABLE,
-            "citations",
+            KIND_CITATIONS,
             _content_path(resolved.index),
             str(resolved.error),
         )
@@ -300,10 +356,10 @@ def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedConten
     except UnicodeDecodeError as error:
         # Fetched-but-malformed content is a failure, matching the sidecar JSON parse
         # precedent and the spec 7 "malformed ... fetched" rule -- not an access gap.
-        return _check(FAILED, "citations", _content_path(resolved.index), str(error))
+        return _check(FAILED, KIND_CITATIONS, _content_path(resolved.index), str(error))
     findings, warnings = _citation_results(graph, resolved.index, markdown)
     return ContentCheck(
-        kind="citations",
+        kind=KIND_CITATIONS,
         path=json_pointer(_content_path(resolved.index)),
         outcome=FAILED if findings else VERIFIED,
         detail="citation markers checked",
@@ -356,18 +412,18 @@ def _capture_checks(
                 source.get("content_hash"), str
             ):
                 checks.append(
-                    _check(UNVERIFIABLE, "capture", ["sources", index], "redacted source")
+                    _check(UNVERIFIABLE, KIND_CAPTURE, ["sources", index], "redacted source")
                 )
             continue
         reference = source.get("capture_uri")
         has_hash = isinstance(source.get("content_hash"), str)
-        hash_check = _parse_sri("capture", path, source["content_hash"]) if has_hash else None
+        hash_check = _parse_sri(KIND_CAPTURE, path, source["content_hash"]) if has_hash else None
         if not isinstance(reference, str):
             if has_hash:
                 if isinstance(hash_check, ContentCheck):
                     checks.append(hash_check)
                 else:
-                    checks.append(_check(UNVERIFIABLE, "capture", path, "missing capture_uri"))
+                    checks.append(_check(UNVERIFIABLE, KIND_CAPTURE, path, "missing capture_uri"))
             continue
         resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
         if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
@@ -379,19 +435,22 @@ def _capture_checks(
         ):
             checks.append(
                 _check(
-                    UNVERIFIABLE, "capture", ["sources", index, "capture_uri"], str(resolved.error)
+                    UNVERIFIABLE,
+                    KIND_CAPTURE,
+                    ["sources", index, "capture_uri"],
+                    str(resolved.error),
                 )
             )
         if has_hash:
             if isinstance(hash_check, ContentCheck):
                 continue
             elif isinstance(resolved, _UnfetchedContent):
-                checks.append(_check(UNVERIFIABLE, "capture", path, str(resolved.error)))
+                checks.append(_check(UNVERIFIABLE, KIND_CAPTURE, path, str(resolved.error)))
             else:
                 # hash_check is bytes here: the ContentCheck case continued above and
                 # resolved is a _ResolvedCapture. cast narrows without a runtime assert.
                 expected = cast("bytes", hash_check)
-                comparison = _compare_sri("capture", path, resolved.payload, expected)
+                comparison = _compare_sri(KIND_CAPTURE, path, resolved.payload, expected)
                 checks.append(comparison)
                 if comparison.outcome == FAILED and isinstance(source_id, str):
                     hash_failed.add(source_id)
@@ -412,19 +471,19 @@ def _sidecar_checks(
             checks.append(_sidecar_hash_check(index, section["provenance_hash"], resolved))
         if isinstance(resolved, _UnfetchedContent):
             checks.append(
-                _check(UNVERIFIABLE, "sidecar", _sidecar_path(index), str(resolved.error))
+                _check(UNVERIFIABLE, KIND_SIDECAR, _sidecar_path(index), str(resolved.error))
             )
             continue
         sidecar, parse_error = _parse_sidecar(resolved.payload)
         if parse_error is not None:
-            checks.append(_check(FAILED, "sidecar", _sidecar_path(index), parse_error))
+            checks.append(_check(FAILED, KIND_SIDECAR, _sidecar_path(index), parse_error))
             continue
         findings, binding_mismatch = _sidecar_findings(graph, index, section, sidecar)
         claims.extend(_sidecar_quote_claims(index, sidecar))
         detail = _sidecar_detail(section, sidecar, binding_mismatch)
         checks.append(
             ContentCheck(
-                kind="sidecar",
+                kind=KIND_SIDECAR,
                 path=json_pointer(_sidecar_path(index)),
                 outcome=FAILED if findings or binding_mismatch else VERIFIED,
                 detail=detail,
@@ -445,7 +504,7 @@ def _quote_checks(
         outcome, detail = _quote_outcome(claim, captures, hash_failed)
         checks.append(
             ContentCheck(
-                kind="quote",
+                kind=KIND_QUOTE,
                 path=json_pointer([*claim.path, "locator", "quote"]),
                 outcome=outcome,
                 detail=detail,
@@ -522,7 +581,7 @@ def _fetch_sidecar(
 def _sidecar_hash_check(
     index: int, sri: str, resolved: _ResolvedContent | _UnfetchedContent
 ) -> ContentCheck:
-    return _check_sri("sidecar", ["sections", index, "provenance_hash"], sri, resolved)
+    return _check_sri(KIND_SIDECAR, ["sections", index, "provenance_hash"], sri, resolved)
 
 
 def _parse_sidecar(payload: bytes) -> tuple[object, str | None]:
