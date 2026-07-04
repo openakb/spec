@@ -22,6 +22,8 @@ from openakb_validate.content import (
 
 __all__ = ()
 
+_BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
 
 class FakeResolver:
     """Maps exact reference strings to bytes; everything else is Unfetchable."""
@@ -37,6 +39,13 @@ class FakeResolver:
 
 def _sri(payload: bytes) -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
+
+
+def _noncanonical_base64(encoded: str) -> str:
+    pad_index = encoded.index("=") - 1
+    value = _BASE64_ALPHABET.index(encoded[pad_index])
+    replacement = _BASE64_ALPHABET[(value & 0b111100) | ((value + 1) & 0b000011)]
+    return encoded[:pad_index] + replacement + encoded[pad_index + 1 :]
 
 
 def _descriptor(**overrides: object) -> dict[str, Any]:
@@ -100,6 +109,48 @@ def test_unknown_hash_algo() -> None:
     report = check_content(descriptor, FakeResolver({"root.md": b"anything"}))
 
     assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert report.ok
+
+
+def test_malformed_sha256_hash() -> None:
+    """Malformed sha256 base64 is unverifiable because schema owns shape errors."""
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_hash": "sha256-not!base64"}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": b"anything"}))
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert report.ok
+
+
+def test_wrong_digest_length() -> None:
+    """A decoded sha256 digest with the wrong byte length is unverifiable."""
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_hash": "sha256-YQ=="}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": b"anything"}))
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert report.ok
+
+
+def test_noncanonical_base64() -> None:
+    """Non-canonical sha256 base64 is unverifiable, not an integrity mismatch."""
+    payload = b"anything"
+    digest = base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
+    descriptor = _descriptor(
+        sections=[
+            _descriptor()["sections"][0]
+            | {"content_hash": f"sha256-{_noncanonical_base64(digest)}"}
+        ]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": payload}))
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
     assert report.ok
 
 
@@ -133,6 +184,14 @@ def test_unfetchable_guide() -> None:
 def test_unfetchable_content() -> None:
     """Unavailable section content makes citation checks unverifiable."""
     report = check_content(_descriptor(), FakeResolver({}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_invalid_utf8_markdown() -> None:
+    """Markdown bytes that cannot decode as UTF-8 make citation checks unverifiable."""
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"\xff"}))
 
     assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
     assert report.ok
@@ -216,9 +275,42 @@ def test_local_resolver_confines(tmp_path: Path) -> None:
         "file:root.md",
         "data:text/plain,root",
         "https://kb.example.org/root.md",
+        "root.md?variant=old",
     ):
         with pytest.raises(Unfetchable):
             resolver.fetch(uri)
+
+
+def test_local_resolver_fragments(tmp_path: Path) -> None:
+    """Fragments are client-side identifiers; local bytes still come from the file."""
+    base = tmp_path / "kb"
+    base.mkdir()
+    (base / "root.md").write_bytes(b"content")
+
+    assert LocalFileResolver(base).fetch("root.md#section") == b"content"
+
+
+def test_percent_traversal_literal(tmp_path: Path) -> None:
+    """Percent-encoded traversal text is a literal local filename, not path traversal."""
+    base = tmp_path / "kb"
+    base.mkdir()
+    (base / "%2e%2e").mkdir()
+    (base / "%2e%2e" / "root.md").write_bytes(b"literal")
+
+    assert LocalFileResolver(base).fetch("%2e%2e/root.md") == b"literal"
+
+
+def test_symlink_escape_rejected(tmp_path: Path) -> None:
+    """Symlinks under the base must not resolve to files outside the base."""
+    base = tmp_path / "kb"
+    outside = tmp_path / "outside"
+    base.mkdir()
+    outside.mkdir()
+    (outside / "root.md").write_bytes(b"escape")
+    (base / "link.md").symlink_to(outside / "root.md")
+
+    with pytest.raises(Unfetchable):
+        LocalFileResolver(base).fetch("link.md")
 
 
 def test_missing_file() -> None:

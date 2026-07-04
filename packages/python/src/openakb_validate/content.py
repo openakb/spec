@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ FAILED = "failed"
 UNVERIFIABLE = "unverifiable"
 _MARKDOWN_TYPE = "text/markdown"
 _SHA256 = "sha256"
+_SHA256_LENGTH = 32
 
 
 class Unfetchable(Exception):
@@ -46,7 +48,11 @@ class Resolver(Protocol):
 
 @dataclass(frozen=True)
 class LocalFileResolver:
-    """Resolve scheme-less relative paths under one local base directory."""
+    """Resolve scheme-less relative paths under one local base directory.
+
+    URI fragments are client-side identifiers and do not affect the fetched bytes.
+    Queries are rejected because they would otherwise alias to the same local path.
+    """
 
     base_dir: Path
 
@@ -59,7 +65,7 @@ class LocalFileResolver:
 
     def _local_path(self, uri: str) -> Path:
         parsed = urlparse(uri)
-        if parsed.scheme or parsed.netloc or Path(parsed.path).is_absolute():
+        if parsed.scheme or parsed.netloc or parsed.query or Path(parsed.path).is_absolute():
             raise Unfetchable(f"outside local base: {uri}")
         base = self.base_dir.resolve()
         path = (base / parsed.path).resolve()
@@ -248,13 +254,29 @@ def _fetch_section(
 
 
 def _check_sri_bytes(kind: str, path: list[str | int], payload: bytes, sri: str) -> ContentCheck:
-    algorithm, _, expected = sri.partition("-")
-    if algorithm != _SHA256:
-        return _check(UNVERIFIABLE, kind, path, f"unsupported hash algorithm: {algorithm}")
+    expected = _parse_sri(kind, path, sri)
+    if isinstance(expected, ContentCheck):
+        return expected
     actual = base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
-    if actual != expected:
+    if actual != base64.b64encode(expected).decode("ascii"):
         return _check(FAILED, kind, path, "sha256 digest mismatch")
     return _check(VERIFIED, kind, path, "sha256 digest matches")
+
+
+def _parse_sri(kind: str, path: list[str | int], sri: str) -> bytes | ContentCheck:
+    algorithm, separator, encoded = sri.partition("-")
+    if not separator or algorithm != _SHA256:
+        detail = f"unsupported hash algorithm: {algorithm}"
+        return _warning_check(kind, path, detail)
+    try:
+        decoded = base64.b64decode(encoded.encode("ascii"), validate=True)
+    except (UnicodeEncodeError, binascii.Error):
+        return _warning_check(kind, path, "malformed sha256 digest")
+    if len(decoded) != _SHA256_LENGTH:
+        return _warning_check(kind, path, "sha256 digest has wrong length")
+    if base64.b64encode(decoded).decode("ascii") != encoded:
+        return _warning_check(kind, path, "non-canonical sha256 digest")
+    return decoded
 
 
 def _citation_results(
@@ -293,6 +315,17 @@ def _append_duplicate_warnings(
 
 def _check(outcome: str, kind: str, path: list[str | int], detail: str) -> ContentCheck:
     return ContentCheck(kind=kind, path=json_pointer(path), outcome=outcome, detail=detail)
+
+
+def _warning_check(kind: str, path: list[str | int], detail: str) -> ContentCheck:
+    pointer = json_pointer(path)
+    return ContentCheck(
+        kind=kind,
+        path=pointer,
+        outcome=UNVERIFIABLE,
+        detail=detail,
+        warnings=(Advisory(path=pointer, message=detail),),
+    )
 
 
 def _content_path(index: int) -> list[str | int]:
