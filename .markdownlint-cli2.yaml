@@ -13,5 +13,6 @@ ignores:
   - "docs/superpowers/**"
   - ".worktrees/**"
   - "node_modules/**"
-  - "CLAUDE.md"            # symlink to AGENTS.md — lint the target once, not twice
+  - "CLAUDE.md"            # symlink to AGENTS.md -- lint the target once, not twice
+  - "packages/*/CLAUDE.md" # per-package symlinks, same reason
   - "conformance/content/**/content.md" # parser fixtures intentionally contain citation grammar edge cases

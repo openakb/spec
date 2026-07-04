@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openakb-validate"
+version = "0.1.0"
+description = "Reference validator for the OpenAKB descriptor format (spec major v1)."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [{ name = "OpenAKB contributors" }]
+keywords = ["openakb", "knowledge-base", "validation", "json-schema", "provenance"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Quality Assurance",
+  "Typing :: Typed",
+]
+dependencies = [
+  "jsonschema>=4.23",
+  "markdown-it-py>=3.0",
+  "rfc3339-validator>=0.1.4",
+  "rfc3986-validator>=0.1.1",
+]
+
+[project.urls]
+Homepage = "https://openakb.org"
+Repository = "https://github.com/openakb/spec"
+Changelog = "https://github.com/openakb/spec/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.14",
+  "pytest>=8",
+  "pytest-cov>=6",
+  "ruff>=0.9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=openakb_validate --cov-branch --cov-report=term-missing --cov-report=xml"
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+
+[tool.mypy]
+strict = true
+files = ["src/openakb_validate", "tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
