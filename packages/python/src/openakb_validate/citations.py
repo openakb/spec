@@ -34,11 +34,17 @@ _REPLACEMENT = "\ufffd"  # CommonMark maps NUL to U+FFFD before line numbering
 # Block tokens whose whole source line span is masked out of the prose.
 _MASKED_BLOCKS = frozenset({"fence", "code_block", "html_block"})
 # A sentinel in no part of the marker grammar, so masked text can neither form a marker
-# nor bridge one; masking preserves length, keeping token line maps aligned.
+# nor bridge one; masking preserves length, keeping token line maps aligned. It shares
+# _NULL's codepoint deliberately: normalization already replaced every source NUL with
+# U+FFFD, so the sentinel can never collide with surviving input.
 _MASK = "\x00"
 _BACKTICK = "`"
 _COMMENT_OPEN = "<!--"
 _COMMENT_CLOSE = "-->"
+# CommonMark's two degenerate comments, plus the `--` a comment body may never contain.
+_COMMENT_EMPTY = "<!-->"
+_COMMENT_DASH = "<!--->"
+_DOUBLE_DASH = "--"
 
 
 @dataclass(frozen=True)
@@ -121,13 +127,30 @@ def _mask_code_span(chars: list[str], source: str, open_start: int, end: int) ->
 
 
 def _mask_comment(chars: list[str], source: str, open_start: int, end: int) -> int:
-    """Mask an HTML comment; when unterminated, skip only its opening `<`."""
-    close = source.find(_COMMENT_CLOSE, open_start + len(_COMMENT_OPEN), end)
-    if close == -1:
+    """Mask a CommonMark HTML comment; leave a non-comment `<!--` run literal.
+
+    A comment is `<!-->`, `<!--->`, or `<!--` + a body containing no `--` + `-->`.
+    A `<!--` that reaches its `-->` only through a `--` in the body is not a comment
+    (so an enclosed `[cite:]` stays a live marker), matching how the block path masks
+    only real comments. When no comment matches, advance past the opening `<` only.
+    """
+    comment_end = _comment_end(source, open_start, end)
+    if comment_end is None:
         return open_start + 1
-    comment_end = close + len(_COMMENT_CLOSE)
     _mask_range(chars, open_start, comment_end)
     return comment_end
+
+
+def _comment_end(source: str, open_start: int, end: int) -> int | None:
+    """End offset of the CommonMark comment opening at open_start, else None."""
+    for degenerate in (_COMMENT_EMPTY, _COMMENT_DASH):
+        if source.startswith(degenerate, open_start, end):
+            return open_start + len(degenerate)
+    body = open_start + len(_COMMENT_OPEN)
+    dashes = source.find(_DOUBLE_DASH, body, end)
+    if dashes == -1 or not source.startswith(_COMMENT_CLOSE, dashes, end):
+        return None
+    return dashes + len(_COMMENT_CLOSE)
 
 
 def _backtick_run(source: str, index: int, end: int) -> int:
