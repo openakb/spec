@@ -48,8 +48,9 @@ which are the acceptance suite for this and every subsequent validator.
 The proposal advances through the standard lifecycle — **Draft → Review → Accepted →
 Final** — with that validator: **Review** while the validator and v1 artifacts are
 open for feedback, **Accepted** when the approach is approved in principle, and
-**Final** only when the validator passes conformance execution and is published with
-the v1 artifacts.
+**Final** only when the ADR-0002 v1.0.0 release gate is met: at least two independent
+validators pass the shared conformance suite in agreement, after validator packages have
+published on their own streams.
 
 ## Security considerations
 

@@ -94,9 +94,9 @@ full suite — both modes for `valid/` and `forward-compat/`, code-level asserti
 `invalid/`, and the `content/` extraction contract — via its conformance runner
 (`uv run pytest tests/test_conformance.py`) and emits an implementation report (see
 §Implementation reports). Every further validator passes the identical suite by
-shipping only a report emitter; `scripts/ci/check-conformance-report.mjs` applies
-the match semantics and asserts cross-validator agreement per fixture on verdicts
-and error codes.
+shipping a report emitter for the shared checker; `scripts/ci/check-conformance-report.mjs`
+applies the match semantics and asserts cross-validator agreement per fixture on verdicts and
+error codes.
 
 ## Rule traceability
 

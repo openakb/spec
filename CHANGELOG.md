@@ -20,7 +20,8 @@ at v1.0.0.
   vendor-neutral worked examples in both authoring and served form (minimal, widget-platform,
   cross-link, widget-platform-served, sidecar-provenance); the conformance suite (valid /
   invalid / forward-compat / content) with a manifest lint and traceability matrix; AKEP-0001
-  (Genesis, Draft); and `ajv`-based schema + conformance CI gates plus a neutrality check.
+  (Genesis, establishing OpenAKB v1.0); and `ajv`-based schema + conformance CI gates plus a
+  neutrality check.
 - Source discovery edge `discovered_via_id`: an optional Source field recording the listing
   or feed source via which a source was discovered (spec §4.2), with schema, example, and
   conformance-fixture coverage (`unresolved-discovered-via`, `discovered-via-wrong-kind`).
