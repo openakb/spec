@@ -51,6 +51,20 @@ The stable validation codes for spec major v1 are `AKB001` through `AKB012`.
 Those code meanings are part of the public contract for v1 and only change through
 the spec process.
 
+## Extract citations
+
+Use `extract_citations` to read normative `[cite:]` markers from Markdown prose.
+The parser follows CommonMark structure, so markers in code and HTML constructs
+remain literal text. Each returned `Citation` contains source ids in written order,
+including duplicates.
+
+```python
+from openakb_validate import Citation, extract_citations
+
+citations: list[Citation] = extract_citations("See [cite: source_a, source_b].")
+ids = [citation.ids for citation in citations]
+```
+
 ## Strict mode
 
 Strict mode includes portability and policy advisories in addition to required

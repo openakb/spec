@@ -82,9 +82,19 @@ def _has_literal_source(match: re.Match[str], literal: tuple[bool, ...]) -> bool
 def _has_marker_boundaries(match: re.Match[str], segment: str) -> bool:
     start = match.start()
     close = match.end() - 1
-    return (start == 0 or segment[start - 1] != "[") and (
-        close + 1 == len(segment) or segment[close + 1] != "]"
-    )
+    if (start > 0 and segment[start - 1] == "[") or (
+        close + 1 < len(segment) and segment[close + 1] == "]"
+    ):
+        return False
+    return not _inside_malformed_citation(start, segment)
+
+
+def _inside_malformed_citation(start: int, segment: str) -> bool:
+    enclosing = segment.rfind("[cite:", 0, start)
+    if enclosing < 0:
+        return False
+    intervening_close = segment.find("]", enclosing, start)
+    return intervening_close < 0
 
 
 def _consume_text(source: str, cursor: int, expected: str) -> tuple[int, str, tuple[bool, ...]]:

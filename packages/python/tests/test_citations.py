@@ -99,6 +99,7 @@ def test_malformed_markers_literal() -> None:
                     "[cite: ]",
                     "[cite: A]",
                     "[cite: bad [cite: a]]",
+                    "[cite: bad [cite: a] more]",
                     "[cite: a[cite: b]]",
                     "[[cite: a]]",
                     "[cite: a,]",
