@@ -9,9 +9,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .catalog import LOCAL_ID_CHARSET, LOCAL_ID_MAX_LENGTH
+
 __all__ = ["LOCAL_ID_RE", "indexed_dicts", "is_local_id", "reference_code"]
 
-LOCAL_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+LOCAL_ID_RE = re.compile(rf"^[{LOCAL_ID_CHARSET}]{{1,{LOCAL_ID_MAX_LENGTH}}}$")
 
 
 def is_local_id(value: object) -> bool:
