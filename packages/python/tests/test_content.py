@@ -305,6 +305,17 @@ def test_segment_params_rejected(tmp_path: Path) -> None:
         LocalFileResolver(base).fetch("dir;v/root.md")
 
 
+def test_traversal_alias_rejected(tmp_path: Path) -> None:
+    """Literal '..' segments are traversal even when normalization stays under base."""
+    base = tmp_path / "kb"
+    directory = base / "dir"
+    directory.mkdir(parents=True)
+    (base / "root.md").write_bytes(b"content")
+
+    with pytest.raises(Unfetchable):
+        LocalFileResolver(base).fetch("dir/../root.md")
+
+
 def test_percent_traversal_literal(tmp_path: Path) -> None:
     """Percent-encoded traversal text is a literal local filename, not path traversal."""
     base = tmp_path / "kb"
