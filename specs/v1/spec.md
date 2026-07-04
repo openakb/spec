@@ -168,7 +168,7 @@ Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are proven
 Inline claim-level provenance uses the Section `provenance` array, capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets. Each Claim object:
 
 - has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique, and each id uses the `[a-z0-9_-]`, ≤64 char local ID grammar.
-- MAY include `locator` with `quote`, `page`, or `anchor`; `page` is an integer greater than or equal to 0.
+- MAY include `locator` with `quote`, `page`, or `anchor`; `quote`, when present, is a non-empty string, and `page` is an integer greater than or equal to 0.
 - MAY carry its own `x` extension object, as MAY the `locator`.
 
 `locator.quote` SHOULD be a verbatim span of the cited source's captured content (§4.2), so the quote remains checkable against the capture even after the live source changes.

@@ -86,7 +86,7 @@
         "locator": {
           "type": "object",
           "properties": {
-            "quote": { "type": "string" },
+            "quote": { "type": "string", "minLength": 1 },
             "page": { "type": "integer", "minimum": 0 },
             "anchor": { "type": "string" },
             "x": { "$ref": "#/$defs/extensions" }

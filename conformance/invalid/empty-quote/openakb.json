@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-empty-quote",
+  "title": "Invalid — empty quote",
+  "description": "A claim locator carries an empty quote string.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "A claim locator quote is the empty string.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"],
+      "provenance": [
+        {
+          "text": "An empty quote is not a verbatim span.",
+          "source_ids": ["s1"],
+          "locator": { "quote": "" }
+        }
+      ]
+    }
+  ]
+}

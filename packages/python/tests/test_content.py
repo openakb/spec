@@ -1032,6 +1032,21 @@ def test_quote_without_capture() -> None:
     assert report.ok
 
 
+def test_empty_quote_skipped() -> None:
+    """An empty locator quote is schema-owned and never vacuously verifies."""
+    source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
+    section = _descriptor()["sections"][0] | {
+        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": ""}}]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"hay stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote") == []
+    assert report.ok
+
+
 def test_sidecar_quote_verifies() -> None:
     """Sidecar claim quotes join quote verification inputs."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}

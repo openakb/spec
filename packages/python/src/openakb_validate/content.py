@@ -622,7 +622,9 @@ def _sidecar_quote_claims(section_index: int, sidecar: object) -> list[_QuoteCla
 def _claim_quote(claim: dict[str, Any]) -> str | None:
     locator = claim.get("locator")
     quote = locator.get("quote") if isinstance(locator, dict) else None
-    if not isinstance(quote, str):
+    # An empty quote is schema-owned (locator.quote has minLength 1 -> AKB011); the
+    # content layer skips it rather than let an empty needle match every capture.
+    if not isinstance(quote, str) or not quote:
         return None
     return quote
 
