@@ -240,6 +240,17 @@ def test_unfetchable_guide() -> None:
     assert report.ok
 
 
+def test_guide_hash_without_uri() -> None:
+    """A guide_hash with no guide_uri is unverifiable, mirroring capture content_hash."""
+    descriptor = _descriptor(guide_hash=_sri(b"guide"))
+    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: s1]."}))
+
+    guide = _checks_by_kind(report, "guide-hash")[0]
+    assert guide.outcome == UNVERIFIABLE
+    assert guide.detail == "missing guide_uri"
+    assert report.ok
+
+
 def test_malformed_base_guide() -> None:
     """Malformed base_uri values make guide checks unverifiable, never raised."""
     descriptor = _descriptor(
@@ -333,6 +344,27 @@ def test_non_markdown_skips() -> None:
 
     assert _checks_by_kind(report, "citations") == []
     assert report.ok
+
+
+def test_markdown_charset_param_cites() -> None:
+    """A text/markdown media type with a charset parameter still checks citations."""
+    section = _descriptor()["sections"][0] | {"content_type": "text/markdown; charset=utf-8"}
+    report = check_content(
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: ghost]."})
+    )
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert [finding.code for finding in report.findings] == ["AKB007"]
+
+
+def test_markdown_type_casefolded() -> None:
+    """A mixed-case Markdown media type still triggers citation extraction."""
+    section = _descriptor()["sections"][0] | {"content_type": "text/Markdown"}
+    report = check_content(
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: ghost]."})
+    )
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
 
 
 def test_non_markdown_no_fetch() -> None:
@@ -858,6 +890,21 @@ def test_capture_malformed_warns() -> None:
     capture = _checks_by_kind(report, "capture")[0]
     assert capture.outcome == UNVERIFIABLE
     assert "malformed sha256 digest" in capture.detail
+    assert len(capture.warnings) == 1
+    assert report.ok
+
+
+def test_capture_missing_dash_warns() -> None:
+    """An SRI with no algorithm separator reports a malformed shape, not a bad algorithm."""
+    source = _descriptor()["sources"][0] | {"content_hash": "sha256"}
+    report = check_content(
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+    )
+
+    capture = _checks_by_kind(report, "capture")[0]
+    assert capture.outcome == UNVERIFIABLE
+    assert "unsupported hash algorithm" not in capture.detail
+    assert "malformed" in capture.detail.lower()
     assert len(capture.warnings) == 1
     assert report.ok
 

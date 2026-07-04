@@ -253,14 +253,16 @@ def _section_checks(
 def _guide_check(
     descriptor: dict[str, Any], base_uri: str | None, resolver: Resolver, local: bool
 ) -> list[ContentCheck]:
-    if not isinstance(descriptor.get("guide_uri"), str) or not isinstance(
-        descriptor.get("guide_hash"), str
-    ):
+    if not isinstance(descriptor.get("guide_hash"), str):
         return []
     path: list[str | int] = ["guide_hash"]
     expected = _parse_sri("guide-hash", path, descriptor["guide_hash"])
     if isinstance(expected, ContentCheck):
         return [expected]
+    # Mirror a source content_hash with no capture_uri: a guide_hash with nothing to
+    # fetch is unverifiable, not silently dropped.
+    if not isinstance(descriptor.get("guide_uri"), str):
+        return [_check(UNVERIFIABLE, "guide-hash", path, "missing guide_uri")]
     uri = _effective_reference(descriptor["guide_uri"], base_uri, local)
     if isinstance(uri, Unfetchable):
         return [_check(UNVERIFIABLE, "guide-hash", path, str(uri))]
@@ -701,9 +703,10 @@ def _compare_sri(kind: str, path: list[str | int], payload: bytes, expected: byt
 
 def _parse_sri(kind: str, path: list[str | int], sri: str) -> bytes | ContentCheck:
     algorithm, separator, encoded = sri.partition("-")
-    if not separator or algorithm != _SHA256:
-        detail = f"unsupported hash algorithm: {algorithm}"
-        return _warning_check(kind, path, detail)
+    if not separator:
+        return _warning_check(kind, path, "malformed SRI: expected '<algorithm>-<base64>'")
+    if algorithm != _SHA256:
+        return _warning_check(kind, path, f"unsupported hash algorithm: {algorithm}")
     try:
         decoded = base64.b64decode(encoded.encode("ascii"), validate=True)
     except (UnicodeEncodeError, binascii.Error):
@@ -773,7 +776,13 @@ def _sidecar_path(index: int) -> list[str | int]:
 
 
 def _is_markdown(content_type: object) -> bool:
-    return isinstance(content_type, str) and content_type == _MARKDOWN_TYPE
+    if not isinstance(content_type, str):
+        return False
+    # A media type is `type/subtype` plus optional `; parameter=value` parts; the type
+    # and subtype are case-insensitive. Strip parameters and casefold so
+    # `text/Markdown` and `text/markdown; charset=utf-8` both count as Markdown.
+    essence = content_type.split(";", 1)[0].strip().casefold()
+    return essence == _MARKDOWN_TYPE
 
 
 def _ids(items: Iterable[tuple[int, dict[str, Any]]]) -> list[str]:
