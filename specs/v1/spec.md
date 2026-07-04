@@ -151,15 +151,15 @@ OpenAKB defines three provenance layers:
 2. Inline citations in Markdown content, recommended for `text/markdown`.
 3. Claim-level provenance, either as inline `provenance` objects or a per-section sidecar at `provenance_uri`.
 
-The inline citation grammar is normative:
+The inline citation grammar is normative, and it is matched against the **raw Markdown source** rather than against rendered inline text:
 
 - A citation is `[cite: <id-list>]` -- literal `[cite:`, the list, literal `]`.
 - `<id-list>` is one or more source `id`s separated by commas: `[cite: a]`, `[cite: a, b, c]`.
 - Optional horizontal whitespace is allowed after `cite:` and around each comma; each `id` matches the `[a-z0-9_-]`, ≤64 char local ID grammar, so the tokens are unambiguous.
 - Each `id` MUST reference a source declared in the descriptor (checked during content verification, §7).
-- Markdown structure is interpreted per [CommonMark](https://spec.commonmark.org/). The marker is recognized only in Markdown prose; occurrences inside the following CommonMark constructs are literal text and MUST be ignored: fenced code blocks (```` ``` ```` / `~~~`), indented code blocks, inline code spans (any backtick run length), HTML blocks, and HTML comments.
-- Any bracketed text that does not match the grammar exactly — for example `[cite:]` or `[cite: Bad ID]` — is ordinary literal text. It is never a marker and never an extraction error.
-- There is no escape syntax in v1; to write a literal `[cite: …]` in prose, place it in a code span.
+- Exactly five [CommonMark](https://spec.commonmark.org/) constructs suppress a marker they contain, and their spans MUST be removed from the source before matching: fenced code blocks (```` ``` ```` / `~~~`), indented code blocks, inline code spans (any backtick run length), HTML blocks, and HTML comments. The grammar is then matched literally over what remains. Nothing else affects recognition: there is no backslash escape, no character-reference decoding, and no rule about the brackets, emphasis, or other text adjacent to or enclosing a marker.
+- Any bracketed text that does not match the grammar exactly — for example `[cite:]` or `[cite: Bad ID]` — is ordinary literal text. It is never a marker and never an extraction error, and a well-formed marker written beside or within it is still recognized on its own.
+- There is no escape syntax in v1. `\[cite: a]` is a marker whose leading backslash is literal, `[[cite: a]]` is a marker with a literal bracket on each side, and `[cite: _a_]` cites the id `_a_` (an underscore is an id character, not emphasis). Because matching reads the raw source, a character reference does not stand in for a delimiter, so `&#91;cite: a]` — which has no literal `[` — is literal text, not a marker. To keep a literal `[cite: …]` out of provenance, place it in an inline code span or a code block.
 
 The extraction output contract is normative. A conformant extractor reports an ordered list of citation entries, one entry per recognized marker, in document order. Each entry carries the marker's source `id` list in written order. Duplicate ids within one marker are preserved as written; a validator MAY warn on them.
 

@@ -296,6 +296,17 @@ def test_unresolved_citation() -> None:
     assert not report.ok
 
 
+def test_unknown_entity_keeps_citation() -> None:
+    """An unknown HTML entity is literal text; the following [cite:] still fails (B2)."""
+    report = check_content(
+        _descriptor(), FakeResolver({"root.md": b"&notanentity; [cite: ghost]."})
+    )
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert [finding.code for finding in report.findings] == ["AKB007"]
+    assert not report.ok
+
+
 def test_citation_to_section() -> None:
     """Inline citations must point to source IDs, not section IDs."""
     report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: root]."}))

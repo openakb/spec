@@ -63,8 +63,23 @@ def test_indented_code_ignored() -> None:
 
 
 def test_inline_code_ignored() -> None:
-    """Inline code spans terminate prose runs."""
+    """Inline code spans are masked out of the source."""
     assert _ids("Literal `[cite: a]` and prose [cite: b].") == [["b"]]
+
+
+def test_unclosed_backtick_is_prose() -> None:
+    """An unterminated backtick run is literal source, not a code span."""
+    assert _ids("Text `x [cite: c] more") == [["c"]]
+
+
+def test_backtick_run_length_matters() -> None:
+    """A code span closes only on a backtick run of equal length."""
+    assert _ids("A `x``y` [cite: c]") == [["c"]]
+
+
+def test_double_backtick_span_masked() -> None:
+    """A multi-backtick code span suppresses an enclosed marker."""
+    assert _ids("``[cite: a]`` then [cite: b]") == [["b"]]
 
 
 def test_html_block_ignored() -> None:
@@ -78,8 +93,13 @@ def test_html_comment_ignored() -> None:
 
 
 def test_inline_comment_ignored() -> None:
-    """Inline HTML comments terminate prose runs."""
+    """Inline HTML comments are masked out of the source."""
     assert _ids("See <!-- [cite: a] --> [cite: b].") == [["b"]]
+
+
+def test_unclosed_comment_is_prose() -> None:
+    """An unterminated HTML comment is literal source, not a masked construct."""
+    assert _ids("See <!-- open [cite: c]") == [["c"]]
 
 
 def test_after_links_prose() -> None:
@@ -89,8 +109,43 @@ def test_after_links_prose() -> None:
     assert _ids("<https://example.org> [cite: c]") == [["c"]]
 
 
+def test_escaped_bracket_is_marker() -> None:
+    """There is no escape syntax in v1: a leading backslash is literal source."""
+    assert _ids(r"\[cite: a]") == [["a"]]
+
+
+def test_stray_close_bracket_marker() -> None:
+    """A trailing stray `]` is adjacent literal text, not a suppressor."""
+    assert _ids("see [cite: a]] done") == [["a"]]
+
+
+def test_double_bracket_marker() -> None:
+    """Enclosing brackets are adjacent literal text; the inner marker is recognized."""
+    assert _ids("[[cite: a]]") == [["a"]]
+
+
+def test_inner_marker_in_malformed() -> None:
+    """A well-formed marker nested in malformed brackets is still extracted."""
+    assert _ids("[cite: bad [cite: a]]") == [["a"]]
+
+
+def test_underscore_id_marker() -> None:
+    """An underscore is a legal id character, never emphasis."""
+    assert _ids("[cite: _a_]") == [["_a_"]]
+
+
+def test_asterisk_id_char_rejected() -> None:
+    """An asterisk is not a legal id character, so no marker forms."""
+    assert _ids("[cite: *a*]") == []
+
+
+def test_marker_inside_emphasis() -> None:
+    """Emphasis markup around a marker is literal source; the marker is recognized."""
+    assert _ids("*see [cite: a]*") == [["a"]]
+
+
 def test_malformed_markers_literal() -> None:
-    """Malformed bracketed text is literal text, not a citation or error."""
+    """Bracketed text that never matches the grammar is literal, not a citation."""
     assert (
         _ids(
             "\n".join(
@@ -98,10 +153,6 @@ def test_malformed_markers_literal() -> None:
                     "[cite:]",
                     "[cite: ]",
                     "[cite: A]",
-                    "[cite: bad [cite: a]]",
-                    "[cite: bad [cite: a] more]",
-                    "[cite: a[cite: b]]",
-                    "[[cite: a]]",
                     "[cite: a,]",
                     "[cite: a,,b]",
                     "[cite: a b]",
@@ -113,21 +164,16 @@ def test_malformed_markers_literal() -> None:
     )
 
 
-def test_encoded_delimiters_literal() -> None:
-    """Character references cannot synthesize literal citation syntax."""
+def test_entity_bracket_not_marker() -> None:
+    """Character references are literal source and never synthesize marker delimiters."""
     assert _ids("&#91;cite: a]\n[cite&colon; a]\n[cite: a&#93;") == []
-    assert _ids("&lbrack;cite: a]\n[cite&colon; a]\n[cite: a&rbrack;") == []
-    assert _ids("[&#99;ite: a]\n[c&#105;te: a]\n[ci&#116;e: a]\n[cit&#101;: a]") == []
+    assert _ids("&lbrack;cite: a]\n[cite: a&rbrack;") == []
+    assert _ids("[&#99;ite: a]\n[cit&#101;: a]") == []
 
 
-def test_no_marker_across_emphasis() -> None:
-    """Structural inline children prevent assembling a marker across emphasis."""
-    assert _ids("[cite: *a*]") == []
-
-
-def test_marker_inside_emphasis() -> None:
-    """A complete marker inside one emphasized text run is prose."""
-    assert _ids("*see [cite: a]*") == [["a"]]
+def test_unknown_entity_keeps_marker() -> None:
+    """An unknown HTML entity is literal text and does not drop a later marker (B2)."""
+    assert _ids("&notanentity; [cite: ghost]") == [["ghost"]]
 
 
 def test_headings_lists_prose() -> None:
@@ -137,6 +183,16 @@ def test_headings_lists_prose() -> None:
         ["i"],
         ["j"],
     ]
+
+
+def test_carriage_returns_normalized() -> None:
+    """CRLF line endings normalize so block line maps still align."""
+    assert _ids("```text\r\n[cite: a]\r\n```\r\n\r\n[cite: b]") == [["b"]]
+
+
+def test_null_character_handled() -> None:
+    """A NUL byte is normalized like CommonMark and does not drop a marker."""
+    assert _ids("a\x00b [cite: c]") == [["c"]]
 
 
 def test_id_length_cap() -> None:
