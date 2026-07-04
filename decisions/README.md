@@ -11,3 +11,4 @@ consequences. ADRs are immutable once **Accepted** — supersede rather than edi
 | [0003](0003-governance-and-neutrality.md) | Governance & neutrality | Accepted |
 | [0004](0004-licensing.md) | Licensing & contribution terms | Accepted |
 | [0005](0005-security-model.md) | Security model | Accepted |
+| [0006](0006-revision-fetch-convention.md) | Revision-fetch convention | Accepted |

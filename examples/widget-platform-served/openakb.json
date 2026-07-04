@@ -8,6 +8,8 @@
   "tags": ["sample", "documentation"],
   "language": "en",
   "guide_uri": "https://kb.example.org/widget-platform/AKB.md",
+  "guide_hash": "sha256-CY0JUgCkILkScaLGM5riN5r1V7BbxbL1OUaONdbpBXg=",
+  "guide_length": 1024,
   "base_uri": "https://kb.example.org/widget-platform/",
   "revision": "2026-06-28T12-00-00Z-a1b2c3d4",
   "sources": [

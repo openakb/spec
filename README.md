@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/openakb/spec/actions/workflows/ci.yml"><img src="https://github.com/openakb/spec/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/openakb/spec"><img src="https://codecov.io/gh/openakb/spec/graph/badge.svg?token=ZX9H1PWLR4" alt="Coverage"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache-2.0"></a>
   <a href="LICENSE-DOCS"><img src="https://img.shields.io/badge/Docs-CC_BY_4.0-lightgrey.svg" alt="Docs: CC BY 4.0"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/spec-v1_draft-orange.svg" alt="Status: draft"></a>

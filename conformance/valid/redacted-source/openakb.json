@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "redacted-source",
+  "title": "Valid — redacted source",
+  "description": "A served projection in which the cited source's identity is withheld: the source keeps an opaque id, uses type \"redacted\", and points at a provider-hosted stub as the accountable origin.",
+  "revision": "2026-07-03T00-00-00Z-00000000",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "redacted",
+      "uri": "https://kb.example.org/redacted-source/stubs/s1",
+      "captured_at": "2026-06-01T00:00:00Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "operations",
+      "title": "Operations",
+      "description": "Operational guidance grounded in a source whose identity is withheld.",
+      "content_uri": "https://kb.example.org/redacted-source/sections/operations.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

@@ -15,6 +15,7 @@ OpenAKB standardizes the declarative description of an agentic knowledge base (A
 | Provenance | The binding: section to `source_ids`; source to `captured_at` and its captured-bytes pin (`content_hash`, `capture_uri`). | Capturing or snapshotting sources, generating the binding, re-serving raw bytes. |
 | Freshness | Thin descriptive hints: `refresh_class`, `cadence`, and a last-edit `refreshed_at`. | The refresh loop, change detection, health polling, and honoring cadence. |
 | Discovery | The `discovered_via_id` edge from a discovered source to the listing source that surfaced it. | Monitoring feeds, detecting new entries, minting the new source. |
+| Redaction | The redacted source form: `type: "redacted"` with a provider-hosted stub `uri` as the accountable origin. | Audience projection and access control: deciding who sees which sources, serving per-audience projections. |
 | Verification | Per-section `purpose` and the structural rules a validator asserts. | Running judges or refetch validation. |
 | Addressing | The `namespace/id` grammar and URI references. | Resolving names, registry authority, and mirroring. |
 | Revisions | The `revision` marker as declarative desired state. | Copy-on-write builds, diffing, changelogs, and live-head flips. |
@@ -44,9 +45,11 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 | `title` | REQUIRED | string, 1-200 chars | Display name. |
 | `description` | REQUIRED | string, 1-2000 chars | Bounded AKB abstract. |
 | `subject_type` | optional | non-empty string | Open subject classification. |
-| `tags` | optional | array, max 32 unique items; each `[a-z0-9-]`, max 40 chars | Discovery and filtering labels. |
+| `tags` | optional | array, max 32 unique items; each `[a-z0-9_-]`, max 40 chars | Discovery and filtering labels. Tags share the local ID charset, so an id within the tag length cap can serve as a tag verbatim; tags are labels, not references. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Primary language of AKB content. Sections MAY override. |
 | `guide_uri` | optional | URI reference | Maintainer guide, conventionally `AKB.md`. |
+| `guide_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the decoded guide bytes at `guide_uri`. The §4.3 hash rules apply: canonical base64, and `sha256` MUST be supported. |
+| `guide_length` | optional | integer, minimum 0 | Decoded guide byte count: the same bytes `guide_hash` covers. An advisory, untrusted size hint, like section `content_length`. |
 | `revision` | optional | string | Infra-minted revision marker, normally present on served descriptors. |
 | `base_uri` | optional | URI reference | Explicit base for resolving relative references. |
 | `created_at` | optional | RFC 3339 UTC timestamp | Descriptor creation timestamp. |
@@ -79,11 +82,32 @@ A Source is raw provenance material a section can be grounded in. Sources are no
 
 Freshness policy hints live on the Source object. There is no top-level freshness map in v1.
 
-First-party knowledge whose first written form is the AKB itself — runbooks, postmortems, tribal knowledge with no earlier document to point at — is RECOMMENDED to be represented as a source with `type: "firsthand"`. For a firsthand source, `uri` points at the accountable origin of the knowledge, such as a team or owner URI (illustrative material uses an `example.com` / `example.org` URI). The source object is then the citable record of who stands behind the content; `captured_at` MAY record when the knowledge was first written down.
+**Firsthand sources.** First-party knowledge whose first written form is the AKB itself — runbooks, postmortems, tribal knowledge with no earlier document to point at — is RECOMMENDED to be represented as a source with `type: "firsthand"`. For a firsthand source, `uri` points at the accountable origin of the knowledge, such as a team or owner URI (illustrative material uses an `example.com` / `example.org` URI). The source object is then the citable record of who stands behind the content; `captured_at` MAY record when the knowledge was first written down.
 
-Some sources are listing or feed pages — for example `https://www.example.com/blog/` — that surface new material over time. A listing page is itself a source and is RECOMMENDED to use `type: "feed"`; it is the natural home for the `refresh_class` and `cadence` hints. Each discovered item is its own Source with its own `uri` and `captured_at`, carrying `discovered_via_id` naming the listing source that surfaced it. Sections cite the discovered item, not the listing; an uncited listing source is valid. The discovery graph SHOULD be acyclic; validators MAY warn on cycles, and no error code is defined for them. Monitoring the feed is infrastructure's mechanism; the `discovered_via_id` edge is the declarative record it leaves.
+**Feed sources and discovery.** Some sources are listing or feed pages — for example `https://www.example.com/blog/` — that surface new material over time. A listing page is itself a source and is RECOMMENDED to use `type: "feed"`; it is the natural home for the `refresh_class` and `cadence` hints.
 
-Capture anchoring pairs `content_hash` and `capture_uri` with `captured_at`. Section content is often produced by a lossy transform — model cleanup, OCR — of a captured snapshot, and claim `locator.quote` values are verbatim spans of that snapshot; `captured_at` says when the snapshot was taken, and `content_hash` pins what bytes were read. With a pinned capture, claim `locator.quote` spans can be mechanically verified — substring presence — against the exact bytes the content was generated from, even after the live resource at `uri` changes. Without `capture_uri`, that verification is available only to parties holding the snapshot. Capturing, retaining, and re-serving snapshots is infrastructure's mechanism; these two fields are the declarative record it leaves.
+- Each discovered item is its own Source with its own `uri` and `captured_at`, carrying `discovered_via_id` naming the listing source that surfaced it.
+- Sections cite the discovered item, not the listing; an uncited listing source is valid.
+- The discovery graph SHOULD be acyclic; validators MAY warn on cycles, and no error code is defined for them.
+
+> Monitoring the feed is infrastructure's mechanism; the `discovered_via_id` edge is the declarative record it leaves.
+
+**Capture anchoring.** `content_hash` and `capture_uri` pair with `captured_at`. Section content is often produced by a lossy transform — model cleanup, OCR — of a captured snapshot, and claim `locator.quote` values are verbatim spans of that snapshot; `captured_at` says when the snapshot was taken, and `content_hash` pins what bytes were read.
+
+With a pinned capture, claim `locator.quote` spans can be mechanically verified — substring presence — against the exact bytes the content was generated from, even after the live resource at `uri` changes. Without `capture_uri`, that verification is available only to parties holding the snapshot.
+
+> Capturing, retaining, and re-serving snapshots is infrastructure's mechanism; these two fields are the declarative record it leaves.
+
+**Redacted sources.** Some sources cannot be disclosed to every audience the descriptor is served to — an internal document, a paywalled feed, an uploaded file — while the sections they ground remain servable. A source whose identity is withheld by the provider is RECOMMENDED to use `type: "redacted"`:
+
+- `uri` points at a provider-hosted stub that acts as the accountable origin of the citation.
+- `captured_at` MAY be retained as a dated marker.
+- A redacted source SHOULD NOT carry identifying fields: `title`, `content_hash`, `capture_uri`, `refresh_class`, `cadence`, and `discovered_via_id` are omitted.
+- The source keeps its `id`, so `source_ids` entries and inline `[cite:]` markers — which are baked into content bytes pinned by `content_hash` — keep resolving unchanged.
+
+The type string `redacted` is the convention's interoperable name: a provider-specific or extended type does not receive the §5 rewrite exception and carries none of the redaction semantics.
+
+> Withholding a source's identity, deciding which audiences see it, and serving per-audience projections are infrastructure's mechanism; the redacted source is the declarative record that mechanism leaves (§5).
 
 ### §4.3 Section fields
 
@@ -137,9 +161,17 @@ The inline citation grammar is normative:
 - Any bracketed text that does not match the grammar exactly — for example `[cite:]` or `[cite: Bad ID]` — is ordinary literal text. It is never a marker and never an extraction error.
 - There is no escape syntax in v1; to write a literal `[cite: …]` in prose, place it in a code span.
 
-The extraction output contract is normative. A conformant extractor reports an ordered list of citation entries, one entry per recognized marker, in document order. Each entry carries the marker's source `id` list in written order. Duplicate ids within one marker are preserved as written; a validator MAY warn on them. Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are provenance-equivalent to a combined list, but that equivalence is a statement about provenance semantics only — it is not a normalization license, and extraction MUST still report one entry per marker.
+The extraction output contract is normative. A conformant extractor reports an ordered list of citation entries, one entry per recognized marker, in document order. Each entry carries the marker's source `id` list in written order. Duplicate ids within one marker are preserved as written; a validator MAY warn on them.
 
-Inline claim-level provenance uses the Section `provenance` array. Each Claim object has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique, and each id uses the `[a-z0-9_-]`, ≤64 char local ID grammar. A Claim MAY include `locator` with `quote`, `page`, or `anchor`, and MAY carry its own `x` extension object, as MAY the `locator`. `locator.quote` SHOULD be a verbatim span of the cited source's captured content (§4.2), so the quote remains checkable against the capture even after the live source changes. `page` is an integer greater than or equal to 0. Inline `provenance` is capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets.
+Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are provenance-equivalent to a combined list. That equivalence is a statement about provenance semantics only — it is not a normalization license, and extraction MUST still report one entry per marker.
+
+Inline claim-level provenance uses the Section `provenance` array, capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets. Each Claim object:
+
+- has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique, and each id uses the `[a-z0-9_-]`, ≤64 char local ID grammar.
+- MAY include `locator` with `quote`, `page`, or `anchor`; `page` is an integer greater than or equal to 0.
+- MAY carry its own `x` extension object, as MAY the `locator`.
+
+`locator.quote` SHOULD be a verbatim span of the cited source's captured content (§4.2), so the quote remains checkable against the capture even after the live source changes.
 
 The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` and claim `source_ids` use the `[a-z0-9_-]`, ≤64 char local ID grammar; each sidecar claim's `source_ids` likewise contains at least one entry, and its entries are unique. Its shape is:
 
@@ -171,7 +203,7 @@ Links are navigation, not provenance. They express related local or cross-AKB co
 | `section_id` | optional | section id, `[a-z0-9_-]`, ≤64 chars | On local links, MUST resolve to a section in this AKB. On cross-AKB links, names a target section in the linked AKB. |
 | `akb_uri` | optional | URI reference | Target AKB descriptor for cross-AKB links. |
 | `revision` | optional | string | Target AKB revision to resolve. A link is pinned if and only if it carries `revision`. |
-| `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity hint for a pinned target. |
+| `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity hint for a pinned target section: the target section's declared `content_hash`, copied at pin time. Meaningful only alongside `section_id`. |
 | `description` | optional | string, max 500 chars | Bounded description for manifest-first browsing. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
 
@@ -181,7 +213,21 @@ The parent tree is an acyclic forest. The link graph is a general network and MA
 
 Local links MUST resolve offline: a `section_id` with no `akb_uri` MUST name a section in this AKB. Cross-AKB links are best-effort because the target is remote and may change or disappear. Consumers MUST tolerate unresolvable or changed cross-AKB targets.
 
-`revision` and `content_hash` are meaningful only on links with `akb_uri`; they are ignored on local links. The spec defines no retrieval mechanism for a given `revision`. Non-normatively, infrastructure can offer revision fetch. A consumer MAY drift-detect by fetching the target head and comparing its top-level `revision` or fetched content hash against the link's pin, then skipping or surfacing mismatches.
+**Pinning.** `revision` and `content_hash` are meaningful only on links with `akb_uri`; they are ignored on local links. A link's `content_hash` covers the decoded content bytes of the target section named by `section_id` — the same bytes that section's own declared `content_hash` covers (§4.3, §5) — copied from the target descriptor at pin time. On a link that carries `akb_uri` but no `section_id`, `content_hash` has no defined referent and is ignored; a validator MAY warn.
+
+A link's `content_hash` is never a hash of the target descriptor document's bytes: served descriptor bytes are not stable even within one revision, because a provider may absolutize relative references or set `base_uri` (§5), so no descriptor-byte canonicalization exists or is needed.
+
+**Revision fetch.** Offering revision fetch is infrastructure's mechanism, and revision retention is provider policy; the spec mandates neither. A provider that does offer revision fetch is RECOMMENDED to serve pinned revisions at the URI derived from the descriptor's resolved fetch URI — for a cross-AKB link, the resolved `akb_uri` — by inserting the path segments `revisions/<revision>/` immediately before the final segment of that URI's path, with the revision value percent-encoded as a single path segment (RFC 3986). A consumer holding a pinned link can construct this URI directly from the resolved `akb_uri` and the link's `revision`, with no head fetch; the document served there is the served form of that revision, self-contained per §5.
+
+For example, a descriptor fetched from `https://kb.example.org/widget-platform/openakb.json` serves revision `2026-06-28T12-00-00Z-a1b2c3d4` at `https://kb.example.org/widget-platform/revisions/2026-06-28T12-00-00Z-a1b2c3d4/openakb.json`.
+
+The convention's scope:
+
+- It is defined on the URI's path component; a fetch URI carrying a query component is outside the convention.
+- A path ending in a slash ends in an empty final segment, and the insertion lands before that empty segment: a descriptor fetched from `https://kb.example.org/widget-platform/` serves the revision at `https://kb.example.org/widget-platform/revisions/<revision>/`.
+- A revision the provider does not retain — or a provider that does not offer revision fetch at all — is unavailable under this convention, and the consumer treats the pin as unverifiable (§7), consistent with the best-effort rule for cross-AKB links.
+
+**Drift detection.** A consumer MAY drift-detect by fetching the target head and comparing its top-level `revision` against the link's `revision`, or the target section's declared `content_hash` against the link's `content_hash`, then skipping or surfacing mismatches.
 
 ### §4.6 Freshness
 
@@ -196,6 +242,8 @@ Omitting all freshness fields leaves the AKB structurally complete.
 The optional top-level `guide_uri` points at a maintainer-facing Markdown guide, conventionally named `AKB.md`. The guide can describe how sections are grouped, naming or taxonomy rules, and how an agent or maintainer should add, update, or remove material. It complements per-section `purpose` with global organizing guidance.
 
 The guide is not a consumer-facing connector and is not required for conformance.
+
+The optional top-level `guide_hash` and `guide_length` (§4.1) pin the guide's decoded bytes exactly as section `content_hash` and `content_length` pin section content, so a consumer that mirrors a descriptor plus its referenced payloads can hash-verify the guide like every other hosted payload.
 
 ### §4.8 Non-goals
 
@@ -220,6 +268,8 @@ Providers SHOULD serve absolute, self-contained URIs, or set `base_uri`, so a de
 
 External source URLs, meaning a Source with `type` `url`, are original web locations and are never rewritten to local paths. A Source with an unknown or extended `type` follows the `type: url` rule: its `uri` is never rewritten on serve.
 
+One narrow exception exists for identity withholding: a provider MAY serve a redacted projection of a source whose identity is withheld from the served audience. A redacted projection MUST use the redacted source form (§4.2) — `type: "redacted"`, with `uri` rewritten to the provider-hosted stub — and this is the only case in which a source `uri` that would otherwise be carried verbatim is rewritten on serve.
+
 Authoring form vs served form:
 
 | Field | Authoring form | Served form | Who populates |
@@ -229,14 +279,29 @@ Authoring form vs served form:
 | `revision` | absent | present (minted) | provider |
 | `content_hash`, `provenance_hash` | optional/absent | stamped from the served bytes | provider (publish-time) |
 | `content_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
+| `guide_hash`, `guide_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
 | `refreshed_at` | MAY be author-set | MAY be set/updated | maintainer or provider (not derived) |
 | source `uri` (`type: url`) | absolute | unchanged (never rewritten) | — |
 | source `uri` (`type: file`) | relative | absolute, self-contained | provider |
 | source `content_hash`, `capture_uri` | optional/absent; `capture_uri` MAY be a relative capture path | `capture_uri` absolute, self-contained; both stamped at capture time | provider (capture-time) |
 
-Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `subject_type`, `tags`, `language`, `refresh_class`, `cadence`, `discovered_via_id`) is author-supplied — `discovered_via_id` is set by the maintainer or infrastructure at discovery time — and carried verbatim. A validator running on the authoring form MUST treat every serve-only field as optional.
+Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `subject_type`, `tags`, `language`, `refresh_class`, `cadence`, `discovered_via_id`) is author-supplied — `discovered_via_id` is set by the maintainer or infrastructure at discovery time — and carried verbatim, except for a provider-served redacted projection using the redacted source form (§4.2).
+
+A validator running on the authoring form MUST treat every serve-only field as optional.
 
 The directory [examples/widget-platform-served/](../../examples/widget-platform-served/) illustrates served form.
+
+### §5.1 Detach: served form to working copy
+
+The inverse transformation — fetching a served descriptor and materializing it as an editable local working copy — is exercised by every pull, mirror, and fork workflow. The following detach procedure is RECOMMENDED so that independently written tools produce working copies that behave alike. A *hosted reference* below is a URI that resolves under the descriptor's own root: `base_uri` when set, otherwise the retrieval URI.
+
+1. **Resolve, then relativize hosted references.** For each hosted `content_uri`, `provenance_uri`, `guide_uri`, and `type: file` source `uri`: resolve it per §5, fetch the payload to a local file, and rewrite the reference as a relative path to that file. Keeping a hosted reference absolute is NOT RECOMMENDED: after local edits, the descriptor silently keeps resolving to the remote, pre-edit content. A hosted `capture_uri` MAY be mirrored and relativized in the same way, or kept absolute: captures are immutable evidence pinned by the source `content_hash`, so a remote reference stays truthful after local edits.
+2. **Drop `base_uri`.** It exists to make the served form self-contained; carried into a working copy, it makes the copy's relative references resolve remotely.
+3. **Drop `revision`.** It is provider-minted and serve-only (§5); a stale value in a working copy misdescribes the copy, and the provider mints a fresh one on the next publish.
+4. **Keep stamped hashes and lengths through the pull; treat them as stale after the first edit.** `content_hash`, `content_length`, `provenance_hash`, `guide_hash`, and `guide_length` are exactly what make the just-pulled copy verifiable: verify them against the fetched bytes at detach time. After any local edit they describe bytes that no longer exist; a detach tool MAY drop them at first edit or leave them to be restamped at the next publish (§5).
+5. **Keep external references verbatim.** Source `uri` values of `type: url`, of unknown or extended types — including `type: "redacted"` stubs (§4.2) — and cross-AKB `akb_uri` values are original locations; the never-rewritten rule (§5) holds in both directions. The one exception is a relative `akb_uri`: it names a remote descriptor, not a local file, so it is rewritten to its §5-resolved absolute form before step 2 removes the base it resolves against. All author-supplied fields, including `refreshed_at`, carry verbatim.
+
+A validator running on a working copy already treats every serve-only field as optional (§5), so a partially detached descriptor remains valid throughout migration; a detached-then-edited copy simply loses its stamps until republished. The [examples/widget-platform-served/](../../examples/widget-platform-served/) and [examples/widget-platform/](../../examples/widget-platform/) directories illustrate the two ends of this round trip.
 
 ## §6 Extensions and versioning
 
@@ -244,7 +309,9 @@ Namespaced extensions live under `x` objects at the top level, Source level, Sec
 
 OpenAKB uses SemVer for spec releases. MAJOR versions are breaking. MINOR versions are additive and backward-compatible. PATCH versions are editorial or corrective. Spec releases are tagged as full SemVer, such as `v1.0.0`, `v1.0.1`, and `v1.1.0`.
 
-The descriptor `$schema` MUST be either the major-keyed URI `https://schema.openakb.org/v1/openakb.schema.json`, which tracks the latest backward-compatible 1.x schema, or, for reproducibility, an immutable SemVer pin of the form `https://schema.openakb.org/v1.X.Y/openakb.schema.json` such as `https://schema.openakb.org/v1.0.0/openakb.schema.json`. A v1 validator MUST reject any other `$schema` value as `AKB011`. `$schema` is also the version-detection surface: a loader that encounters a different major key MUST NOT treat the document as an OpenAKB v1 descriptor, and decides for itself whether to reject or attempt a best-effort read.
+The descriptor `$schema` MUST be either the major-keyed URI `https://schema.openakb.org/v1/openakb.schema.json`, which tracks the latest backward-compatible 1.x schema, or, for reproducibility, an immutable SemVer pin of the form `https://schema.openakb.org/v1.X.Y/openakb.schema.json` such as `https://schema.openakb.org/v1.0.0/openakb.schema.json`. A v1 validator MUST reject any other `$schema` value as `AKB011`.
+
+`$schema` is also the version-detection surface: a loader that encounters a different major key MUST NOT treat the document as an OpenAKB v1 descriptor, and decides for itself whether to reject or attempt a best-effort read.
 
 The compatibility contract uses one lenient schema per major. Within a major, new minor versions add only optional core fields or optional modules. Old documents continue to validate against newer schemas because additions are optional. New-minor documents also remain usable with older schemas because core objects are lenient toward unknown members.
 
@@ -288,7 +355,9 @@ Normative bounded-manifest caps:
 
 Depth is the number of nodes on the `parent_id` chain including the section itself: a root section has depth 1, its children depth 2, and so on. The deepest permitted section has depth 64.
 
-The caps are properties of the interchange artifact, not provider capacity declarations. A provider MAY enforce stricter operational limits on what it accepts or serves; that is infrastructure policy outside this specification. A descriptor exceeding a cap is not a conformant OpenAKB descriptor even if a particular provider accepts it. Caps are fixed within a major version — raising one is a breaking change — so a corpus that outgrows them uses the multi-AKB composition pattern (§4.8) rather than a larger manifest.
+The caps are properties of the interchange artifact, not provider capacity declarations. A provider MAY enforce stricter operational limits on what it accepts or serves; that is infrastructure policy outside this specification. A descriptor exceeding a cap is not a conformant OpenAKB descriptor even if a particular provider accepts it.
+
+Caps are fixed within a major version — raising one is a breaking change — so a corpus that outgrows them uses the multi-AKB composition pattern (§4.8) rather than a larger manifest.
 
 Error-code catalog:
 
@@ -307,7 +376,9 @@ Error-code catalog:
 | `AKB011` | `malformed-value` | Charset (`[a-z0-9_-]`), format (RFC 3339 UTC / RFC 3986), and type constraints hold. |
 | `AKB012` | `link-missing-target` | Every link carries `section_id`, `akb_uri`, or both. |
 
-The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char local ID grammar limit is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap. The schema is authoritative for mechanical field types and formats. Claim `text` is deliberately uncapped; the per-section claim-count cap bounds the manifest instead.
+The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char local ID grammar limit is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap.
+
+The schema is authoritative for mechanical field types and formats. Claim `text` is deliberately uncapped; the per-section claim-count cap bounds the manifest instead.
 
 When validation is performed with the published JSON Schema, keyword violations map to codes normatively, so independent validators emit identical codes for identical documents:
 
@@ -322,9 +393,15 @@ When validation is performed with the published JSON Schema, keyword violations 
 
 Conformance-fixture match semantics are also normative: a validator passes an invalid fixture if and only if it emits every code listed in the fixture's `codes` array. Extra codes are permitted only when they report distinct additional violations; duplicate emissions of a code are ignored.
 
-Deeper checks that require fetching content are opt-in under `--check-content`. Under `--check-content`, inline `[cite:]` resolution failures emit `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes. When a source carries `capture_uri`, the fetched capture can be verified against the source `content_hash`, and claim `locator.quote` values can be checked as substrings of the capture (§4.2). Validators and consumers MUST support `sha256` (§4.3); an unknown hash algorithm is an unverifiable warning, not an invalid descriptor.
+Deeper checks that require fetching content are opt-in under `--check-content`. Under `--check-content`, inline `[cite:]` resolution failures emit `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes, and the top-level `guide_hash` likewise against the fetched guide bytes.
 
-Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure: a hash mismatch, or a `[cite:]` id in fetched content that resolves to nothing. This completes a pattern already in the spec: cross-AKB links are best-effort rather than offline structural failures (§4.5), and an unknown hash algorithm is an unverifiable warning rather than an invalid descriptor.
+When a source carries `capture_uri`, the fetched capture can be verified against the source `content_hash`, and claim `locator.quote` values can be checked as substrings of the capture (§4.2). Validators and consumers MUST support `sha256` (§4.3); an unknown hash algorithm is an unverifiable warning, not an invalid descriptor.
+
+Content checks against a `type: "redacted"` source (§4.2) are unverifiable by construction and MUST be reported as unverifiable; a validator MAY warn when a claim `locator.quote` cites a redacted source, since the quote cannot be checked against any capture.
+
+Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure: a hash mismatch, or a `[cite:]` id in fetched content that resolves to nothing.
+
+> This completes a pattern already in the spec: cross-AKB links are best-effort rather than offline structural failures (§4.5), and an unknown hash algorithm is an unverifiable warning rather than an invalid descriptor.
 
 ## §8 Security considerations (non-normative)
 
@@ -337,6 +414,8 @@ URI resolution can create SSRF and local-file traversal risks. Fetching should b
 Content behind URIs is unbounded payload. Consumers should apply size, time, and redirect-count limits to every fetch, and should stream with caps rather than buffering whole responses.
 
 Integrity is not authenticity. `content_hash` and `provenance_hash` can show that fetched bytes match a stamped value; they do not prove who authored the descriptor or content. OpenAKB v1 defines no descriptor-signing or author-attestation primitive.
+
+Redaction is projection, not protection. The redacted source form (§4.2) only withholds a source's identity from a served document; it grants no confidentiality by itself, and enforcing who may fetch which projection remains access control outside this specification. The retained fields are themselves part of the projection: the source `id` and any `captured_at` stay visible, and an `id` that describes its subject discloses that description.
 
 ## §9 Worked example
 
