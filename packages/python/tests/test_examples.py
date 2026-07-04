@@ -27,7 +27,7 @@ _AUTHORING = ["minimal", "widget-platform", "cross-link", "sidecar-provenance"]
 
 
 def _load(example: str) -> dict[str, Any]:
-    descriptor = json.loads((_EXAMPLES / example / "openakb.json").read_text())
+    descriptor = json.loads((_EXAMPLES / example / "openakb.json").read_text(encoding="utf-8"))
     assert isinstance(descriptor, dict)
     return descriptor
 
@@ -50,6 +50,14 @@ def test_authoring_content(example: str) -> None:
 
     assert report.ok
     assert report.checks
+    assert not report.failed
+    for check in report.checks:
+        if check.kind == "quote":
+            assert check.outcome in {VERIFIED, UNVERIFIABLE}
+            if check.outcome == UNVERIFIABLE:
+                assert check.detail == "no cited source capture fetched"
+        else:
+            assert check.outcome == VERIFIED
 
 
 def test_widget_artifacts() -> None:
