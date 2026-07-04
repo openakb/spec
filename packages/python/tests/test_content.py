@@ -291,6 +291,20 @@ def test_local_resolver_fragments(tmp_path: Path) -> None:
     assert LocalFileResolver(base).fetch("root.md#section") == b"content"
 
 
+def test_segment_params_rejected(tmp_path: Path) -> None:
+    """Path parameters on any segment must not alias a local filesystem path."""
+    base = tmp_path / "kb"
+    directory = base / "dir"
+    parameter_directory = base / "dir;v"
+    directory.mkdir(parents=True)
+    parameter_directory.mkdir()
+    (directory / "root.md").write_bytes(b"content")
+    (parameter_directory / "root.md").write_bytes(b"parameterized")
+
+    with pytest.raises(Unfetchable):
+        LocalFileResolver(base).fetch("dir;v/root.md")
+
+
 def test_percent_traversal_literal(tmp_path: Path) -> None:
     """Percent-encoded traversal text is a literal local filename, not path traversal."""
     base = tmp_path / "kb"

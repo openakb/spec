@@ -71,6 +71,7 @@ class LocalFileResolver:
             or parsed.netloc
             or parsed.params
             or parsed.query
+            or ";" in parsed.path
             or Path(parsed.path).is_absolute()
         ):
             raise Unfetchable(f"outside local base: {uri}")
