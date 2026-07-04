@@ -1,0 +1,11 @@
+# Codecov configuration. Coverage arrives per language as a flag (python now; rust
+# and js in later phases). carryforward keeps a flag's last report when a CI run
+# does not produce a new one for it - inert while CI is always-run, load-bearing
+# once CI becomes path-filtered with per-language jobs.
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: python
+      paths:
+        - packages/python/

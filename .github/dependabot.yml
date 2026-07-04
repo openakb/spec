@@ -7,4 +7,10 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "ci"
-# Cargo / npm / pip ecosystems are added when packages/ lands in a later phase.
+  - package-ecosystem: "uv"
+    directory: "/packages/python"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build(python)"
+# Cargo / npm ecosystems are added when their packages land in later phases.
