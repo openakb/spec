@@ -67,6 +67,8 @@ jobs:
       - name: Check Out
         uses: actions/checkout@v7
       - name: Install uv
+        # Exact-pinned: upstream publishes no rolling `v8` major tag, unlike the
+        # sibling actions above that are tracked by major version.
         uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: ${{ matrix.python-version }}

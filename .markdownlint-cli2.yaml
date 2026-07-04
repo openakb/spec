@@ -2,7 +2,7 @@
 # Read automatically by markdownlint-cli2 (local `npx` runs and the CI action).
 config:
   default: true
-  MD013: false            # line length — prose and wide tables wrap freely
+  MD013: false            # line length -- prose and wide tables wrap freely
   MD024:
     siblings_only: true   # allow repeated headings under different parents (CHANGELOG, ADRs)
   MD033: false            # allow occasional inline HTML
