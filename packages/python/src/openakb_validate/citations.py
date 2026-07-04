@@ -37,7 +37,7 @@ def extract_citations(markdown: str) -> list[Citation]:
         Citation(ids=tuple(_SEPARATOR_RE.split(match.group(1))))
         for segment, literal in _prose_segments(markdown)
         for match in _MARKER_RE.finditer(segment)
-        if _has_literal_source(match, literal)
+        if _has_literal_source(match, literal) and _has_marker_boundaries(match, segment)
     ]
 
 
@@ -70,9 +70,6 @@ def _prose_segments(markdown: str) -> list[tuple[str, tuple[bool, ...]]]:
                 segments.append(("".join(run), tuple(literal_run)))
                 run = []
                 literal_run = []
-                cursor = _consume_structural(token.content, cursor, child)
-            else:
-                cursor = _consume_structural(token.content, cursor, child)
         if run:
             segments.append(("".join(run), tuple(literal_run)))
     return segments
@@ -82,9 +79,18 @@ def _has_literal_source(match: re.Match[str], literal: tuple[bool, ...]) -> bool
     return all(literal[match.start() : match.end()])
 
 
+def _has_marker_boundaries(match: re.Match[str], segment: str) -> bool:
+    start = match.start()
+    close = match.end() - 1
+    return (start == 0 or segment[start - 1] != "[") and (
+        close + 1 == len(segment) or segment[close + 1] != "]"
+    )
+
+
 def _consume_text(source: str, cursor: int, expected: str) -> tuple[int, str, tuple[bool, ...]]:
     text: list[str] = []
     literal: list[bool] = []
+    cursor = _find_decoded(source, cursor, expected)
     while len(text) < len(expected) and cursor < len(source):
         character_reference = _CHARACTER_REFERENCE_RE.match(source, cursor)
         if character_reference is not None:
@@ -108,27 +114,33 @@ def _consume_text(source: str, cursor: int, expected: str) -> tuple[int, str, tu
     return cursor, decoded, tuple(literal)
 
 
-def _consume_structural(source: str, cursor: int, child: object) -> int:
-    content = getattr(child, "content", "")
-    markup = getattr(child, "markup", "")
-    child_type = getattr(child, "type", "")
-    if child_type in {"em_open", "em_close", "s_open", "s_close", "strong_open", "strong_close"}:
-        return cursor + len(markup)
-    if child_type == "softbreak":
-        return _consume_line_ending(source, cursor)
-    if child_type == "hardbreak":
-        return _consume_line_ending(source, cursor)
-    if child_type == "html_inline" and source.startswith(content, cursor):
-        return cursor + len(content)
-    if child_type == "code_inline" and source.startswith(markup, cursor):
-        close = source.find(markup, cursor + len(markup))
-        if close >= 0:
-            return close + len(markup)
+def _find_decoded(source: str, cursor: int, expected: str) -> int:
+    while cursor < len(source):
+        _, decoded, _ = _decode_text_prefix(source, cursor, len(expected))
+        if decoded == expected:
+            return cursor
+        cursor += 1
     return cursor
 
 
-def _consume_line_ending(source: str, cursor: int) -> int:
-    newline = source.find("\n", cursor)
-    if newline < 0:
-        return cursor
-    return newline + 1
+def _decode_text_prefix(source: str, cursor: int, length: int) -> tuple[int, str, tuple[bool, ...]]:
+    text: list[str] = []
+    literal: list[bool] = []
+    while len(text) < length and cursor < len(source):
+        character_reference = _CHARACTER_REFERENCE_RE.match(source, cursor)
+        if character_reference is not None:
+            decoded = unescape(character_reference.group(0))
+            if decoded != character_reference.group(0):
+                text.extend(decoded)
+                literal.extend([False] * len(decoded))
+                cursor = character_reference.end()
+                continue
+        if source[cursor] == "\\" and cursor + 1 < len(source) and source[cursor + 1] in _ESCAPABLE:
+            text.append(source[cursor + 1])
+            literal.append(False)
+            cursor += 2
+            continue
+        text.append(source[cursor])
+        literal.append(True)
+        cursor += 1
+    return cursor, "".join(text), tuple(literal)

@@ -82,6 +82,13 @@ def test_inline_comment_ignored() -> None:
     assert _ids("See <!-- [cite: a] --> [cite: b].") == [["b"]]
 
 
+def test_after_links_prose() -> None:
+    """Citations after links, images, and autolinks remain normal prose."""
+    assert _ids("[foo](https://example.org) [cite: a]") == [["a"]]
+    assert _ids("![alt](https://example.org/image.png) [cite: b]") == [["b"]]
+    assert _ids("<https://example.org> [cite: c]") == [["c"]]
+
+
 def test_malformed_markers_literal() -> None:
     """Malformed bracketed text is literal text, not a citation or error."""
     assert (
@@ -91,6 +98,9 @@ def test_malformed_markers_literal() -> None:
                     "[cite:]",
                     "[cite: ]",
                     "[cite: A]",
+                    "[cite: bad [cite: a]]",
+                    "[cite: a[cite: b]]",
+                    "[[cite: a]]",
                     "[cite: a,]",
                     "[cite: a,,b]",
                     "[cite: a b]",
