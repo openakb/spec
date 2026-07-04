@@ -22,7 +22,7 @@ binary target on the Rust crate, no `bin` field on the npm package.
 The bare `openakb` name is designated for the project's command-line tool, planned as
 `openakb/openakb`: a thin front end over the reference validator libraries and the **only**
 command-line surface, scoped to validation only — descriptors and provenance sidecars against
-the schema and the structural rules, the `--strict` lint, and the opt-in `--check-content`
+the schema and the structural rules, the strict lint, and the opt-in content-verification
 checks. A general fetch/push/pull workflow CLI is **out of scope** — serving, sync, and
 transport are infra/provider tooling per the razor.
 

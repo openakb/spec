@@ -27,10 +27,10 @@ trapped in one vendor's storage or serving model.
 ## Status
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
-examples, and conformance suite have landed; reference validators are forthcoming.
-Today's tooling checks JSON-Schema conformance, which covers the schema-catchable
-codes; the cross-document semantic rules (`AKB001`, `AKB002`, `AKB004`, `AKB007`,
-`AKB010`) are enforced by the Phase-3 reference validator.
+examples, conformance suite, and the first reference validator — `openakb-validate`
+for Python, under [packages/python](packages/python/) — have landed. The validator
+enforces the full `AKB001`–`AKB012` catalog, including the cross-document semantic
+rules, and executes the conformance suite as its acceptance gate.
 See [CHANGELOG.md](CHANGELOG.md) for what has landed.
 
 ## Specification

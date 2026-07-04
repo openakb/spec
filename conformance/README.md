@@ -87,12 +87,16 @@ present in any report.
 
 ## Phase coverage
 
-Phase 2 executes positive descriptor validation for `valid/` and `forward-compat/`, negative
-schema assertions for `invalid/` fixtures whose declared codes are schema-catchable (including
-the keyword→code mapping check from spec §7), and the manifest lint that checks fixture shape
-and rule coverage. Execution of the cross-document semantic checks (`AKB001`, `AKB002`,
-`AKB004`, `AKB007`, `AKB010`) and `content/` citation parsing lands with the Phase 3 reference
-validator; until then, those fixtures are guarded by manifest lint.
+The `ajv`-based manifest lint (`scripts/ci/check-conformance.mjs`) validates fixture
+shape, rule coverage, and the schema-catchable codes, including the keyword→code
+mapping from spec §7. The Python reference validator (`packages/python`) executes the
+full suite — both modes for `valid/` and `forward-compat/`, code-level assertions for
+`invalid/`, and the `content/` extraction contract — via its conformance runner
+(`uv run pytest tests/test_conformance.py`) and emits an implementation report (see
+§Implementation reports). Every further validator passes the identical suite by
+shipping only a report emitter; `scripts/ci/check-conformance-report.mjs` applies
+the match semantics and asserts cross-validator agreement per fixture on verdicts
+and error codes.
 
 ## Rule traceability
 
