@@ -16,8 +16,8 @@ def test_finding_name_derives_from_catalog() -> None:
     assert finding.name == "parent-cycle"
 
 
-def test_finding_name_unknown_code_echoes_code() -> None:
-    """An out-of-catalog code returns the code itself, never a bare KeyError."""
+def test_finding_name_unknown_code() -> None:
+    """An out-of-catalog code echoes the code itself back, never a bare KeyError."""
     finding = Finding(code="AKB999", path="/x", message="m")
     assert finding.name == "AKB999"
 

@@ -70,6 +70,7 @@ addopts = "--cov=openakb_validate --cov-branch --cov-report=term-missing --cov-r
 [tool.coverage.report]
 fail_under = 95
 show_missing = true
+exclude_lines = ["# not coverable in CI:"]
 
 [tool.mypy]
 strict = true

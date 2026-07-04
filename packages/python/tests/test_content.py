@@ -623,8 +623,8 @@ def test_report_partitions_by_outcome() -> None:
     assert report.unverifiable == (unverifiable,)
 
 
-def test_all_unverifiable_report_is_silently_ok() -> None:
-    """ok can be True with nothing verified; unverifiable exposes the silent case."""
+def test_all_unverifiable_is_ok() -> None:
+    """Report is silently ok when every check is unverifiable, with nothing verified."""
     unverifiable = ContentCheck(
         kind=KIND_GUIDE_HASH, path="/guide_hash", outcome=UNVERIFIABLE, detail="missing guide_uri"
     )
@@ -635,7 +635,7 @@ def test_all_unverifiable_report_is_silently_ok() -> None:
     assert report.unverifiable == (unverifiable,)
 
 
-def test_local_resolver_accepts_str_base_dir(tmp_path: Path) -> None:
+def test_local_resolver_accepts_str(tmp_path: Path) -> None:
     """A str base_dir is coerced to Path so fetch and check_content do not crash."""
     (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
     resolver = LocalFileResolver(base_dir=str(tmp_path))

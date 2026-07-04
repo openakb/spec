@@ -386,9 +386,9 @@ def _effective_reference(reference: str, base_uri: str | None, local: bool) -> s
             # nothing and fails safe should a future join introduce one.
             effective_error = _local_raw_reference_error(effective)
             if effective_error is not None:
-                # not coverable in CI: no hostile pattern survives the pre-join
-                # screens above to reach here, so no input drives this branch.
-                return effective_error
+                # No hostile pattern survives the pre-join screens above to reach
+                # here, so no input drives this branch in practice.
+                return effective_error  # not coverable in CI: see comment above
         return urldefrag(effective).url
     except ValueError as error:
         return Unfetchable(str(error))
