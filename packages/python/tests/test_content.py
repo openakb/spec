@@ -320,6 +320,36 @@ def test_non_markdown_no_fetch() -> None:
     assert report.ok
 
 
+def test_unknown_hash_no_fetch() -> None:
+    """Unsupported non-Markdown content_hash values do not fetch content."""
+    section = _descriptor()["sections"][0] | {
+        "content_hash": "sha512-aa==",
+        "content_type": "application/json",
+    }
+    resolver = RecordingResolver({"root.md": b"{}"})
+    report = check_content(_descriptor(sections=[section]), resolver)
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert resolver.requests == []
+    assert report.ok
+
+
+def test_malformed_hash_no_fetch() -> None:
+    """Malformed non-Markdown content_hash values do not fetch content."""
+    section = _descriptor()["sections"][0] | {
+        "content_hash": "sha256-not!base64",
+        "content_type": "application/json",
+    }
+    resolver = RecordingResolver({"root.md": b"{}"})
+    report = check_content(_descriptor(sections=[section]), resolver)
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert resolver.requests == []
+    assert report.ok
+
+
 def test_malformed_type_skips() -> None:
     """Malformed content_type values are schema-owned and skip citation extraction."""
     section = _descriptor()["sections"][0] | {"content_type": 42}

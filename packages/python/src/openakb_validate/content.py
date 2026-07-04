@@ -183,16 +183,29 @@ def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> 
         )
         if not has_content_hash and not checks_citations:
             continue
+        hash_check = None
+        if has_content_hash:
+            hash_check = _parse_sri(
+                "content-hash",
+                ["sections", index, "content_hash"],
+                section["content_hash"],
+            )
+            if isinstance(hash_check, ContentCheck) and not checks_citations:
+                checks.append(hash_check)
+                continue
         resolved = _fetch_section(index, section, reference, base_uri, resolver)
         if has_content_hash:
-            checks.append(
-                _check_sri(
-                    "content-hash",
-                    ["sections", index, "content_hash"],
-                    section["content_hash"],
-                    resolved,
+            if isinstance(hash_check, ContentCheck):
+                checks.append(hash_check)
+            else:
+                checks.append(
+                    _check_sri(
+                        "content-hash",
+                        ["sections", index, "content_hash"],
+                        section["content_hash"],
+                        resolved,
+                    )
                 )
-            )
         if checks_citations:
             checks.append(_citation_check(graph, resolved))
     return checks
