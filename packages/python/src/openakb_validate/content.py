@@ -277,10 +277,17 @@ def _effective_reference(reference: str, base_uri: str | None, local: bool) -> s
         raw_error = _local_raw_reference_error(reference)
         if raw_error is not None:
             return raw_error
+        if base_uri is not None and _uses_base_resource(reference):
+            base_error = _local_raw_reference_error(base_uri)
+            if base_error is not None:
+                return base_error
     try:
-        if base_uri is None:
-            return urldefrag(reference).url
-        return urldefrag(urljoin(base_uri, reference)).url
+        effective = reference if base_uri is None else urljoin(base_uri, reference)
+        if local:
+            effective_error = _local_raw_reference_error(effective)
+            if effective_error is not None:
+                return effective_error
+        return urldefrag(effective).url
     except ValueError as error:
         return Unfetchable(str(error))
 
@@ -303,6 +310,10 @@ def _local_raw_reference_error(reference: str) -> Unfetchable | None:
     if "?" in raw_reference or ";" in raw_path:
         return Unfetchable(f"outside local base: {reference}")
     return None
+
+
+def _uses_base_resource(reference: str) -> bool:
+    return reference == "" or reference.startswith("#")
 
 
 def _fetch_section(

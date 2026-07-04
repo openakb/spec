@@ -432,6 +432,43 @@ def test_local_guide_query(tmp_path: Path) -> None:
     assert report.ok
 
 
+def test_base_query_fragment(tmp_path: Path) -> None:
+    """Fragment-only local content refs must not hide base_uri empty query aliases."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    section = _descriptor()["sections"][0] | {"content_uri": "#new"}
+    descriptor = _descriptor(base_uri="root.md?#old", sections=[section])
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_base_param_fragment(tmp_path: Path) -> None:
+    """Fragment-only local content refs must not hide base_uri path parameters."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    section = _descriptor()["sections"][0] | {"content_uri": "#new"}
+    descriptor = _descriptor(base_uri="root.md;#old", sections=[section])
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_base_guide_query(tmp_path: Path) -> None:
+    """Fragment-only local guide refs must not hide base_uri empty query aliases."""
+    guide = b"# Guide\n"
+    (tmp_path / "AKB.md").write_bytes(guide)
+    descriptor = _descriptor(
+        base_uri="AKB.md?#old",
+        guide_uri="#intro",
+        guide_hash=_sri(guide),
+    )
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
 def test_local_resolver_confines(tmp_path: Path) -> None:
     """LocalFileResolver fetches base-relative files and rejects hostile references."""
     base = tmp_path / "kb"
