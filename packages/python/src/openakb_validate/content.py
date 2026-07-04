@@ -9,7 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urldefrag, urljoin, urlparse
 
 from ._shape import indexed_dicts, reference_code
 from .citations import extract_citations
@@ -246,8 +246,8 @@ def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedConten
 
 def _effective_reference(reference: str, base_uri: str | None) -> str:
     if base_uri is None:
-        return reference
-    return urljoin(base_uri, reference)
+        return urldefrag(reference).url
+    return urldefrag(urljoin(base_uri, reference)).url
 
 
 def _capture_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> dict[str, Any]:

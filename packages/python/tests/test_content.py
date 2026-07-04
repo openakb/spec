@@ -185,6 +185,15 @@ def test_guide_hash_verifies() -> None:
     assert _checks_by_kind(report, "guide-hash")[0].outcome == VERIFIED
 
 
+def test_guide_fragment_stripped() -> None:
+    """Guide references strip fragments before resolver fetch."""
+    payload = b"# Guide\n"
+    descriptor = _descriptor(guide_uri="AKB.md#intro", guide_hash=_sri(payload))
+    report = check_content(descriptor, FakeResolver({"root.md": b"", "AKB.md": payload}))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == VERIFIED
+
+
 def test_guide_hash_mismatch() -> None:
     """A mismatched guide_hash is a failed check."""
     descriptor = _descriptor(guide_uri="AKB.md", guide_hash=_sri(b"expected"))
@@ -209,6 +218,16 @@ def test_unfetchable_content() -> None:
 
     assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
     assert report.ok
+
+
+def test_content_fragment_stripped() -> None:
+    """Section content references strip fragments before resolver fetch."""
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_uri": "root.md#part"}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: s1]."}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == VERIFIED
 
 
 def test_invalid_utf8_markdown() -> None:
