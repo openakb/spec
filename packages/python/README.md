@@ -38,7 +38,7 @@ from openakb_validate import ValidationResult, validate
 descriptor = json.loads(Path("akb.json").read_text(encoding="utf-8"))
 result: ValidationResult = validate(descriptor)
 
-if not result.valid:
+if not result.ok:
     for finding in result.findings:
         print(f"{finding.code}: {finding.message}")
 ```
@@ -60,7 +60,7 @@ validation findings:
 from openakb_validate import Advisory, validate
 
 result = validate(descriptor, strict=True)
-advisories: list[Advisory] = result.advisories
+warnings: list[Advisory] = result.warnings
 ```
 
 Strict mode remains local and deterministic. It does not make network requests or
@@ -96,13 +96,19 @@ advisories, provenance checks, and local content checks through one API.
 ```python
 from pathlib import Path
 
-from openakb_validate import LocalFileResolver, ValidationResult, validate_with_content
+from openakb_validate import FullReport, LocalFileResolver, validate_with_content
 
-result: ValidationResult = validate_with_content(
+report: FullReport = validate_with_content(
     descriptor,
     resolver=LocalFileResolver(base_dir=Path("example-akb")),
     strict=True,
 )
+
+for finding in report.validation.findings:
+    print(f"{finding.code}: {finding.message}")
+
+for finding in report.content.findings:
+    print(f"{finding.code}: {finding.message}")
 ```
 
 This is still a pure library call. Callers choose where data comes from, how
