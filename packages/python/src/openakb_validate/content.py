@@ -174,8 +174,15 @@ def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> 
             continue
         resolved = _fetch_section(index, section, reference, base_uri, resolver)
         if isinstance(section.get("content_hash"), str):
-            checks.append(_check_sri("content-hash", ["sections", index, "content_hash"], resolved))
-        if _is_markdown(section.get("content_type")):
+            checks.append(
+                _check_sri(
+                    "content-hash",
+                    ["sections", index, "content_hash"],
+                    section["content_hash"],
+                    resolved,
+                )
+            )
+        if "content_type" not in section or _is_markdown(section.get("content_type")):
             checks.append(_citation_check(graph, resolved))
     return checks
 
@@ -189,22 +196,28 @@ def _guide_check(
         return []
     uri = _effective_reference(descriptor["guide_uri"], base_uri)
     path: list[str | int] = ["guide_hash"]
+    expected = _parse_sri("guide-hash", path, descriptor["guide_hash"])
+    if isinstance(expected, ContentCheck):
+        return [expected]
     try:
         payload = resolver.fetch(uri)
     except Unfetchable as error:
         return [_check(UNVERIFIABLE, "guide-hash", path, str(error))]
-    return [_check_sri_bytes("guide-hash", path, payload, descriptor["guide_hash"])]
+    return [_compare_sri("guide-hash", path, payload, expected)]
 
 
 def _check_sri(
-    kind: str, path: list[str | int], resolved: _ResolvedContent | _UnfetchedContent
+    kind: str,
+    path: list[str | int],
+    sri: str,
+    resolved: _ResolvedContent | _UnfetchedContent,
 ) -> ContentCheck:
+    expected = _parse_sri(kind, path, sri)
+    if isinstance(expected, ContentCheck):
+        return expected
     if isinstance(resolved, _UnfetchedContent):
         return _check(UNVERIFIABLE, kind, path, str(resolved.error))
-    content_hash = resolved.section.get("content_hash")
-    if not isinstance(content_hash, str):
-        return _check(UNVERIFIABLE, kind, path, "content_hash is not a string")
-    return _check_sri_bytes(kind, path, resolved.payload, content_hash)
+    return _compare_sri(kind, path, resolved.payload, expected)
 
 
 def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedContent) -> ContentCheck:
@@ -262,10 +275,7 @@ def _fetch_section(
         return _UnfetchedContent(index=index, error=error)
 
 
-def _check_sri_bytes(kind: str, path: list[str | int], payload: bytes, sri: str) -> ContentCheck:
-    expected = _parse_sri(kind, path, sri)
-    if isinstance(expected, ContentCheck):
-        return expected
+def _compare_sri(kind: str, path: list[str | int], payload: bytes, expected: bytes) -> ContentCheck:
     actual = base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
     if actual != base64.b64encode(expected).decode("ascii"):
         return _check(FAILED, kind, path, "sha256 digest mismatch")
@@ -342,7 +352,7 @@ def _content_path(index: int) -> list[str | int]:
 
 
 def _is_markdown(content_type: object) -> bool:
-    return not isinstance(content_type, str) or content_type == _MARKDOWN_TYPE
+    return isinstance(content_type, str) and content_type == _MARKDOWN_TYPE
 
 
 def _ids(items: Iterable[tuple[int, dict[str, Any]]]) -> list[str]:

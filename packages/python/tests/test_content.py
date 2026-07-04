@@ -113,6 +113,18 @@ def test_unknown_hash_algo() -> None:
     assert report.ok
 
 
+def test_unknown_unfetchable_hash() -> None:
+    """Unsupported content_hash algorithms warn even if content cannot be fetched."""
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_hash": "sha512-aa=="}]
+    )
+    report = check_content(descriptor, FakeResolver({}))
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert report.ok
+
+
 def test_malformed_sha256_hash() -> None:
     """Malformed sha256 base64 is unverifiable because schema owns shape errors."""
     descriptor = _descriptor(
@@ -121,6 +133,16 @@ def test_malformed_sha256_hash() -> None:
     report = check_content(descriptor, FakeResolver({"root.md": b"anything"}))
 
     assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert len(report.warnings) == 1
+    assert report.ok
+
+
+def test_malformed_unfetchable_guide() -> None:
+    """Malformed guide_hash values warn even if the guide cannot be fetched."""
+    descriptor = _descriptor(guide_uri="missing.md", guide_hash="sha256-not!base64")
+    report = check_content(descriptor, FakeResolver({"root.md": b""}))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
     assert len(report.warnings) == 1
     assert report.ok
 
@@ -231,6 +253,18 @@ def test_non_markdown_skips() -> None:
     )
 
     assert _checks_by_kind(report, "citations") == []
+    assert report.ok
+
+
+def test_malformed_type_skips() -> None:
+    """Malformed content_type values are schema-owned and skip citation extraction."""
+    section = _descriptor()["sections"][0] | {"content_type": 42}
+    report = check_content(
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"[cite: ghost]"})
+    )
+
+    assert _checks_by_kind(report, "citations") == []
+    assert report.findings == ()
     assert report.ok
 
 
