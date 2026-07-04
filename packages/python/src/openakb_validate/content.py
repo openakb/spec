@@ -334,7 +334,6 @@ def _capture_checks(
 ) -> _CaptureResult:
     payloads: dict[str, bytes] = {}
     checks: list[ContentCheck] = []
-    quote_source_ids = _quote_source_ids(quote_claims)
     for index, source in graph.sources:
         source_id = source.get("id")
         path: list[str | int] = ["sources", index, "content_hash"]
@@ -356,14 +355,14 @@ def _capture_checks(
                 else:
                     checks.append(_check(UNVERIFIABLE, "capture", path, "missing capture_uri"))
             continue
-        source_quoted = isinstance(source_id, str) and source_id in quote_source_ids
-        if isinstance(hash_check, ContentCheck) and not source_quoted:
-            checks.append(hash_check)
-            continue
         resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
         if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
             payloads[source_id] = resolved.payload
-        if not has_hash and isinstance(resolved, _UnfetchedContent):
+        if isinstance(hash_check, ContentCheck):
+            checks.append(hash_check)
+        if isinstance(resolved, _UnfetchedContent) and (
+            not has_hash or isinstance(hash_check, ContentCheck)
+        ):
             checks.append(
                 _check(
                     UNVERIFIABLE, "capture", ["sources", index, "capture_uri"], str(resolved.error)
@@ -371,7 +370,7 @@ def _capture_checks(
             )
         if has_hash:
             if isinstance(hash_check, ContentCheck):
-                checks.append(hash_check)
+                continue
             elif isinstance(resolved, _UnfetchedContent):
                 checks.append(_check(UNVERIFIABLE, "capture", path, str(resolved.error)))
             else:

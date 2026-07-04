@@ -862,6 +862,23 @@ def test_capture_uri_fetches() -> None:
     assert report.ok
 
 
+def test_capture_malformed_fetches() -> None:
+    """Malformed source content_hash does not prevent capture_uri fetch."""
+    source = _descriptor()["sources"][0] | {
+        "capture_uri": "capture.bin",
+        "content_hash": "sha256-not!base64",
+    }
+    resolver = RecordingResolver({"root.md": b"See [cite: s1].", "capture.bin": b"capture"})
+    report = check_content(_descriptor(sources=[source]), resolver)
+
+    capture = _checks_by_kind(report, "capture")[0]
+    assert resolver.requests == ["root.md", "capture.bin"]
+    assert capture.outcome == UNVERIFIABLE
+    assert "malformed sha256 digest" in capture.detail
+    assert len(capture.warnings) == 1
+    assert report.ok
+
+
 def test_capture_unfetchable_reports() -> None:
     """Hashless capture_uri fetch failures emit an unverifiable capture check."""
     source = _descriptor()["sources"][0] | {"capture_uri": "missing.bin"}
@@ -872,6 +889,26 @@ def test_capture_unfetchable_reports() -> None:
     capture = _checks_by_kind(report, "capture")[0]
     assert capture.outcome == UNVERIFIABLE
     assert capture.path == "/sources/0/capture_uri"
+    assert report.ok
+
+
+def test_capture_malformed_unfetchable() -> None:
+    """Malformed hashes do not hide unfetchable capture_uri diagnostics."""
+    source = _descriptor()["sources"][0] | {
+        "capture_uri": "missing.bin",
+        "content_hash": "sha256-not!base64",
+    }
+    report = check_content(
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+    )
+
+    captures = _checks_by_kind(report, "capture")
+    assert [check.path for check in captures] == [
+        "/sources/0/content_hash",
+        "/sources/0/capture_uri",
+    ]
+    assert [check.outcome for check in captures] == [UNVERIFIABLE, UNVERIFIABLE]
+    assert len(captures[0].warnings) == 1
     assert report.ok
 
 
