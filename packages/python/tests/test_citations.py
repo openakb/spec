@@ -97,6 +97,12 @@ def test_malformed_markers_literal() -> None:
     )
 
 
+def test_encoded_delimiters_literal() -> None:
+    """Character references cannot synthesize literal citation syntax."""
+    assert _ids("&#91;cite: a]\n[cite&colon; a]\n[cite: a&#93;") == []
+    assert _ids("&lbrack;cite: a]\n[cite&colon; a]\n[cite: a&rbrack;") == []
+
+
 def test_no_marker_across_emphasis() -> None:
     """Structural inline children prevent assembling a marker across emphasis."""
     assert _ids("[cite: *a*]") == []
