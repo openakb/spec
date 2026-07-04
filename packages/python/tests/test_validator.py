@@ -95,6 +95,26 @@ def test_strict_adds_akb006() -> None:
     assert [finding.code for finding in validate(descriptor, strict=True).findings] == ["AKB006"]
 
 
+def test_trailing_newline_id_rejected() -> None:
+    """A trailing-newline id is AKB011 and never silently valid (schema+semantic agree)."""
+    descriptor = _descriptor(
+        sources=[{"id": "s1\n", "type": "url", "uri": "https://docs.example.com/"}],
+        sections=[
+            {
+                "id": "root",
+                "title": "Root",
+                "description": "Root section.",
+                "content_uri": "root.md",
+                "source_ids": ["s1\n"],
+            }
+        ],
+    )
+    result = validate(descriptor)
+
+    assert not result.ok
+    assert "AKB011" in result.codes
+
+
 def test_non_dict_input_invalid() -> None:
     result = validate("not a descriptor")
 

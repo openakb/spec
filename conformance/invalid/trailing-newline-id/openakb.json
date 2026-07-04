@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-trailing-newline-id",
+  "title": "Invalid — trailing newline in local id",
+  "description": "A source id carries a trailing newline, which the local ID pattern rejects under ECMA-262 end-of-input anchoring.",
+  "sources": [
+    {
+      "id": "s1\n",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "Root section citing the malformed source id.",
+      "content_uri": "root.md",
+      "source_ids": ["s1\n"]
+    }
+  ]
+}

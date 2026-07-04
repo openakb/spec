@@ -6,12 +6,15 @@ Independent validators should emit identical codes for schema violations.
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Callable, Iterator
 from functools import cache
 from importlib.resources import files
-from typing import Any
+from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
+from jsonschema.validators import extend
 
 from .result import Finding, json_pointer
 
@@ -34,19 +37,81 @@ _KEYWORD_CODES: dict[str, str] = {
 }
 
 
+def _pattern_keyword(
+    validator: Draft202012Validator, patrn: str, instance: object, schema: object
+) -> Iterator[ValidationError]:
+    """Validate `pattern` with ECMA-262 `$` semantics (JSON Schema's regex dialect).
+
+    Python's `re` lets `$` match just before a trailing newline, so
+    `^[a-z0-9_-]+$` wrongly accepts "s1\\n"; ECMA-262 (what the ajv gate uses)
+    anchors `$` at end-of-input only. Anchoring `$` becomes `\\Z` so independent
+    validators emit identical codes for identical documents (spec §7). This also
+    governs `propertyNames`, whose subschema is validated through this keyword.
+    """
+    if isinstance(instance, str) and _compile_ecma(patrn).search(instance) is None:
+        yield ValidationError(f"{instance!r} does not match {patrn!r}")
+
+
+# The descriptor and provenance schemas share this ECMA-faithful `pattern` keyword.
+# `jsonschema.validators.extend` is untyped in the stubs; cast it to a typed
+# constructor so the derived validator carries the base validator's interface.
+_extend = cast("Callable[..., type[Draft202012Validator]]", extend)
+_EcmaValidator = _extend(Draft202012Validator, {"pattern": _pattern_keyword})
+
+
+@cache
+def _compile_ecma(patrn: str) -> re.Pattern[str]:
+    return re.compile(_ecma_anchor(patrn))
+
+
+def _ecma_anchor(pattern: str) -> str:
+    r"""Rewrite anchoring `$` to `\Z` so `$` means end-of-input, as in ECMA-262.
+
+    A `$` is a literal dollar when escaped or inside a character class; only
+    unescaped, out-of-class anchors are rewritten. Character-class bounds honor
+    the leading-`^` negation and a first-position literal `]`.
+    """
+    out: list[str] = []
+    in_class = False
+    escaped = False
+    class_body = 0
+    for char in pattern:
+        if escaped:
+            out.append(char)
+            escaped = False
+        elif char == "\\":
+            out.append(char)
+            escaped = True
+        elif in_class:
+            if char == "]" and class_body:
+                in_class = False
+            elif not (char == "^" and class_body == 0):
+                class_body += 1
+            out.append(char)
+        elif char == "[":
+            in_class = True
+            class_body = 0
+            out.append(char)
+        elif char == "$":
+            out.append(r"\Z")
+        else:
+            out.append(char)
+    return "".join(out)
+
+
 @cache
 def descriptor_validator() -> Draft202012Validator:
-    return Draft202012Validator(
+    return _EcmaValidator(
         _load_schema("openakb.schema.json"),
-        format_checker=Draft202012Validator.FORMAT_CHECKER,
+        format_checker=_EcmaValidator.FORMAT_CHECKER,
     )
 
 
 @cache
 def provenance_validator() -> Draft202012Validator:
-    return Draft202012Validator(
+    return _EcmaValidator(
         _load_schema("provenance.schema.json"),
-        format_checker=Draft202012Validator.FORMAT_CHECKER,
+        format_checker=_EcmaValidator.FORMAT_CHECKER,
     )
 
 
