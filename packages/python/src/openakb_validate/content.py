@@ -58,20 +58,24 @@ class LocalFileResolver:
     base_dir: Path
 
     def fetch(self, uri: str) -> bytes:
-        path = self._local_path(uri)
         try:
+            path = self._local_path(uri)
             return path.read_bytes()
-        except OSError as error:
+        except Unfetchable:
+            raise
+        except (OSError, RuntimeError, ValueError) as error:
             raise Unfetchable(str(error)) from error
 
     def _local_path(self, uri: str) -> Path:
         parsed = urlparse(uri)
-        raw_path = uri.split("?", 1)[0].split("#", 1)[0]
+        raw_reference = uri.split("#", 1)[0]
+        raw_path = raw_reference.split("?", 1)[0]
         if (
             parsed.scheme
             or parsed.netloc
             or parsed.params
             or parsed.query
+            or "?" in raw_reference
             or ";" in raw_path
             or ".." in parsed.path.split("/")
             or Path(parsed.path).is_absolute()
@@ -195,11 +199,13 @@ def _guide_check(
         descriptor.get("guide_hash"), str
     ):
         return []
-    uri = _effective_reference(descriptor["guide_uri"], base_uri)
     path: list[str | int] = ["guide_hash"]
     expected = _parse_sri("guide-hash", path, descriptor["guide_hash"])
     if isinstance(expected, ContentCheck):
         return [expected]
+    uri = _effective_reference(descriptor["guide_uri"], base_uri)
+    if isinstance(uri, Unfetchable):
+        return [_check(UNVERIFIABLE, "guide-hash", path, str(uri))]
     try:
         payload = resolver.fetch(uri)
     except Unfetchable as error:
@@ -244,10 +250,13 @@ def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedConten
     )
 
 
-def _effective_reference(reference: str, base_uri: str | None) -> str:
-    if base_uri is None:
-        return urldefrag(reference).url
-    return urldefrag(urljoin(base_uri, reference)).url
+def _effective_reference(reference: str, base_uri: str | None) -> str | Unfetchable:
+    try:
+        if base_uri is None:
+            return urldefrag(reference).url
+        return urldefrag(urljoin(base_uri, reference)).url
+    except ValueError as error:
+        return Unfetchable(str(error))
 
 
 def _capture_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> dict[str, Any]:
@@ -270,6 +279,8 @@ def _fetch_section(
     resolver: Resolver,
 ) -> _ResolvedContent | _UnfetchedContent:
     uri = _effective_reference(reference, base_uri)
+    if isinstance(uri, Unfetchable):
+        return _UnfetchedContent(index=index, error=uri)
     try:
         return _ResolvedContent(index=index, section=section, uri=uri, payload=resolver.fetch(uri))
     except Unfetchable as error:

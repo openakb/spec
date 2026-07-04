@@ -212,9 +212,30 @@ def test_unfetchable_guide() -> None:
     assert report.ok
 
 
+def test_malformed_base_guide() -> None:
+    """Malformed base_uri values make guide checks unverifiable, never raised."""
+    descriptor = _descriptor(
+        base_uri="http://[::1",
+        guide_uri="AKB.md",
+        guide_hash=_sri(b"guide"),
+    )
+    report = check_content(descriptor, FakeResolver({}))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
 def test_unfetchable_content() -> None:
     """Unavailable section content makes citation checks unverifiable."""
     report = check_content(_descriptor(), FakeResolver({}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_malformed_base_content() -> None:
+    """Malformed base_uri values make content checks unverifiable, never raised."""
+    report = check_content(_descriptor(base_uri="http://[::1"), FakeResolver({}))
 
     assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
     assert report.ok
@@ -329,6 +350,8 @@ def test_local_resolver_confines(tmp_path: Path) -> None:
         "data:text/plain,root",
         "https://kb.example.org/root.md",
         "root.md?variant=old",
+        "root.md?",
+        "root.md?#frag",
         "root.md;variant=old",
         "root.md;",
     ):
@@ -391,6 +414,25 @@ def test_symlink_escape_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(Unfetchable):
         LocalFileResolver(base).fetch("link.md")
+
+
+def test_malformed_uri_rejected(tmp_path: Path) -> None:
+    """Malformed URI references raise Unfetchable from LocalFileResolver."""
+    base = tmp_path / "kb"
+    base.mkdir()
+
+    with pytest.raises(Unfetchable):
+        LocalFileResolver(base).fetch("http://[::1")
+
+
+def test_symlink_loop_rejected(tmp_path: Path) -> None:
+    """Symlink loops under the base raise Unfetchable, not RuntimeError."""
+    base = tmp_path / "kb"
+    base.mkdir()
+    (base / "loop").symlink_to(base / "loop")
+
+    with pytest.raises(Unfetchable):
+        LocalFileResolver(base).fetch("loop")
 
 
 def test_missing_file() -> None:
