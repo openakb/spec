@@ -177,8 +177,14 @@ def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> 
         reference = section.get("content_uri")
         if not isinstance(reference, str):
             continue
+        has_content_hash = isinstance(section.get("content_hash"), str)
+        checks_citations = "content_type" not in section or _is_markdown(
+            section.get("content_type")
+        )
+        if not has_content_hash and not checks_citations:
+            continue
         resolved = _fetch_section(index, section, reference, base_uri, resolver)
-        if isinstance(section.get("content_hash"), str):
+        if has_content_hash:
             checks.append(
                 _check_sri(
                     "content-hash",
@@ -187,7 +193,7 @@ def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> 
                     resolved,
                 )
             )
-        if "content_type" not in section or _is_markdown(section.get("content_type")):
+        if checks_citations:
             checks.append(_citation_check(graph, resolved))
     return checks
 

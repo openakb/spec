@@ -37,6 +37,18 @@ class FakeResolver:
         return self.files[uri]
 
 
+class RecordingResolver(FakeResolver):
+    """FakeResolver variant that records every requested URI."""
+
+    def __init__(self, files: dict[str, bytes]) -> None:
+        super().__init__(files)
+        self.requests: list[str] = []
+
+    def fetch(self, uri: str) -> bytes:
+        self.requests.append(uri)
+        return super().fetch(uri)
+
+
 def _sri(payload: bytes) -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
 
@@ -296,6 +308,18 @@ def test_non_markdown_skips() -> None:
     assert report.ok
 
 
+def test_non_markdown_no_fetch() -> None:
+    """Non-Markdown sections with no content_hash do not fetch content."""
+    section = _descriptor()["sections"][0] | {"content_type": "application/json"}
+    resolver = RecordingResolver({"root.md": b"[cite: ghost]"})
+    report = check_content(_descriptor(sections=[section]), resolver)
+
+    assert _checks_by_kind(report, "citations") == []
+    assert _checks_by_kind(report, "content-hash") == []
+    assert resolver.requests == []
+    assert report.ok
+
+
 def test_malformed_type_skips() -> None:
     """Malformed content_type values are schema-owned and skip citation extraction."""
     section = _descriptor()["sections"][0] | {"content_type": 42}
@@ -305,6 +329,18 @@ def test_malformed_type_skips() -> None:
 
     assert _checks_by_kind(report, "citations") == []
     assert report.findings == ()
+    assert report.ok
+
+
+def test_malformed_type_no_fetch() -> None:
+    """Malformed content_type sections with no content_hash do not fetch content."""
+    section = _descriptor()["sections"][0] | {"content_type": 42}
+    resolver = RecordingResolver({"root.md": b"[cite: ghost]"})
+    report = check_content(_descriptor(sections=[section]), resolver)
+
+    assert _checks_by_kind(report, "citations") == []
+    assert _checks_by_kind(report, "content-hash") == []
+    assert resolver.requests == []
     assert report.ok
 
 
