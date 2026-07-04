@@ -495,6 +495,31 @@ def test_join_traversal_guide(tmp_path: Path) -> None:
     assert report.ok
 
 
+def test_base_traversal_content(tmp_path: Path) -> None:
+    """Local base_uri traversal is rejected before relative content references join."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    descriptor = _descriptor(base_uri="dir/../base.md")
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_base_traversal_guide(tmp_path: Path) -> None:
+    """Local base_uri traversal is rejected before relative guide references join."""
+    guide = b"# Guide\n"
+    (tmp_path / "AKB.md").write_bytes(guide)
+    descriptor = _descriptor(
+        base_uri="dir/../base.md",
+        guide_uri="AKB.md",
+        guide_hash=_sri(guide),
+    )
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
 def test_local_resolver_confines(tmp_path: Path) -> None:
     """LocalFileResolver fetches base-relative files and rejects hostile references."""
     base = tmp_path / "kb"
