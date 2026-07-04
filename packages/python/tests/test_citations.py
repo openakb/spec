@@ -102,14 +102,14 @@ def test_unclosed_comment_is_prose() -> None:
     assert _ids("See <!-- open [cite: c]") == [["c"]]
 
 
-def test_inline_comment_malformed_kept() -> None:
-    """A `--` in the body makes an inline comment invalid CommonMark, so it stays
-    literal and an enclosed marker is live -- in a paragraph and in inline block
+def test_inline_comment_dashes_masked() -> None:
+    """A `--` in the body is allowed (CommonMark 0.31.2): the comment closes at its
+    first `-->`, so an enclosed marker is masked -- in a paragraph and in inline block
     containers (blockquote, list item) alike."""
     prose = "x <!-- todo -- note [cite: a] --> y"
-    assert _ids(prose) == [["a"]]
-    assert _ids(f"> {prose}") == [["a"]]
-    assert _ids(f"- {prose}") == [["a"]]
+    assert _ids(prose) == []
+    assert _ids(f"> {prose}") == []
+    assert _ids(f"- {prose}") == []
 
 
 def test_inline_comment_wellformed_masked() -> None:
@@ -125,12 +125,12 @@ def test_degenerate_comments_masked() -> None:
 
 
 def test_comment_block_versus_inline() -> None:
-    """The same malformed <!-- .. -- .. --> is an HTML block at line start (marker
-    suppressed by the HTML-block rule) yet literal text inline (marker kept): §4.4's
-    two suppressors applied consistently, not the old loose inline scan."""
-    comment = "<!-- todo -- note [cite: a] -->"
-    assert _ids(comment) == []
-    assert _ids(f"x {comment} y") == [["a"]]
+    """An unterminated <!-- opens an HTML block at line start (marker suppressed by the
+    HTML-block rule) yet stays literal text inline (marker kept): §4.4's two comment
+    suppressors resolve one source two ways by position, not by a `--` in the body."""
+    unterminated = "<!-- open [cite: a]"
+    assert _ids(unterminated) == []
+    assert _ids(f"x {unterminated}") == [["a"]]
 
 
 def test_after_links_prose() -> None:

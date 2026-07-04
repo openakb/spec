@@ -41,10 +41,9 @@ _MASK = "\x00"
 _BACKTICK = "`"
 _COMMENT_OPEN = "<!--"
 _COMMENT_CLOSE = "-->"
-# CommonMark's two degenerate comments, plus the `--` a comment body may never contain.
+# CommonMark's two degenerate comments; the general form closes on the first `-->`.
 _COMMENT_EMPTY = "<!-->"
 _COMMENT_DASH = "<!--->"
-_DOUBLE_DASH = "--"
 
 
 @dataclass(frozen=True)
@@ -129,10 +128,11 @@ def _mask_code_span(chars: list[str], source: str, open_start: int, end: int) ->
 def _mask_comment(chars: list[str], source: str, open_start: int, end: int) -> int:
     """Mask a CommonMark HTML comment; leave a non-comment `<!--` run literal.
 
-    A comment is `<!-->`, `<!--->`, or `<!--` + a body containing no `--` + `-->`.
-    A `<!--` that reaches its `-->` only through a `--` in the body is not a comment
-    (so an enclosed `[cite:]` stays a live marker), matching how the block path masks
-    only real comments. When no comment matches, advance past the opening `<` only.
+    A comment is `<!-->`, `<!--->`, or `<!--` followed by any text and closed at the
+    first `-->` (CommonMark 0.31.2 -- a `--` in the body is allowed, unlike the older
+    0.29 rule). An enclosed `[cite:]` is therefore suppressed, matching how the block
+    path masks such comments. When no `-->` closes the run it is not a comment (an
+    enclosed marker stays live); advance past the opening `<` only.
     """
     comment_end = _comment_end(source, open_start, end)
     if comment_end is None:
@@ -142,15 +142,19 @@ def _mask_comment(chars: list[str], source: str, open_start: int, end: int) -> i
 
 
 def _comment_end(source: str, open_start: int, end: int) -> int | None:
-    """End offset of the CommonMark comment opening at open_start, else None."""
+    """End offset of the CommonMark comment opening at open_start, else None.
+
+    The two degenerate forms `<!-->` / `<!--->` are complete; otherwise the comment
+    closes at the first `-->` (CommonMark 0.31.2), so a `--` in the body is allowed.
+    """
     for degenerate in (_COMMENT_EMPTY, _COMMENT_DASH):
         if source.startswith(degenerate, open_start, end):
             return open_start + len(degenerate)
     body = open_start + len(_COMMENT_OPEN)
-    dashes = source.find(_DOUBLE_DASH, body, end)
-    if dashes == -1 or not source.startswith(_COMMENT_CLOSE, dashes, end):
+    close = source.find(_COMMENT_CLOSE, body, end)
+    if close == -1:
         return None
-    return dashes + len(_COMMENT_CLOSE)
+    return close + len(_COMMENT_CLOSE)
 
 
 def _backtick_run(source: str, index: int, end: int) -> int:
