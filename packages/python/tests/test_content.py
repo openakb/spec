@@ -1,0 +1,237 @@
+"""Opt-in content checks: three-state verified/failed/unverifiable (spec §7)."""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from openakb_validate.content import (
+    FAILED,
+    UNVERIFIABLE,
+    VERIFIED,
+    ContentCheck,
+    ContentReport,
+    LocalFileResolver,
+    Unfetchable,
+    check_content,
+)
+
+__all__ = ()
+
+
+class FakeResolver:
+    """Maps exact reference strings to bytes; everything else is Unfetchable."""
+
+    def __init__(self, files: dict[str, bytes]) -> None:
+        self.files = files
+
+    def fetch(self, uri: str) -> bytes:
+        if uri not in self.files:
+            raise Unfetchable(f"not available: {uri}")
+        return self.files[uri]
+
+
+def _sri(payload: bytes) -> str:
+    return "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
+
+
+def _descriptor(**overrides: object) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+        "id": "kb",
+        "title": "KB",
+        "description": "A test descriptor.",
+        "sources": [{"id": "s1", "type": "url", "uri": "https://docs.example.com/"}],
+        "sections": [
+            {
+                "id": "root",
+                "title": "Root",
+                "description": "Root section.",
+                "content_uri": "root.md",
+                "source_ids": ["s1"],
+            }
+        ],
+    }
+    base.update(overrides)
+    return base
+
+
+def _checks_by_kind(report: ContentReport, kind: str) -> list[ContentCheck]:
+    return [check for check in report.checks if check.kind == kind]
+
+
+def test_matching_content() -> None:
+    """A matching section content hash and resolvable citations both verify."""
+    payload = b"See [cite: s1]."
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_hash": _sri(payload)}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": payload}))
+
+    assert {check.kind: check.outcome for check in report.checks} == {
+        "content-hash": VERIFIED,
+        "citations": VERIFIED,
+    }
+    assert report.ok
+
+
+def test_hash_mismatch() -> None:
+    """A sha256 digest mismatch is a failed check and flips report.ok."""
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_hash": _sri(b"expected")}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": b"actual"}))
+
+    checks = _checks_by_kind(report, "content-hash")
+    assert [check.outcome for check in checks] == [FAILED]
+    assert report.failed == tuple(checks)
+    assert not report.ok
+
+
+def test_unknown_hash_algo() -> None:
+    """An unsupported hash algorithm is unverifiable, not failed."""
+    descriptor = _descriptor(
+        sections=[_descriptor()["sections"][0] | {"content_hash": "sha512-aa=="}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": b"anything"}))
+
+    assert _checks_by_kind(report, "content-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_guide_hash_verifies() -> None:
+    """The top-level guide hash verifies against fetched guide bytes."""
+    payload = b"# Guide\n"
+    descriptor = _descriptor(guide_uri="AKB.md", guide_hash=_sri(payload))
+    report = check_content(descriptor, FakeResolver({"root.md": b"", "AKB.md": payload}))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == VERIFIED
+
+
+def test_guide_hash_mismatch() -> None:
+    """A mismatched guide_hash is a failed check."""
+    descriptor = _descriptor(guide_uri="AKB.md", guide_hash=_sri(b"expected"))
+    report = check_content(descriptor, FakeResolver({"root.md": b"", "AKB.md": b"actual"}))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == FAILED
+    assert not report.ok
+
+
+def test_unfetchable_guide() -> None:
+    """An unavailable guide is unverifiable and never flips report.ok."""
+    descriptor = _descriptor(guide_uri="AKB.md", guide_hash=_sri(b"guide"))
+    report = check_content(descriptor, FakeResolver({"root.md": b""}))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_unfetchable_content() -> None:
+    """Unavailable section content makes citation checks unverifiable."""
+    report = check_content(_descriptor(), FakeResolver({}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_unresolved_citation() -> None:
+    """Citation IDs that match no source or section emit AKB007."""
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: ghost]."}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert [finding.code for finding in report.findings] == ["AKB007"]
+    assert not report.ok
+
+
+def test_citation_to_section() -> None:
+    """Inline citations must point to source IDs, not section IDs."""
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: root]."}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert [finding.code for finding in report.findings] == ["AKB010"]
+
+
+def test_duplicate_marker_ids() -> None:
+    """Duplicate IDs within one citation marker warn without failing."""
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: s1, s1]."}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == VERIFIED
+    assert len(report.warnings) == 1
+    assert report.ok
+
+
+def test_non_markdown_skips() -> None:
+    """Non-Markdown section content types skip citation extraction."""
+    section = _descriptor()["sections"][0] | {"content_type": "application/json"}
+    report = check_content(
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"[cite: ghost]"})
+    )
+
+    assert _checks_by_kind(report, "citations") == []
+    assert report.ok
+
+
+def test_base_uri_prefixes() -> None:
+    """Relative content and guide references resolve against descriptor base_uri."""
+    payload = b"See [cite: s1]."
+    guide = b"# Guide\n"
+    descriptor = _descriptor(
+        base_uri="https://kb.example.org/root/",
+        guide_uri="AKB.md",
+        guide_hash=_sri(guide),
+        sections=[_descriptor()["sections"][0] | {"content_hash": _sri(payload)}],
+    )
+    report = check_content(
+        descriptor,
+        FakeResolver(
+            {
+                "https://kb.example.org/root/root.md": payload,
+                "https://kb.example.org/root/AKB.md": guide,
+            }
+        ),
+    )
+
+    assert {check.kind: check.outcome for check in report.checks} == {
+        "guide-hash": VERIFIED,
+        "content-hash": VERIFIED,
+        "citations": VERIFIED,
+    }
+
+
+def test_local_resolver_confines(tmp_path: Path) -> None:
+    """LocalFileResolver fetches base-relative files and rejects hostile references."""
+    base = tmp_path / "kb"
+    base.mkdir()
+    (base / "root.md").write_bytes(b"content")
+    resolver = LocalFileResolver(base)
+
+    assert resolver.fetch("root.md") == b"content"
+    for uri in (
+        "../root.md",
+        "/root.md",
+        "file:root.md",
+        "data:text/plain,root",
+        "https://kb.example.org/root.md",
+    ):
+        with pytest.raises(Unfetchable):
+            resolver.fetch(uri)
+
+
+def test_missing_file() -> None:
+    """A missing local file raises Unfetchable."""
+    resolver = LocalFileResolver(Path("does-not-exist"))
+
+    with pytest.raises(Unfetchable):
+        resolver.fetch("root.md")
+
+
+def test_non_dict_empty() -> None:
+    """Non-object descriptors produce an empty content report."""
+    report = check_content([], FakeResolver({}))
+
+    assert report.checks == ()
+    assert report.ok
