@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Reference validator for the OpenAKB descriptor format (spec major v1)."
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [{ name = "OpenAKB contributors" }]
 keywords = ["openakb", "knowledge-base", "validation", "json-schema", "provenance"]
@@ -15,6 +16,8 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Software Development :: Quality Assurance",
   "Typing :: Typed",
@@ -41,8 +44,17 @@ dev = [
 ]
 
 [tool.hatch.build.targets.sdist]
+# Ship source, tests, packaging, and LICENSE only. Drop contributor-only files and
+# generated artifacts that hatchling would otherwise sweep in from the package tree.
 exclude = [
+  # contributor internals
+  "/.gitignore",
+  "/AGENTS.md",
+  "/CLAUDE.md",
+  "/uv.lock",
+  # generated artifacts
   "/.coverage",
+  "/conformance-report.json",
   "/coverage.xml",
   "/dist",
   "/.mypy_cache",
@@ -50,6 +62,12 @@ exclude = [
   "/.ruff_cache",
   "/.venv",
 ]
+
+# Strip the force-included VCS ignore file (`.gitignore`); see hatch_build.py.
+# Hatchling force-includes it past the `exclude` list, so a build hook is the
+# only way to keep it out of the published sdist.
+[tool.hatch.build.targets.sdist.hooks.custom]
+path = "hatch_build.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
