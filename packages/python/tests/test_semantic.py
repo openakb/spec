@@ -62,15 +62,22 @@ def test_akb001_duplicate_sections() -> None:
 
 
 def test_akb002_empty_section() -> None:
-    descriptor = _descriptor(sections=[_section("root", content_uri=None)])
-    assert "AKB002" in _codes(descriptor)
-
-
-def test_akb002_omitted_content() -> None:
     section = _section("root")
     del section["content_uri"]
     descriptor = _descriptor(sections=[section])
     assert "AKB002" in _codes(descriptor)
+
+
+def test_empty_content_uri() -> None:
+    """A present empty URI reference is semantic content; schema owns its shape."""
+    descriptor = _descriptor(sections=[_section("root", content_uri="")])
+    assert "AKB002" not in _codes(descriptor)
+
+
+def test_null_content_uri() -> None:
+    """A present malformed content_uri must not cascade into AKB002."""
+    descriptor = _descriptor(sections=[_section("root", content_uri=None)])
+    assert "AKB002" not in _codes(descriptor)
 
 
 def test_container_with_child() -> None:

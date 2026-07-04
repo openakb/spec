@@ -85,7 +85,7 @@ def _empty_sections(graph: _Graph) -> list[Finding]:
     return [
         _finding("AKB002", ["sections", index])
         for index, section in graph.sections
-        if not section.get("content_uri")
+        if "content_uri" not in section
         and is_local_id(section.get("id"))
         and section["id"] not in child_parent_ids
     ]
