@@ -164,11 +164,31 @@ function loadReport(path) {
     report('report must be an object', path);
     return undefined;
   }
+  if (!hasValidMetadata(path, reportData)) {
+    return undefined;
+  }
   if (!isObject(reportData.fixtures)) {
     report('report fixtures must be an object', path);
     return undefined;
   }
   return reportData;
+}
+
+function hasValidMetadata(path, reportData) {
+  let valid = true;
+  if (typeof reportData.implementation !== 'string' || reportData.implementation.length === 0) {
+    report('report implementation must be a non-empty string', path);
+    valid = false;
+  }
+  if (typeof reportData.version !== 'string' || reportData.version.length === 0) {
+    report('report version must be a non-empty string', path);
+    valid = false;
+  }
+  if (reportData.spec_major !== 1) {
+    report('report spec_major must equal 1', path);
+    valid = false;
+  }
+  return valid;
 }
 
 function fixtureKind(key) {
