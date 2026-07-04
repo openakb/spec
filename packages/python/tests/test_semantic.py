@@ -66,6 +66,13 @@ def test_akb002_empty_section() -> None:
     assert "AKB002" in _codes(descriptor)
 
 
+def test_akb002_omitted_content() -> None:
+    section = _section("root")
+    del section["content_uri"]
+    descriptor = _descriptor(sections=[section])
+    assert "AKB002" in _codes(descriptor)
+
+
 def test_container_with_child() -> None:
     sections = [_section("root", content_uri=None), _section("child", parent_id="root")]
     assert semantic_findings(_descriptor(sections=sections)) == []
@@ -154,11 +161,31 @@ def test_local_cross_links() -> None:
     ]
 
 
+def test_akb010_link_source() -> None:
+    """A same-AKB section link cannot point at a source ID."""
+    descriptor = _descriptor(
+        sections=[_section("root", links=[{"rel": "see-also", "section_id": "s1"}])]
+    )
+    findings = semantic_findings(descriptor)
+    assert [(finding.code, finding.path) for finding in findings] == [
+        ("AKB010", "/sections/0/links/0/section_id")
+    ]
+
+
 def test_inline_claim_sources() -> None:
     descriptor = _descriptor(sections=[_section("root", provenance=[{"source_ids": ["ghost"]}])])
     findings = semantic_findings(descriptor)
     assert [(finding.code, finding.path) for finding in findings] == [
         ("AKB007", "/sections/0/provenance/0/source_ids/0")
+    ]
+
+
+def test_akb010_claim_section() -> None:
+    """Inline claim source IDs cannot point at section IDs."""
+    descriptor = _descriptor(sections=[_section("root", provenance=[{"source_ids": ["root"]}])])
+    findings = semantic_findings(descriptor)
+    assert [(finding.code, finding.path) for finding in findings] == [
+        ("AKB010", "/sections/0/provenance/0/source_ids/0")
     ]
 
 
