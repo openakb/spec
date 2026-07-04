@@ -1,0 +1,75 @@
+name: Publish Python
+
+on:
+  push:
+    tags: ["py-v[0-9]*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # No green conformance suite, no publish (ADR-0002: releases are conformance-gated).
+  gate:
+    name: Conformance Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/python
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+      - name: Check Schema Sync
+        working-directory: .
+        run: bash scripts/ci/check-schema-sync.sh
+      - name: Sync Dependencies
+        run: uv sync --locked
+      - name: Verify Tag Matches Version
+        working-directory: .
+        run: bash scripts/ci/check-python-tag-version.sh "$GITHUB_REF_NAME"
+      - name: Check Formatting
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
+      - name: Typecheck
+        run: uv run mypy
+      - name: Test And Run Conformance
+        run: uv run pytest
+      - name: Generate Conformance Report
+        run: uv run python tests/conformance_report.py > conformance-report.json
+      - name: Set Up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Check Conformance Report
+        working-directory: .
+        run: node scripts/ci/check-conformance-report.mjs packages/python/conformance-report.json
+      - name: Build Distributions
+        run: uv build
+      - name: Check Wheel Schemas
+        working-directory: .
+        run: bash scripts/ci/check-wheel-schemas.sh
+      - name: Upload Distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-dist
+          path: packages/python/dist/
+
+  publish:
+    name: Publish To PyPI
+    needs: gate
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-dist
+          path: dist/
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
