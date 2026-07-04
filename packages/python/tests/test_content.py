@@ -311,6 +311,7 @@ def test_local_resolver_confines(tmp_path: Path) -> None:
         "https://kb.example.org/root.md",
         "root.md?variant=old",
         "root.md;variant=old",
+        "root.md;",
     ):
         with pytest.raises(Unfetchable):
             resolver.fetch(uri)

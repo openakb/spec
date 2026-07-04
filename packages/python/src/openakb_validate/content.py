@@ -66,12 +66,13 @@ class LocalFileResolver:
 
     def _local_path(self, uri: str) -> Path:
         parsed = urlparse(uri)
+        raw_path = uri.split("?", 1)[0].split("#", 1)[0]
         if (
             parsed.scheme
             or parsed.netloc
             or parsed.params
             or parsed.query
-            or ";" in parsed.path
+            or ";" in raw_path
             or ".." in parsed.path.split("/")
             or Path(parsed.path).is_absolute()
         ):
