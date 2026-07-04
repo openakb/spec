@@ -39,6 +39,17 @@ dev = [
   "ruff>=0.9",
 ]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.coverage",
+  "/coverage.xml",
+  "/dist",
+  "/.mypy_cache",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/.venv",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=openakb_validate --cov-branch --cov-report=term-missing --cov-report=xml"
