@@ -802,6 +802,23 @@ def test_sidecar_schema_path() -> None:
     ]
 
 
+def test_sidecar_empty_quote_fails() -> None:
+    """A fetched sidecar claim with an empty locator quote fails with AKB011."""
+    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": ""}}])
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+    )
+
+    sidecar = _checks_by_kind(report, "sidecar")[0]
+    assert sidecar.outcome == FAILED
+    assert [(finding.code, finding.path) for finding in sidecar.findings] == [
+        ("AKB011", "/sections/0/provenance_uri/claims/0/locator/quote")
+    ]
+    assert not report.ok
+
+
 def test_sidecar_binding_mismatch() -> None:
     """A sidecar bound to another section fails without inventing a code."""
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
@@ -1199,6 +1216,34 @@ def test_quote_good_capture_wins() -> None:
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == VERIFIED
+
+
+def test_quote_hash_failed_detail() -> None:
+    """A co-cited hash-failed capture surfaces the hash reason, not a fetch gap."""
+    sources = [
+        _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
+        {
+            "id": "s2",
+            "type": "url",
+            "uri": "https://other.example.com/",
+            "capture_uri": "s2.bin",
+            "content_hash": _sri(b"expected"),
+        },
+    ]
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=sources, sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "s1.bin": b"hay stack", "s2.bin": b"actual"}),
+    )
+
+    quote = _checks_by_kind(report, "quote")[0]
+    assert quote.outcome == UNVERIFIABLE
+    assert quote.detail == "a cited source's capture failed its content_hash"
+    assert not report.ok
 
 
 def test_empty_quote_skipped() -> None:

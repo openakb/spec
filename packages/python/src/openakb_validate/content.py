@@ -330,6 +330,8 @@ def _effective_reference(reference: str, base_uri: str | None, local: bool) -> s
             # nothing and fails safe should a future join introduce one.
             effective_error = _local_raw_reference_error(effective)
             if effective_error is not None:
+                # not coverable in CI: no hostile pattern survives the pre-join
+                # screens above to reach here, so no input drives this branch.
                 return effective_error
         return urldefrag(effective).url
     except ValueError as error:
@@ -473,6 +475,11 @@ def _quote_outcome(
         if any(source_id in hash_failed for source_id in claim.source_ids):
             return UNVERIFIABLE, "cited source capture failed its content hash"
         return UNVERIFIABLE, "no cited source capture fetched"
+    if any(source_id in hash_failed for source_id in claim.source_ids):
+        # A usable capture lacks the needle and a co-cited capture failed its hash:
+        # the bytes were fetched but proven wrong, so this is a hash failure, not a
+        # fetch gap.
+        return UNVERIFIABLE, "a cited source's capture failed its content_hash"
     return UNVERIFIABLE, "some cited source captures were not fetched"
 
 
