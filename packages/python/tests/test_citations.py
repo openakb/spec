@@ -1,5 +1,10 @@
 """The normative [cite:] extraction grammar (spec §4.4)."""
 
+from dataclasses import FrozenInstanceError
+from typing import Any, cast
+
+import pytest
+
 from openakb_validate import Citation, extract_citations
 
 __all__ = ()
@@ -101,6 +106,7 @@ def test_encoded_delimiters_literal() -> None:
     """Character references cannot synthesize literal citation syntax."""
     assert _ids("&#91;cite: a]\n[cite&colon; a]\n[cite: a&#93;") == []
     assert _ids("&lbrack;cite: a]\n[cite&colon; a]\n[cite: a&rbrack;") == []
+    assert _ids("[&#99;ite: a]\n[c&#105;te: a]\n[ci&#116;e: a]\n[cit&#101;: a]") == []
 
 
 def test_no_marker_across_emphasis() -> None:
@@ -131,4 +137,7 @@ def test_id_length_cap() -> None:
 
 def test_citation_value_object() -> None:
     """Citation is a frozen value object keyed by ids."""
-    assert Citation(ids=("a", "b")) == Citation(ids=("a", "b"))
+    citation = Citation(ids=("a", "b"))
+    assert citation == Citation(ids=("a", "b"))
+    with pytest.raises(FrozenInstanceError):
+        cast(Any, citation).ids = ("b",)

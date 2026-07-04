@@ -37,7 +37,7 @@ def extract_citations(markdown: str) -> list[Citation]:
         Citation(ids=tuple(_SEPARATOR_RE.split(match.group(1))))
         for segment, literal in _prose_segments(markdown)
         for match in _MARKER_RE.finditer(segment)
-        if _has_literal_delimiters(match, literal)
+        if _has_literal_source(match, literal)
     ]
 
 
@@ -78,11 +78,8 @@ def _prose_segments(markdown: str) -> list[tuple[str, tuple[bool, ...]]]:
     return segments
 
 
-def _has_literal_delimiters(match: re.Match[str], literal: tuple[bool, ...]) -> bool:
-    start = match.start()
-    colon = start + len("[cite")
-    close = match.end() - 1
-    return literal[start] and literal[colon] and literal[close]
+def _has_literal_source(match: re.Match[str], literal: tuple[bool, ...]) -> bool:
+    return all(literal[match.start() : match.end()])
 
 
 def _consume_text(source: str, cursor: int, expected: str) -> tuple[int, str, tuple[bool, ...]]:
