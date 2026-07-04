@@ -324,6 +324,10 @@ def _effective_reference(reference: str, base_uri: str | None, local: bool) -> s
     try:
         effective = reference if base_uri is None else urljoin(base_uri, reference)
         if local:
+            # Defense in depth: the raw reference and base_uri are already screened
+            # above and urljoin only resolves "../" segments away, so the joined
+            # result should carry no new hostile pattern. Re-screening it costs
+            # nothing and fails safe should a future join introduce one.
             effective_error = _local_raw_reference_error(effective)
             if effective_error is not None:
                 return effective_error
@@ -652,10 +656,6 @@ def _claim_source_ids(claim: dict[str, Any]) -> tuple[str, ...]:
     return tuple(source_id for source_id in source_ids if isinstance(source_id, str))
 
 
-def _quote_source_ids(claims: list[_QuoteClaim]) -> frozenset[str]:
-    return frozenset(source_id for claim in claims for source_id in claim.source_ids)
-
-
 def _redacted_warnings(
     graph: _Graph, path: list[str | int], source_ids: tuple[str, ...]
 ) -> list[Advisory]:
@@ -729,6 +729,10 @@ def _citation_results(
         for id_index, source_id in enumerate(citation.ids):
             code = reference_code(source_id, "source", graph.source_ids, graph.section_ids)
             if code is not None:
+                # The "/citations/<marker>/<id>" tail is a synthetic locator into the
+                # fetched Markdown, not an RFC 6901 pointer that dereferences within the
+                # descriptor: content_uri is a string there and citations live in the
+                # external content. It locates the offending marker for a reader.
                 findings.append(
                     Finding(
                         code=code,

@@ -707,6 +707,24 @@ def test_sidecar_hash_verified() -> None:
     ]
 
 
+def test_sidecar_hash_malformed_warns() -> None:
+    """A malformed provenance_hash is an unverifiable check carrying the SRI warning."""
+    section = _descriptor()["sections"][0] | {
+        "provenance_uri": "root.prov.json",
+        "provenance_hash": "sha256-not!base64",
+    }
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar()}),
+    )
+
+    hash_check = _checks_by_kind(report, "sidecar")[0]
+    assert hash_check.path == "/sections/0/provenance_hash"
+    assert hash_check.outcome == UNVERIFIABLE
+    assert len(hash_check.warnings) == 1
+    assert report.ok
+
+
 def test_sidecar_unparseable_fails() -> None:
     """Sidecar bytes that are not JSON fail content verification."""
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
@@ -717,6 +735,43 @@ def test_sidecar_unparseable_fails() -> None:
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
     assert not report.ok
+
+
+def test_sidecar_non_utf8_fails() -> None:
+    """Sidecar bytes that are not valid UTF-8 fail content verification."""
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": b"\xff"}),
+    )
+
+    assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
+    assert not report.ok
+
+
+def test_sidecar_non_object_fails() -> None:
+    """A sidecar whose JSON is not an object fails with a schema type finding."""
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": json_bytes([1, 2])}),
+    )
+
+    assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
+    assert "AKB011" in {finding.code for finding in report.findings}
+
+
+def test_sidecar_source_ids_not_list() -> None:
+    """A sidecar claim whose source_ids is not a list is skipped without raising."""
+    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": "s1", "locator": {"quote": "q"}}])
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+    )
+
+    assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
+    assert _checks_by_kind(report, "quote") == []
 
 
 def test_sidecar_schema_codes() -> None:
@@ -950,6 +1005,18 @@ def test_capture_unfetchable_reports() -> None:
     assert report.ok
 
 
+def test_local_capture_ref_rejected(tmp_path: Path) -> None:
+    """A hostile local capture_uri is rejected before fetch and stays unverifiable."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    source = _descriptor()["sources"][0] | {"capture_uri": "../capture.bin"}
+    report = check_content(_descriptor(sources=[source]), LocalFileResolver(tmp_path))
+
+    capture = _checks_by_kind(report, "capture")[0]
+    assert capture.outcome == UNVERIFIABLE
+    assert capture.path == "/sources/0/capture_uri"
+    assert report.ok
+
+
 def test_capture_malformed_unfetchable() -> None:
     """Malformed hashes do not hide unfetchable capture_uri diagnostics."""
     source = _descriptor()["sources"][0] | {
@@ -1076,6 +1143,21 @@ def test_quote_without_capture() -> None:
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_inline_claim_without_quote() -> None:
+    """An inline provenance claim with no locator quote yields no quote check."""
+    source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
+    section = _descriptor()["sections"][0] | {
+        "provenance": [{"text": "Claim.", "source_ids": ["s1"]}]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"data"}),
+    )
+
+    assert _checks_by_kind(report, "quote") == []
     assert report.ok
 
 
