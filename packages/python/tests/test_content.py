@@ -520,6 +520,36 @@ def test_base_traversal_guide(tmp_path: Path) -> None:
     assert report.ok
 
 
+def test_backslash_join_content(tmp_path: Path) -> None:
+    """Local content refs reject raw backslashes before platform path handling."""
+    directory = tmp_path / "dir"
+    directory.mkdir()
+    (directory / "..\\root.md").write_bytes(b"See [cite: s1].")
+    section = _descriptor()["sections"][0] | {"content_uri": "..\\root.md"}
+    descriptor = _descriptor(base_uri="dir/base.md", sections=[section])
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_backslash_join_guide(tmp_path: Path) -> None:
+    """Local guide refs reject raw backslashes before platform path handling."""
+    guide = b"# Guide\n"
+    directory = tmp_path / "dir"
+    directory.mkdir()
+    (directory / "..\\AKB.md").write_bytes(guide)
+    descriptor = _descriptor(
+        base_uri="dir/base.md",
+        guide_uri="..\\AKB.md",
+        guide_hash=_sri(guide),
+    )
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
 def test_local_resolver_confines(tmp_path: Path) -> None:
     """LocalFileResolver fetches base-relative files and rejects hostile references."""
     base = tmp_path / "kb"
@@ -576,6 +606,16 @@ def test_traversal_alias_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(Unfetchable):
         LocalFileResolver(base).fetch("dir/../root.md")
+
+
+def test_backslash_traversal_rejected(tmp_path: Path) -> None:
+    """Raw backslashes are rejected before platform path handling can traverse."""
+    base = tmp_path / "kb"
+    base.mkdir()
+    (base / "dir\\..\\root.md").write_bytes(b"content")
+
+    with pytest.raises(Unfetchable):
+        LocalFileResolver(base).fetch("dir\\..\\root.md")
 
 
 def test_percent_traversal_literal(tmp_path: Path) -> None:

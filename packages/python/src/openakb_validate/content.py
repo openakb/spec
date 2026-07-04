@@ -77,6 +77,7 @@ class LocalFileResolver:
             or parsed.query
             or "?" in raw_reference
             or ";" in raw_path
+            or "\\" in raw_path
             or ".." in parsed.path.split("/")
             or Path(parsed.path).is_absolute()
         ):
@@ -307,7 +308,7 @@ def _quote_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> None:
 def _local_raw_reference_error(reference: str) -> Unfetchable | None:
     raw_reference = reference.split("#", 1)[0]
     raw_path = raw_reference.split("?", 1)[0]
-    if "?" in raw_reference or ";" in raw_path or ".." in raw_path.split("/"):
+    if "?" in raw_reference or ";" in raw_path or "\\" in raw_path or ".." in raw_path.split("/"):
         return Unfetchable(f"outside local base: {reference}")
     return None
 
