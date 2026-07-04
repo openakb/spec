@@ -1,18 +1,23 @@
 # openakb-validate
 
-`openakb-validate` is the pure Python reference validator library for the OpenAKB descriptor
-format, spec major v1. It ships the v1 descriptor and provenance schemas as package resources,
-runs locally, does not use the network, and intentionally provides no command-line interface.
+`openakb-validate` is the pure Python reference validator library for the OpenAKB
+descriptor format, spec major v1. It is a library only: no CLI, no network access,
+no background services, and no storage, search, freshness, authentication, or
+transport mechanism.
+
+The package validates caller-provided descriptor data and reports stable findings.
+It does not fetch referenced resources unless the caller supplies an explicit local
+resolver.
 
 ## Install
 
-Install the package into a Python 3.12 or newer environment:
+Install from the package index into Python 3.12 or newer:
 
 ```bash
 python -m pip install openakb-validate
 ```
 
-For local development from this repository:
+For repository development:
 
 ```bash
 cd packages/python
@@ -21,103 +26,128 @@ uv sync
 
 ## Validate a descriptor
 
-Use `validate_descriptor` to validate a parsed descriptor document against the bundled spec
-major v1 schema:
+Use `validate` for descriptor-only validation. The input is already-parsed JSON
+data; callers own file reading and output formatting.
 
 ```python
 import json
 from pathlib import Path
 
-from openakb_validate import validate_descriptor
+from openakb_validate import ValidationResult, validate
 
 descriptor = json.loads(Path("akb.json").read_text(encoding="utf-8"))
-result = validate_descriptor(descriptor)
+result: ValidationResult = validate(descriptor)
 
 if not result.valid:
-    for diagnostic in result.diagnostics:
-        print(diagnostic.message)
+    for finding in result.findings:
+        print(f"{finding.code}: {finding.message}")
 ```
 
-The validator accepts already-loaded data. Reading files, choosing storage, and reporting
-diagnostics are caller responsibilities.
+Each `Finding` has a stable code, message, severity, and location. Advisory
+diagnostics use `Advisory` so callers can distinguish portability advice from
+validation failures.
+
+The stable validation codes for spec major v1 are `AKB001` through `AKB012`.
+Those code meanings are part of the public contract for v1 and only change through
+the spec process.
 
 ## Strict mode
 
-Strict mode asks the library to report optional portability diagnostics in addition to schema
-errors:
+Strict mode includes portability and policy advisories in addition to required
+validation findings:
 
 ```python
-from openakb_validate import validate_descriptor
+from openakb_validate import Advisory, validate
 
-result = validate_descriptor(descriptor, strict=True)
+result = validate(descriptor, strict=True)
+advisories: list[Advisory] = result.advisories
 ```
 
-Strict diagnostics are still local checks. The library does not fetch remote resources or make
+Strict mode remains local and deterministic. It does not make network requests or
 freshness decisions.
 
 ## Check content
 
-Use `LocalFileResolver` with `check_content` to verify local content referenced by a descriptor:
+Use `LocalFileResolver(base_dir=...)` with `check_content` to verify descriptor
+references against files under a caller-controlled directory.
 
 ```python
 from pathlib import Path
 
-from openakb_validate import LocalFileResolver, check_content
+from openakb_validate import ContentReport, LocalFileResolver, check_content
 
-resolver = LocalFileResolver(root=Path("example-akb"))
-result = check_content(descriptor, resolver=resolver)
+resolver = LocalFileResolver(base_dir=Path("example-akb"))
+report: ContentReport = check_content(descriptor, resolver=resolver)
+
+for finding in report.findings:
+    print(f"{finding.code}: {finding.message}")
 ```
 
-Resolvers define how descriptor references map to caller-controlled resources. The default
-library behavior remains offline and side-effect free.
+Resolvers define how descriptor references map to resources. Implement the
+`Resolver` protocol when content lives somewhere other than a local directory.
+Unresolvable resources are reported as unverifiable; the library does not fetch
+them.
 
 ## Validate everything in one call
 
-Use `validate_with_content` when a caller wants descriptor validation and local content checks
-in one library call:
+Use `validate_with_content` when a caller wants descriptor validation, strict-mode
+advisories, provenance checks, and local content checks through one API.
 
 ```python
 from pathlib import Path
 
-from openakb_validate import LocalFileResolver, validate_with_content
+from openakb_validate import LocalFileResolver, ValidationResult, validate_with_content
 
-result = validate_with_content(
+result: ValidationResult = validate_with_content(
     descriptor,
-    resolver=LocalFileResolver(root=Path("example-akb")),
+    resolver=LocalFileResolver(base_dir=Path("example-akb")),
     strict=True,
 )
 ```
 
-This combines schema, strict-mode, provenance, and content diagnostics as those APIs land.
+This is still a pure library call. Callers choose where data comes from, how
+findings are displayed, and whether any finding blocks their workflow.
 
 ## Conformance
 
-The package is intended to run the shared OpenAKB conformance fixtures for spec major v1.
-Conformance execution is library-driven so downstream tools can choose their own interfaces,
-output formats, and integration points.
+The package participates in the shared OpenAKB conformance suite for spec major
+v1. Conformance fixtures are the cross-language contract for validation behavior,
+including the stable `AKB001` through `AKB012` code mapping.
+
+Package development emits and checks a conformance report with:
+
+```bash
+cd packages/python
+uv run python tests/conformance_report.py > conformance-report.json
+node ../../scripts/ci/check-conformance-report.mjs conformance-report.json
+```
+
+Those commands land with the conformance harness. Until then, schema packaging and
+the package smoke tests are the running-code gate for this scaffold.
 
 ## Development and contributing
 
-Use `uv` for package development:
+Use `uv` for package work:
 
 ```bash
 cd packages/python
 uv sync
 uv run pytest
-uv run ruff format .
+uv run ruff format --check .
 uv run ruff check .
 uv run mypy
 ```
 
-The package vendors byte-identical copies of the published schemas from `schema/v1/`. Check
-schema drift from the repository root:
+The package vendors byte-identical copies of the published schemas from
+`schema/v1/` so they are available through `importlib.resources`. Check drift from
+the repository root:
 
 ```bash
 bash scripts/ci/check-schema-sync.sh
 ```
 
-Repository-wide contribution rules still apply, including strict vendor neutrality in public
-artifacts and keeping spec, schema, examples, validators, and conformance fixtures aligned.
+Follow the package conventions in `AGENTS.md` and the repository conventions in
+the root `AGENTS.md`. Public artifacts must remain vendor-neutral.
 
 ## License
 
