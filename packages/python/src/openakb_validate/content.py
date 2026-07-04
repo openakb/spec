@@ -9,7 +9,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from urllib.parse import urldefrag, urljoin, urlparse
 
 from ._shape import indexed_dicts, reference_code
@@ -141,7 +141,7 @@ def check_content(descriptor: object, resolver: Resolver) -> ContentReport:
     quote_claims = [*_inline_quote_claims(graph), *sidecars.claims]
     captures = _capture_checks(graph, base_uri, resolver, local, quote_claims)
     checks.extend(captures.checks)
-    checks.extend(_quote_checks(graph, captures.payloads, quote_claims))
+    checks.extend(_quote_checks(graph, captures.payloads, captures.hash_failed, quote_claims))
     return ContentReport(checks=tuple(checks))
 
 
@@ -171,6 +171,9 @@ class _ResolvedCapture:
 class _CaptureResult:
     payloads: dict[str, bytes]
     checks: list[ContentCheck]
+    # Source ids whose fetched capture failed its content_hash: the bytes are proven
+    # wrong, so a quote MUST NOT be checked against them (spec 7).
+    hash_failed: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -293,7 +296,9 @@ def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedConten
     try:
         markdown = resolved.payload.decode("utf-8")
     except UnicodeDecodeError as error:
-        return _check(UNVERIFIABLE, "citations", _content_path(resolved.index), str(error))
+        # Fetched-but-malformed content is a failure, matching the sidecar JSON parse
+        # precedent and the spec 7 "malformed ... fetched" rule -- not an access gap.
+        return _check(FAILED, "citations", _content_path(resolved.index), str(error))
     findings, warnings = _citation_results(graph, resolved.index, markdown)
     return ContentCheck(
         kind="citations",
@@ -333,6 +338,7 @@ def _capture_checks(
     quote_claims: list[_QuoteClaim],
 ) -> _CaptureResult:
     payloads: dict[str, bytes] = {}
+    hash_failed: set[str] = set()
     checks: list[ContentCheck] = []
     for index, source in graph.sources:
         source_id = source.get("id")
@@ -374,9 +380,14 @@ def _capture_checks(
             elif isinstance(resolved, _UnfetchedContent):
                 checks.append(_check(UNVERIFIABLE, "capture", path, str(resolved.error)))
             else:
-                assert isinstance(hash_check, bytes)
-                checks.append(_compare_sri("capture", path, resolved.payload, hash_check))
-    return _CaptureResult(payloads=payloads, checks=checks)
+                # hash_check is bytes here: the ContentCheck case continued above and
+                # resolved is a _ResolvedCapture. cast narrows without a runtime assert.
+                expected = cast("bytes", hash_check)
+                comparison = _compare_sri("capture", path, resolved.payload, expected)
+                checks.append(comparison)
+                if comparison.outcome == FAILED and isinstance(source_id, str):
+                    hash_failed.add(source_id)
+    return _CaptureResult(payloads=payloads, checks=checks, hash_failed=frozenset(hash_failed))
 
 
 def _sidecar_checks(
@@ -416,44 +427,47 @@ def _sidecar_checks(
 
 
 def _quote_checks(
-    graph: _Graph, captures: dict[str, bytes], quote_claims: list[_QuoteClaim]
+    graph: _Graph,
+    captures: dict[str, bytes],
+    hash_failed: frozenset[str],
+    quote_claims: list[_QuoteClaim],
 ) -> list[ContentCheck]:
     checks: list[ContentCheck] = []
     for claim in quote_claims:
-        available = [captures[source_id] for source_id in claim.source_ids if source_id in captures]
-        warnings = _redacted_warnings(graph, claim.path, claim.source_ids)
-        if not available:
-            checks.append(
-                ContentCheck(
-                    kind="quote",
-                    path=json_pointer([*claim.path, "locator", "quote"]),
-                    outcome=UNVERIFIABLE,
-                    detail="no cited source capture fetched",
-                    warnings=tuple(warnings),
-                )
-            )
-            continue
-        needle = claim.quote.encode("utf-8")
-        if any(needle in payload for payload in available):
-            outcome = VERIFIED
-        elif all(source_id in captures for source_id in claim.source_ids):
-            outcome = FAILED
-        else:
-            outcome = UNVERIFIABLE
+        outcome, detail = _quote_outcome(claim, captures, hash_failed)
         checks.append(
             ContentCheck(
                 kind="quote",
                 path=json_pointer([*claim.path, "locator", "quote"]),
                 outcome=outcome,
-                detail="quote found in capture"
-                if outcome == VERIFIED
-                else "quote absent from fetched captures"
-                if outcome == FAILED
-                else "some cited source captures were not fetched",
-                warnings=tuple(warnings),
+                detail=detail,
+                warnings=tuple(_redacted_warnings(graph, claim.path, claim.source_ids)),
             )
         )
     return checks
+
+
+def _quote_outcome(
+    claim: _QuoteClaim, captures: dict[str, bytes], hash_failed: frozenset[str]
+) -> tuple[str, str]:
+    """Three-state quote outcome; a hash-failed capture's bytes are never trusted."""
+    usable = [
+        captures[source_id]
+        for source_id in claim.source_ids
+        if source_id in captures and source_id not in hash_failed
+    ]
+    needle = claim.quote.encode("utf-8")
+    if any(needle in payload for payload in usable):
+        return VERIFIED, "quote found in capture"
+    if all(
+        source_id in captures and source_id not in hash_failed for source_id in claim.source_ids
+    ):
+        return FAILED, "quote absent from fetched captures"
+    if not usable:
+        if any(source_id in hash_failed for source_id in claim.source_ids):
+            return UNVERIFIABLE, "cited source capture failed its content hash"
+        return UNVERIFIABLE, "no cited source capture fetched"
+    return UNVERIFIABLE, "some cited source captures were not fetched"
 
 
 def _local_raw_reference_error(reference: str) -> Unfetchable | None:

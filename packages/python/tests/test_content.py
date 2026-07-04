@@ -280,11 +280,11 @@ def test_content_fragment_stripped() -> None:
 
 
 def test_invalid_utf8_markdown() -> None:
-    """Markdown bytes that cannot decode as UTF-8 make citation checks unverifiable."""
+    """Fetched section content that is not valid UTF-8 is a failed citation check."""
     report = check_content(_descriptor(), FakeResolver({"root.md": b"\xff"}))
 
-    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
-    assert report.ok
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert not report.ok
 
 
 def test_unresolved_citation() -> None:
@@ -1030,6 +1030,46 @@ def test_quote_without_capture() -> None:
 
     assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
     assert report.ok
+
+
+def test_quote_hash_failed_unverifiable() -> None:
+    """A quote against a capture that failed its content hash is unverifiable, not verified."""
+    source = _descriptor()["sources"][0] | {
+        "capture_uri": "capture.bin",
+        "content_hash": _sri(b"expected"),
+    }
+    section = _descriptor()["sections"][0] | {
+        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"hay needle stack"}),
+    )
+
+    assert _checks_by_kind(report, "capture")[0].outcome == FAILED
+    assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+    assert not report.ok
+
+
+def test_quote_good_capture_wins() -> None:
+    """A verified-or-hashless capture still verifies a quote co-cited with a hash-failed one."""
+    sources = [
+        _descriptor()["sources"][0] | {"capture_uri": "s1.bin", "content_hash": _sri(b"expected")},
+        {"id": "s2", "type": "url", "uri": "https://other.example.com/", "capture_uri": "s2.bin"},
+    ]
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=sources, sections=[section]),
+        FakeResolver(
+            {"root.md": b"See [cite: s1].", "s1.bin": b"needle wrong", "s2.bin": b"has needle"}
+        ),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == VERIFIED
 
 
 def test_empty_quote_skipped() -> None:
