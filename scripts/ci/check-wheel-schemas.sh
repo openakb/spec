@@ -5,7 +5,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../packages/python"
 
-wheel="$(echo dist/openakb_validate-*.whl)"
+shopt -s nullglob
+wheels=(dist/openakb_validate-*.whl)
+if [ "${#wheels[@]}" -ne 1 ]; then
+  echo "::error::expected exactly one wheel in packages/python/dist, found ${#wheels[@]}" >&2
+  exit 1
+fi
+wheel="${wheels[0]}"
 uv run --isolated --no-project --with "${wheel}" python - <<'PY'
 import json
 from importlib.resources import files
