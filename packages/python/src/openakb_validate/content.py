@@ -363,6 +363,12 @@ def _capture_checks(
         resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
         if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
             payloads[source_id] = resolved.payload
+        if not has_hash and isinstance(resolved, _UnfetchedContent):
+            checks.append(
+                _check(
+                    UNVERIFIABLE, "capture", ["sources", index, "capture_uri"], str(resolved.error)
+                )
+            )
         if has_hash:
             if isinstance(hash_check, ContentCheck):
                 checks.append(hash_check)
@@ -402,7 +408,9 @@ def _sidecar_checks(
                 kind="sidecar",
                 path=json_pointer(_sidecar_path(index)),
                 outcome=FAILED if findings or binding_mismatch else VERIFIED,
-                detail="provenance sidecar checked",
+                detail="sidecar section_id names a different section"
+                if binding_mismatch
+                else "provenance sidecar checked",
                 findings=tuple(findings),
             )
         )
@@ -500,7 +508,7 @@ def _sidecar_findings(
     section: dict[str, Any],
     sidecar: object,
 ) -> tuple[list[Finding], bool]:
-    findings = schema_findings(sidecar, validator=provenance_validator())
+    findings = _sidecar_schema_findings(section_index, sidecar)
     if not isinstance(sidecar, dict):
         return findings, False
     section_id = sidecar.get("section_id")
@@ -518,6 +526,18 @@ def _sidecar_findings(
     for claim_index, claim in indexed_dicts(sidecar.get("claims")):
         _append_sidecar_source_findings(findings, graph, section_index, claim_index, claim)
     return sorted(findings), binding_mismatch
+
+
+def _sidecar_schema_findings(section_index: int, sidecar: object) -> list[Finding]:
+    base = json_pointer(_sidecar_path(section_index))
+    return [
+        Finding(
+            code=finding.code,
+            path=base + finding.path,
+            message=finding.message,
+        )
+        for finding in schema_findings(sidecar, validator=provenance_validator())
+    ]
 
 
 def _append_sidecar_source_findings(

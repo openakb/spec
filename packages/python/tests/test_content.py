@@ -689,6 +689,21 @@ def test_sidecar_schema_codes() -> None:
     assert {finding.code for finding in report.findings} == {"AKB009", "AKB011"}
 
 
+def test_sidecar_schema_path() -> None:
+    """Sidecar schema finding paths are anchored at descriptor provenance_uri."""
+    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": ["Bad ID"]}])
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+    )
+
+    sidecar = _checks_by_kind(report, "sidecar")[0]
+    assert [finding.path for finding in sidecar.findings] == [
+        "/sections/0/provenance_uri/claims/0/source_ids/0"
+    ]
+
+
 def test_sidecar_binding_mismatch() -> None:
     """A sidecar bound to another section fails without inventing a code."""
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
@@ -710,6 +725,27 @@ def test_sidecar_binding_mismatch() -> None:
     sidecar = _checks_by_kind(report, "sidecar")[0]
     assert sidecar.outcome == FAILED
     assert sidecar.findings == ()
+
+
+def test_sidecar_mismatch_detail() -> None:
+    """Binding mismatch detail names the section_id mismatch."""
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(
+            sections=[
+                section,
+                {
+                    "id": "other",
+                    "title": "Other",
+                    "description": "Other section.",
+                    "source_ids": ["s1"],
+                },
+            ]
+        ),
+        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar("other")}),
+    )
+
+    assert "section_id" in _checks_by_kind(report, "sidecar")[0].detail
 
 
 def test_sidecar_section_akb007() -> None:
@@ -823,6 +859,19 @@ def test_capture_uri_fetches() -> None:
 
     assert resolver.requests == ["root.md", "capture.bin"]
     assert _checks_by_kind(report, "capture") == []
+    assert report.ok
+
+
+def test_capture_unfetchable_reports() -> None:
+    """Hashless capture_uri fetch failures emit an unverifiable capture check."""
+    source = _descriptor()["sources"][0] | {"capture_uri": "missing.bin"}
+    report = check_content(
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+    )
+
+    capture = _checks_by_kind(report, "capture")[0]
+    assert capture.outcome == UNVERIFIABLE
+    assert capture.path == "/sources/0/capture_uri"
     assert report.ok
 
 

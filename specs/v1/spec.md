@@ -401,7 +401,7 @@ When a source carries `capture_uri`, the fetched capture can be verified against
 
 Content checks against a `type: "redacted"` source (§4.2) are unverifiable by construction and MUST be reported as unverifiable; a validator MAY warn when a claim `locator.quote` cites a redacted source, since the quote cannot be checked against any capture.
 
-Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure: a hash mismatch, or a `[cite:]` id in fetched content that resolves to nothing.
+Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure, such as a hash mismatch, malformed or inconsistently bound fetched sidecar, absent quote span, or a `[cite:]` id in fetched content that resolves to nothing.
 
 > This completes a pattern already in the spec: cross-AKB links are best-effort rather than offline structural failures (§4.5), and an unknown hash algorithm is an unverifiable warning rather than an invalid descriptor.
 
