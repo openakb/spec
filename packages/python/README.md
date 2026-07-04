@@ -43,9 +43,10 @@ if not result.ok:
         print(f"{finding.code}: {finding.message}")
 ```
 
-Each `Finding` has a stable code, message, severity, and location. Advisory
-diagnostics use `Advisory` so callers can distinguish portability advice from
-validation failures.
+Each `Finding` has a stable `code`, RFC 6901 JSON Pointer `path`, and `message`.
+Its `.name` property derives the public finding name from the code catalog.
+Advisory diagnostics use `Advisory` and appear in `warnings`; they never affect
+the validation verdict.
 
 The stable validation codes for spec major v1 are `AKB001` through `AKB012`.
 Those code meanings are part of the public contract for v1 and only change through
@@ -67,18 +68,21 @@ ids = [citation.ids for citation in citations]
 
 ## Strict mode
 
-Strict mode includes portability and policy advisories in addition to required
-validation findings:
+Strict mode adds `AKB006 unknown-core-property` findings for unknown core
+members outside extension payloads:
 
 ```python
-from openakb_validate import Advisory, validate
+from openakb_validate import validate
 
 result = validate(descriptor, strict=True)
-warnings: list[Advisory] = result.warnings
+unknown_core_findings = [
+    finding for finding in result.findings if finding.code == "AKB006"
+]
 ```
 
 Strict mode remains local and deterministic. It does not make network requests or
-freshness decisions.
+freshness decisions. Advisory `warnings` describe MAY-warn surfaces and never
+affect `result.ok`.
 
 ## Check content
 
@@ -142,8 +146,8 @@ uv run python tests/conformance_report.py > conformance-report.json
 node ../../scripts/ci/check-conformance-report.mjs conformance-report.json
 ```
 
-Those commands land with the conformance harness. Until then, schema packaging and
-the package smoke tests are the running-code gate for this scaffold.
+These commands are the package conformance/report gate used by CI and release
+checks.
 
 ## Development and contributing
 
