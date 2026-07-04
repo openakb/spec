@@ -401,6 +401,37 @@ def test_base_uri_prefixes() -> None:
     }
 
 
+def test_local_query_fragment(tmp_path: Path) -> None:
+    """Local content aliases with empty queries stay unverifiable through check_content."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    section = _descriptor()["sections"][0] | {"content_uri": "root.md?#frag"}
+    report = check_content(_descriptor(sections=[section]), LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_local_param_fragment(tmp_path: Path) -> None:
+    """Local content aliases with path params stay unverifiable through check_content."""
+    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    section = _descriptor()["sections"][0] | {"content_uri": "root.md;#frag"}
+    report = check_content(_descriptor(sections=[section]), LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_local_guide_query(tmp_path: Path) -> None:
+    """Local guide aliases with empty queries stay unverifiable through check_content."""
+    guide = b"# Guide\n"
+    (tmp_path / "AKB.md").write_bytes(guide)
+    descriptor = _descriptor(guide_uri="AKB.md?#intro", guide_hash=_sri(guide))
+    report = check_content(descriptor, LocalFileResolver(tmp_path))
+
+    assert _checks_by_kind(report, "guide-hash")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
 def test_local_resolver_confines(tmp_path: Path) -> None:
     """LocalFileResolver fetches base-relative files and rejects hostile references."""
     base = tmp_path / "kb"

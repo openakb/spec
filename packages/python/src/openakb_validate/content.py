@@ -129,9 +129,10 @@ def check_content(descriptor: object, resolver: Resolver) -> ContentReport:
         return ContentReport(checks=())
     graph = _Graph.from_descriptor(descriptor)
     base_uri = descriptor.get("base_uri") if isinstance(descriptor.get("base_uri"), str) else None
+    local = isinstance(resolver, LocalFileResolver)
     checks: list[ContentCheck] = []
-    checks.extend(_guide_check(descriptor, base_uri, resolver))
-    checks.extend(_section_checks(graph, base_uri, resolver))
+    checks.extend(_guide_check(descriptor, base_uri, resolver, local))
+    checks.extend(_section_checks(graph, base_uri, resolver, local))
     _capture_checks(descriptor, resolver)
     _sidecar_checks(descriptor, resolver)
     _quote_checks(descriptor, resolver)
@@ -171,7 +172,9 @@ class _Graph:
         )
 
 
-def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> list[ContentCheck]:
+def _section_checks(
+    graph: _Graph, base_uri: str | None, resolver: Resolver, local: bool
+) -> list[ContentCheck]:
     checks: list[ContentCheck] = []
     for index, section in graph.sections:
         reference = section.get("content_uri")
@@ -193,7 +196,7 @@ def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> 
             if isinstance(hash_check, ContentCheck) and not checks_citations:
                 checks.append(hash_check)
                 continue
-        resolved = _fetch_section(index, section, reference, base_uri, resolver)
+        resolved = _fetch_section(index, section, reference, base_uri, resolver, local)
         if has_content_hash:
             if isinstance(hash_check, ContentCheck):
                 checks.append(hash_check)
@@ -212,7 +215,7 @@ def _section_checks(graph: _Graph, base_uri: str | None, resolver: Resolver) -> 
 
 
 def _guide_check(
-    descriptor: dict[str, Any], base_uri: str | None, resolver: Resolver
+    descriptor: dict[str, Any], base_uri: str | None, resolver: Resolver, local: bool
 ) -> list[ContentCheck]:
     if not isinstance(descriptor.get("guide_uri"), str) or not isinstance(
         descriptor.get("guide_hash"), str
@@ -222,7 +225,7 @@ def _guide_check(
     expected = _parse_sri("guide-hash", path, descriptor["guide_hash"])
     if isinstance(expected, ContentCheck):
         return [expected]
-    uri = _effective_reference(descriptor["guide_uri"], base_uri)
+    uri = _effective_reference(descriptor["guide_uri"], base_uri, local)
     if isinstance(uri, Unfetchable):
         return [_check(UNVERIFIABLE, "guide-hash", path, str(uri))]
     try:
@@ -269,7 +272,11 @@ def _citation_check(graph: _Graph, resolved: _ResolvedContent | _UnfetchedConten
     )
 
 
-def _effective_reference(reference: str, base_uri: str | None) -> str | Unfetchable:
+def _effective_reference(reference: str, base_uri: str | None, local: bool) -> str | Unfetchable:
+    if local:
+        raw_error = _local_raw_reference_error(reference)
+        if raw_error is not None:
+            return raw_error
     try:
         if base_uri is None:
             return urldefrag(reference).url
@@ -290,14 +297,23 @@ def _quote_checks(_descriptor: dict[str, Any], _resolver: Resolver) -> None:
     return None
 
 
+def _local_raw_reference_error(reference: str) -> Unfetchable | None:
+    raw_reference = reference.split("#", 1)[0]
+    raw_path = raw_reference.split("?", 1)[0]
+    if "?" in raw_reference or ";" in raw_path:
+        return Unfetchable(f"outside local base: {reference}")
+    return None
+
+
 def _fetch_section(
     index: int,
     section: dict[str, Any],
     reference: str,
     base_uri: str | None,
     resolver: Resolver,
+    local: bool,
 ) -> _ResolvedContent | _UnfetchedContent:
-    uri = _effective_reference(reference, base_uri)
+    uri = _effective_reference(reference, base_uri, local)
     if isinstance(uri, Unfetchable):
         return _UnfetchedContent(index=index, error=uri)
     try:
