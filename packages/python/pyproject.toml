@@ -37,6 +37,7 @@ dev = [
   "pytest>=8",
   "pytest-cov>=6",
   "ruff>=0.9",
+  "types-jsonschema>=4.26.0.20260518",
 ]
 
 [tool.hatch.build.targets.sdist]
