@@ -51,7 +51,8 @@ class LocalFileResolver:
     """Resolve scheme-less relative paths under one local base directory.
 
     URI fragments are client-side identifiers and do not affect the fetched bytes.
-    Queries are rejected because they would otherwise alias to the same local path.
+    Queries and path parameters are rejected because they would otherwise alias to
+    the same local path.
     """
 
     base_dir: Path
@@ -65,7 +66,13 @@ class LocalFileResolver:
 
     def _local_path(self, uri: str) -> Path:
         parsed = urlparse(uri)
-        if parsed.scheme or parsed.netloc or parsed.query or Path(parsed.path).is_absolute():
+        if (
+            parsed.scheme
+            or parsed.netloc
+            or parsed.params
+            or parsed.query
+            or Path(parsed.path).is_absolute()
+        ):
             raise Unfetchable(f"outside local base: {uri}")
         base = self.base_dir.resolve()
         path = (base / parsed.path).resolve()
