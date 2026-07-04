@@ -403,14 +403,13 @@ def _sidecar_checks(
             continue
         findings, binding_mismatch = _sidecar_findings(graph, index, section, sidecar)
         claims.extend(_sidecar_quote_claims(index, sidecar))
+        detail = _sidecar_detail(section, sidecar, binding_mismatch)
         checks.append(
             ContentCheck(
                 kind="sidecar",
                 path=json_pointer(_sidecar_path(index)),
                 outcome=FAILED if findings or binding_mismatch else VERIFIED,
-                detail="sidecar section_id names a different section"
-                if binding_mismatch
-                else "provenance sidecar checked",
+                detail=detail,
                 findings=tuple(findings),
             )
         )
@@ -436,7 +435,12 @@ def _quote_checks(
             )
             continue
         needle = claim.quote.encode("utf-8")
-        outcome = VERIFIED if any(needle in payload for payload in available) else FAILED
+        if any(needle in payload for payload in available):
+            outcome = VERIFIED
+        elif all(source_id in captures for source_id in claim.source_ids):
+            outcome = FAILED
+        else:
+            outcome = UNVERIFIABLE
         checks.append(
             ContentCheck(
                 kind="quote",
@@ -444,7 +448,9 @@ def _quote_checks(
                 outcome=outcome,
                 detail="quote found in capture"
                 if outcome == VERIFIED
-                else "quote absent from capture",
+                else "quote absent from fetched captures"
+                if outcome == FAILED
+                else "some cited source captures were not fetched",
                 warnings=tuple(warnings),
             )
         )
@@ -538,6 +544,16 @@ def _sidecar_schema_findings(section_index: int, sidecar: object) -> list[Findin
         )
         for finding in schema_findings(sidecar, validator=provenance_validator())
     ]
+
+
+def _sidecar_detail(section: dict[str, Any], sidecar: object, binding_mismatch: bool) -> str:
+    if not binding_mismatch or not isinstance(sidecar, dict):
+        return "provenance sidecar checked"
+    return (
+        "sidecar section_id "
+        f"{sidecar.get('section_id')!r} names a different section; "
+        f"expected {section.get('id')!r}"
+    )
 
 
 def _append_sidecar_source_findings(

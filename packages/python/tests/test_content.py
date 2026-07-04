@@ -904,6 +904,73 @@ def test_quote_absent_fails() -> None:
     assert not report.ok
 
 
+def test_quote_partial_unfetchable() -> None:
+    """Quote absence is unverifiable when another cited capture cannot fetch."""
+    sources = [
+        _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
+        {"id": "s2", "type": "url", "uri": "https://other.example.com/", "capture_uri": "s2.bin"},
+    ]
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=sources, sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "s1.bin": b"hay stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
+def test_quote_partial_redacted() -> None:
+    """Quote absence is unverifiable when another cited source is redacted."""
+    sources = [
+        _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
+        {"id": "s2", "type": "redacted"},
+    ]
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=sources, sections=[section]),
+        FakeResolver({"root.md": b"See [cite: s1].", "s1.bin": b"hay stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+    assert "redacted" in report.warnings[0].message
+    assert report.ok
+
+
+def test_quote_all_absent_fails() -> None:
+    """Quote absence fails when all cited captures are fetched and lack it."""
+    sources = [
+        _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
+        {"id": "s2", "type": "url", "uri": "https://other.example.com/", "capture_uri": "s2.bin"},
+    ]
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=sources, sections=[section]),
+        FakeResolver(
+            {
+                "root.md": b"See [cite: s1].",
+                "s1.bin": b"hay stack",
+                "s2.bin": b"other hay stack",
+            }
+        ),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == FAILED
+    assert not report.ok
+
+
 def test_quote_without_capture() -> None:
     """Inline quote provenance is unverifiable without fetched captures."""
     section = _descriptor()["sections"][0] | {
