@@ -787,6 +787,45 @@ def test_capture_hashless_unverifiable() -> None:
     assert report.ok
 
 
+def test_capture_algo_warns() -> None:
+    """Unsupported source content_hash without capture_uri preserves SRI warning."""
+    source = _descriptor()["sources"][0] | {"content_hash": "sha512-aa=="}
+    report = check_content(
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+    )
+
+    capture = _checks_by_kind(report, "capture")[0]
+    assert capture.outcome == UNVERIFIABLE
+    assert "unsupported hash algorithm" in capture.detail
+    assert len(capture.warnings) == 1
+    assert report.ok
+
+
+def test_capture_malformed_warns() -> None:
+    """Malformed source content_hash without capture_uri preserves SRI warning."""
+    source = _descriptor()["sources"][0] | {"content_hash": "sha256-not!base64"}
+    report = check_content(
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+    )
+
+    capture = _checks_by_kind(report, "capture")[0]
+    assert capture.outcome == UNVERIFIABLE
+    assert "malformed sha256 digest" in capture.detail
+    assert len(capture.warnings) == 1
+    assert report.ok
+
+
+def test_capture_uri_fetches() -> None:
+    """Non-redacted capture_uri fetches even without hash or quote usage."""
+    source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
+    resolver = RecordingResolver({"root.md": b"See [cite: s1].", "capture.bin": b"capture"})
+    report = check_content(_descriptor(sources=[source]), resolver)
+
+    assert resolver.requests == ["root.md", "capture.bin"]
+    assert _checks_by_kind(report, "capture") == []
+    assert report.ok
+
+
 def test_quote_found_verifies() -> None:
     """Inline quote provenance verifies against any cited fetched capture."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}

@@ -351,13 +351,14 @@ def _capture_checks(
         hash_check = _parse_sri("capture", path, source["content_hash"]) if has_hash else None
         if not isinstance(reference, str):
             if has_hash:
-                checks.append(_check(UNVERIFIABLE, "capture", path, "missing capture_uri"))
+                if isinstance(hash_check, ContentCheck):
+                    checks.append(hash_check)
+                else:
+                    checks.append(_check(UNVERIFIABLE, "capture", path, "missing capture_uri"))
             continue
         source_quoted = isinstance(source_id, str) and source_id in quote_source_ids
         if isinstance(hash_check, ContentCheck) and not source_quoted:
             checks.append(hash_check)
-            continue
-        if not has_hash and not source_quoted:
             continue
         resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
         if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
