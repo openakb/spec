@@ -82,6 +82,10 @@ jobs:
         run: uv run pytest
       - name: Generate Conformance Report
         run: uv run python tests/conformance_report.py > conformance-report.json
+      - name: Set Up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
       - name: Check Conformance Report
         working-directory: .
         run: node scripts/ci/check-conformance-report.mjs packages/python/conformance-report.json
@@ -92,7 +96,7 @@ jobs:
           files: packages/python/coverage.xml
           flags: python
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          fail_ci_if_error: ${{ github.actor != 'dependabot[bot]' }}
       - name: Build Distributions
         run: uv build
 
