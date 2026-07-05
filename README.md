@@ -27,10 +27,11 @@ trapped in one vendor's storage or serving model.
 ## Status
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
-examples, conformance suite, and the first reference validator — `openakb-validate`
-for Python, under [packages/python](packages/python/) — have landed. The validator
-enforces the full `AKB001`–`AKB012` catalog, including the cross-document semantic
-rules, and executes the conformance suite as its acceptance gate.
+examples, conformance suite, the reference `openakb-validate` validator for Python
+under [packages/python](packages/python/), and the `openakb-validate` Rust validator
+under [packages/rust](packages/rust/) have landed. The validators enforce the full
+`AKB001`–`AKB012` catalog, including the cross-document semantic rules, and execute
+the conformance suite as their acceptance gate.
 See [CHANGELOG.md](CHANGELOG.md) for what has landed.
 
 ## Specification
