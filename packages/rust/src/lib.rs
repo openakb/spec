@@ -7,6 +7,7 @@
 
 mod catalog;
 mod citations;
+mod content;
 mod result;
 mod schema;
 mod semantic;
@@ -16,5 +17,6 @@ mod validator;
 
 pub use catalog::*;
 pub use citations::*;
+pub use content::*;
 pub use result::*;
 pub use validator::*;
