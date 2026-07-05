@@ -130,6 +130,33 @@ async fn test_non_markdown_hash() {
 }
 
 #[tokio::test]
+async fn test_non_markdown_hash_warning() {
+    let resolver = MapResolver::new([]);
+    let descriptor = json!({
+        "sections": [{
+            "id": "sec",
+            "content_uri": "missing.txt",
+            "content_type": "text/plain",
+            "content_hash": "sha256-@@@"
+        }]
+    });
+
+    let report = check_content(&descriptor, &resolver).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::ContentHash);
+    assert_eq!(report.checks[0].path, "/sections/0/content_hash");
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(report.checks[0].warnings.len(), 1);
+    assert_eq!(
+        report.checks[0].warnings[0].path,
+        "/sections/0/content_hash"
+    );
+    assert!(resolver.fetched().is_empty());
+}
+
+#[tokio::test]
 async fn test_invalid_utf8() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("section.md"), [0xff, 0xfe]).unwrap();

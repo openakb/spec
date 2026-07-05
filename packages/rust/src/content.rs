@@ -355,6 +355,12 @@ async fn section_checks(
         }
         let hash_check = content_hash
             .map(|hash| parse_sri(CheckKind::ContentHash, section_hash_path(*index), hash));
+        if !checks_citations && matches!(hash_check, Some(Err(_))) {
+            if let Some(Err(check)) = hash_check {
+                checks.push(check);
+            }
+            continue;
+        }
 
         let resolved = fetch_section(*index, section, descriptor, reference, resolver).await;
         if let Some(hash_check) = hash_check {
