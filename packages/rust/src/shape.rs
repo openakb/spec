@@ -77,7 +77,18 @@ pub(crate) fn reference_code(
     expected: EntityKind,
     index: &EntityIndex,
 ) -> Option<Code> {
-    let id = local_id_value(value)?;
+    let id = value.and_then(Value::as_str)?;
+    reference_code_id(id, expected, index)
+}
+
+pub(crate) fn reference_code_id(
+    id: &str,
+    expected: EntityKind,
+    index: &EntityIndex,
+) -> Option<Code> {
+    if !is_local_id(id) {
+        return None;
+    }
     if index.contains_kind(expected, id) {
         None
     } else if index.contains_other_kind(expected, id) {

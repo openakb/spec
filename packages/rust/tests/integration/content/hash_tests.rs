@@ -170,7 +170,11 @@ async fn test_base_uri_dot_segments() {
     let report = report(descriptor, &dir).await;
 
     assert!(report.ok());
-    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(
+        report.checks[0].detail,
+        "unfetchable: outside local base: ../snapshots/capture.txt"
+    );
 }
 
 #[tokio::test]
@@ -207,7 +211,11 @@ async fn test_relative_path_drops_base_query() {
     let report = report(descriptor, &dir).await;
 
     assert!(report.ok());
-    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(
+        report.checks[0].detail,
+        "unfetchable: outside local base: docs/index.akb.json?old"
+    );
 }
 
 #[tokio::test]
