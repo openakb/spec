@@ -13,4 +13,10 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "build(python)"
-# Cargo / npm ecosystems are added when their packages land in later phases.
+  - package-ecosystem: "cargo"
+    directory: "/packages/rust"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build(rust)"
+# npm ecosystem is added when its package lands in a later phase.

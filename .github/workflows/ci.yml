@@ -91,6 +91,12 @@ jobs:
       - name: Check Conformance Report
         working-directory: .
         run: node scripts/ci/check-conformance-report.mjs packages/python/conformance-report.json
+      - name: Upload Conformance Report
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-conformance-report
+          path: packages/python/conformance-report.json
       - name: Upload Coverage
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v7
@@ -102,13 +108,100 @@ jobs:
       - name: Build Distributions
         run: uv build
 
+  rust:
+    name: Rust Checks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["stable", "1.88"]
+    defaults:
+      run:
+        working-directory: packages/rust
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Install Toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy, llvm-tools-preview
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/rust
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Check
+        run: cargo check --all-features --locked
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - name: Install Tools
+        if: matrix.toolchain == 'stable'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,cargo-deny
+      - name: Check Dependencies
+        if: matrix.toolchain == 'stable'
+        run: cargo deny check
+      - name: Test With Coverage
+        if: matrix.toolchain == 'stable'
+        run: cargo llvm-cov --all-features --locked --fail-under-lines 95 --lcov --output-path lcov.info
+      - name: Test
+        if: matrix.toolchain != 'stable'
+        run: cargo test --all-features --locked
+      - name: Generate Conformance Report
+        if: matrix.toolchain == 'stable'
+        run: cargo run --locked --example conformance_report > conformance-report.json
+      - name: Set Up Node
+        if: matrix.toolchain == 'stable'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Check Conformance Report
+        if: matrix.toolchain == 'stable'
+        working-directory: .
+        run: node scripts/ci/check-conformance-report.mjs packages/rust/conformance-report.json
+      - name: Upload Conformance Report
+        if: matrix.toolchain == 'stable'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-conformance-report
+          path: packages/rust/conformance-report.json
+      - name: Upload Coverage
+        if: matrix.toolchain == 'stable'
+        uses: codecov/codecov-action@v7
+        with:
+          files: packages/rust/lcov.info
+          flags: rust
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: ${{ github.actor != 'dependabot[bot]' }}
+
+  conformance-agreement:
+    name: Conformance Agreement
+    runs-on: ubuntu-latest
+    needs: [python, rust]
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Set Up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Download Reports
+        uses: actions/download-artifact@v8
+        with:
+          path: reports
+      - name: Check Agreement
+        run: node scripts/ci/check-conformance-report.mjs reports/python-conformance-report/conformance-report.json reports/rust-conformance-report/conformance-report.json
+
   # `CI OK` is the single required status check for branch protection — do not rename casually.
   # Every new job added to this workflow MUST also be appended to this job's `needs:` to gate merges.
   ci-ok:
     name: CI OK
-    needs: [docs, schema, python]
+    needs: [docs, schema, python, rust, conformance-agreement]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Verify Jobs
-        run: 'if [ "${{ needs.docs.result }}" != "success" ] || [ "${{ needs.schema.result }}" != "success" ] || [ "${{ needs.python.result }}" != "success" ]; then echo "A required job did not succeed"; exit 1; fi'
+        run: 'if [ "${{ needs.docs.result }}" != "success" ] || [ "${{ needs.schema.result }}" != "success" ] || [ "${{ needs.python.result }}" != "success" ] || [ "${{ needs.rust.result }}" != "success" ] || [ "${{ needs.conformance-agreement.result }}" != "success" ]; then echo "A required job did not succeed"; exit 1; fi'
