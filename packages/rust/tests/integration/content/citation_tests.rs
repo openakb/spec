@@ -108,6 +108,28 @@ async fn test_non_markdown_skip() {
 }
 
 #[tokio::test]
+async fn test_non_markdown_hash() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("section.txt"), "A [cite:missing].\n").unwrap();
+    let descriptor = json!({
+        "sections": [{
+            "id": "sec",
+            "content_uri": "section.txt",
+            "content_type": "text/plain",
+            "content_hash": sri(b"A [cite:missing].\n")
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::ContentHash);
+    assert_eq!(report.checks[0].path, "/sections/0/content_hash");
+    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
 async fn test_invalid_utf8() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("section.md"), [0xff, 0xfe]).unwrap();
