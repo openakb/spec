@@ -37,7 +37,7 @@ impl EntityIndex {
         }
     }
 
-    fn contains(&self, kind: EntityKind, id: &str) -> bool {
+    pub(crate) fn contains_kind(&self, kind: EntityKind, id: &str) -> bool {
         match kind {
             EntityKind::Source => self.source_ids.contains(id),
             EntityKind::Section => self.section_ids.contains(id),
@@ -78,7 +78,7 @@ pub(crate) fn reference_code(
     index: &EntityIndex,
 ) -> Option<Code> {
     let id = local_id_value(value)?;
-    if index.contains(expected, id) {
+    if index.contains_kind(expected, id) {
         None
     } else if index.contains_other_kind(expected, id) {
         Some(Code::Akb010)

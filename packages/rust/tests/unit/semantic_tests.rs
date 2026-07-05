@@ -151,6 +151,23 @@ fn test_parent_depth_cap() {
 }
 
 #[test]
+fn test_wide_parent_lookup() {
+    let mut descriptor = descriptor();
+    let mut sections = wide_sections(256);
+    sections
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"child","title":"Child","description":"Child section.","parent_id":"n255","content_uri":"child.md","source_ids":["s1"]}));
+    descriptor["sections"] = sections;
+
+    let result = validate(&descriptor, Mode::Lenient);
+
+    assert!(!result.codes().contains(&Code::Akb004));
+    assert!(!result.codes().contains(&Code::Akb005));
+    assert!(!result.codes().contains(&Code::Akb007));
+}
+
+#[test]
 fn test_discovery_cycle_warns() {
     let mut descriptor = descriptor();
     descriptor["sources"] = json!([
@@ -200,6 +217,22 @@ fn chain_sections(depth: usize) -> Value {
                 section["parent_id"] = json!(parent_id);
             }
             section
+        })
+        .collect();
+
+    json!(sections)
+}
+
+fn wide_sections(count: usize) -> Value {
+    let sections: Vec<_> = (0..count)
+        .map(|index| {
+            json!({
+                "id": format!("n{index}"),
+                "title": format!("Node {index}"),
+                "description": "Wide parent lookup fixture.",
+                "content_uri": format!("n{index}.md"),
+                "source_ids": ["s1"]
+            })
         })
         .collect();
 

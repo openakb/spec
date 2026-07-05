@@ -419,11 +419,7 @@ fn parent_by_id(graph: &Graph<'_>) -> BTreeMap<String, String> {
         .filter_map(|(_, section)| {
             let id = local_id_value(section.get("id"))?;
             let parent_id = local_id_value(section.get("parent_id"))?;
-            if graph
-                .sections
-                .iter()
-                .any(|(_, section)| local_id_value(section.get("id")) == Some(parent_id))
-            {
+            if graph.entities.contains_kind(EntityKind::Section, parent_id) {
                 Some((id.to_owned(), parent_id.to_owned()))
             } else {
                 None
