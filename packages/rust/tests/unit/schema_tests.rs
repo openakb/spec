@@ -153,7 +153,7 @@ fn test_empty_sources() {
     let mut descriptor = descriptor();
     descriptor["sources"] = json!([]);
 
-    assert_eq!(codes(&descriptor), vec![Code::Akb011]);
+    assert_eq!(codes(&descriptor), vec![Code::Akb007, Code::Akb011]);
 }
 
 #[test]
