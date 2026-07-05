@@ -8,6 +8,9 @@
 
 mod catalog;
 mod result;
+mod schema;
+mod validator;
 
 pub use catalog::*;
 pub use result::*;
+pub use validator::*;

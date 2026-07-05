@@ -3,3 +3,4 @@
 
 mod catalog_tests;
 mod result_tests;
+mod schema_tests;
