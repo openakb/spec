@@ -30,7 +30,6 @@ pub(crate) fn descriptor_schema() -> &'static Value {
 /// Returns schema findings for an OpenAKB descriptor value.
 #[must_use]
 pub(crate) fn schema_findings(descriptor: &Value) -> Vec<Finding> {
-    let _ = &*PROVENANCE_VALIDATOR;
     findings_for(&DESCRIPTOR_VALIDATOR, descriptor)
 }
 
