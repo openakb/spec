@@ -1,7 +1,10 @@
-use std::fs;
+use std::{fs, sync::Mutex};
 
+use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use openakb_validate::{CheckKind, ContentReport, LocalFileResolver, Outcome, check_content};
+use openakb_validate::{
+    CheckKind, ContentReport, LocalFileResolver, Outcome, Resolver, Unfetchable, check_content,
+};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
@@ -62,6 +65,7 @@ async fn test_malformed_sri() {
         "md5-abcd",
         "sha256-@@@",
         "sha256-YWJj",
+        "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB",
     ];
 
     for guide_hash in cases {
@@ -142,6 +146,136 @@ async fn test_base_uri_directory() {
 
     assert!(report.ok());
     assert_eq!(report.checks[0].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
+async fn test_base_uri_dot_segments() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir(dir.path().join("docs")).unwrap();
+    fs::create_dir(dir.path().join("snapshots")).unwrap();
+    fs::write(
+        dir.path().join("snapshots").join("capture.txt"),
+        "capture\n",
+    )
+    .unwrap();
+    let descriptor = json!({
+        "base_uri": "docs/index.akb.json",
+        "sources": [{
+            "id": "s1",
+            "capture_uri": "../snapshots/capture.txt",
+            "content_hash": sri(b"capture\n")
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
+async fn test_base_uri_fragment_only() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir(dir.path().join("docs")).unwrap();
+    fs::write(dir.path().join("docs").join("capture.txt"), "capture\n").unwrap();
+    let descriptor = json!({
+        "base_uri": "docs/capture.txt",
+        "sources": [{
+            "id": "s1",
+            "capture_uri": "#quote",
+            "content_hash": sri(b"capture\n")
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
+async fn test_relative_path_drops_base_query() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir(dir.path().join("docs")).unwrap();
+    fs::write(dir.path().join("docs").join("guide.md"), "guide\n").unwrap();
+    let descriptor = json!({
+        "base_uri": "docs/index.akb.json?old",
+        "guide_uri": "guide.md",
+        "guide_hash": sri(b"guide\n")
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
+async fn test_query_reference() {
+    let resolver = RecordingResolver::new(b"guide\n");
+    let descriptor = json!({
+        "base_uri": "https://docs.example.com/akb/index.akb.json?old",
+        "guide_uri": "?new",
+        "guide_hash": sri(b"guide\n")
+    });
+
+    let report = check_content(&descriptor, &resolver).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+    assert_eq!(
+        resolver.fetched(),
+        vec!["https://docs.example.com/akb/index.akb.json?new"]
+    );
+}
+
+#[tokio::test]
+async fn test_rfc_absolute_base_resolution() {
+    let resolver = RecordingResolver::new(b"capture\n");
+    let descriptor = json!({
+        "base_uri": "https://docs.example.com/a/b/index.akb.json",
+        "sources": [{
+            "id": "s1",
+            "capture_uri": "../capture.txt#quote",
+            "content_hash": sri(b"capture\n")
+        }, {
+            "id": "s2",
+            "capture_uri": "/root.txt",
+            "content_hash": sri(b"capture\n")
+        }]
+    });
+
+    let report = check_content(&descriptor, &resolver).await;
+
+    assert!(report.ok());
+    assert_eq!(
+        resolver.fetched(),
+        vec![
+            "https://docs.example.com/a/capture.txt",
+            "https://docs.example.com/root.txt"
+        ]
+    );
+}
+
+#[tokio::test]
+async fn test_resolved_uri_not_normalized() {
+    let resolver = RecordingResolver::new(b"capture\n");
+    let descriptor = json!({
+        "base_uri": "HTTP://Docs.Example.COM:80/a/b/index.akb.json",
+        "sources": [{
+            "id": "s1",
+            "capture_uri": "%7e/capture.txt#quote",
+            "content_hash": sri(b"capture\n")
+        }]
+    });
+
+    let report = check_content(&descriptor, &resolver).await;
+
+    assert!(report.ok());
+    assert_eq!(
+        resolver.fetched(),
+        vec!["HTTP://Docs.Example.COM:80/a/b/%7e/capture.txt"]
+    );
 }
 
 #[tokio::test]
@@ -337,5 +471,31 @@ async fn test_garbage_descriptors() {
 
         assert!(report.ok());
         assert!(report.checks.is_empty());
+    }
+}
+
+struct RecordingResolver {
+    payload: Vec<u8>,
+    fetched: Mutex<Vec<String>>,
+}
+
+impl RecordingResolver {
+    fn new(payload: &[u8]) -> Self {
+        Self {
+            payload: payload.to_vec(),
+            fetched: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn fetched(&self) -> Vec<String> {
+        self.fetched.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl Resolver for RecordingResolver {
+    async fn fetch(&self, uri: &str) -> Result<Vec<u8>, Unfetchable> {
+        self.fetched.lock().unwrap().push(uri.to_owned());
+        Ok(self.payload.clone())
     }
 }

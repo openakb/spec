@@ -2,8 +2,8 @@
 //!
 //! Validates a parsed descriptor ([`serde_json::Value`]) against the embedded
 //! OpenAKB v1 JSON Schema plus descriptor-local semantic rules. Strict mode
-//! adds `AKB006` unknown-core-property findings; content checks are reserved
-//! for later phases.
+//! adds `AKB006` unknown-core-property findings. Optional async content checks
+//! verify referenced bytes where a caller supplies a [`Resolver`].
 
 mod catalog;
 mod citations;

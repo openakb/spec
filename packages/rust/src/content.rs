@@ -1,12 +1,13 @@
 //! Opt-in content checks that fetch descriptor-related resources.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use async_trait::async_trait;
 use base64::{
     Engine as _, alphabet,
     engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig, general_purpose::STANDARD},
 };
+use fluent_uri::{Uri, UriRef};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -66,7 +67,7 @@ impl LocalFileResolver {
         }
     }
 
-    fn local_path(&self, uri: &str) -> Result<PathBuf, Unfetchable> {
+    async fn local_path(&self, uri: &str) -> Result<PathBuf, Unfetchable> {
         let raw_reference = strip_fragment(uri);
         let raw_path = raw_reference
             .split_once('?')
@@ -75,13 +76,11 @@ impl LocalFileResolver {
             return Err(Unfetchable::outside_local_base(uri));
         }
 
-        let base = self
-            .base_dir
-            .canonicalize()
+        let base = fs::canonicalize(&self.base_dir)
+            .await
             .map_err(|error| Unfetchable::new(error.to_string()))?;
-        let path = base
-            .join(raw_path)
-            .canonicalize()
+        let path = fs::canonicalize(base.join(raw_path))
+            .await
             .map_err(|error| Unfetchable::new(error.to_string()))?;
         if path != base && !path.starts_with(&base) {
             return Err(Unfetchable::outside_local_base(uri));
@@ -93,7 +92,7 @@ impl LocalFileResolver {
 #[async_trait]
 impl Resolver for LocalFileResolver {
     async fn fetch(&self, uri: &str) -> Result<Vec<u8>, Unfetchable> {
-        let path = self.local_path(uri)?;
+        let path = self.local_path(uri).await?;
         fs::read(path)
             .await
             .map_err(|error| Unfetchable::new(error.to_string()))
@@ -388,7 +387,6 @@ fn effective_reference(descriptor: &Map<String, Value>, reference: &str) -> Stri
     let joined = descriptor
         .get("base_uri")
         .and_then(Value::as_str)
-        .filter(|_| !is_absolute_reference(reference))
         .map_or_else(
             || reference.to_owned(),
             |base_uri| join_reference(base_uri, reference),
@@ -397,16 +395,79 @@ fn effective_reference(descriptor: &Map<String, Value>, reference: &str) -> Stri
 }
 
 fn join_reference(base_uri: &str, reference: &str) -> String {
-    let base = strip_fragment(base_uri)
-        .split_once('?')
-        .map_or(strip_fragment(base_uri), |(path, _)| path);
-    if base.ends_with('/') {
-        format!("{base}{reference}")
-    } else if let Some((prefix, _)) = base.rsplit_once('/') {
-        format!("{prefix}/{reference}")
-    } else {
-        reference.to_owned()
+    let Ok(reference) = UriRef::parse(reference) else {
+        return reference.to_owned();
+    };
+    let base_without_fragment = strip_fragment(base_uri);
+    if let Ok(base) = Uri::parse(base_without_fragment) {
+        return reference
+            .resolve_against(&base)
+            .map(|uri| uri.to_string())
+            .unwrap_or_else(|_| reference.to_string());
     }
+    join_relative_reference(base_without_fragment, &reference)
+}
+
+fn join_relative_reference(base_uri: &str, reference: &UriRef<&str>) -> String {
+    if reference.scheme().is_some() || reference.authority().is_some() {
+        return reference.to_string();
+    }
+    let (base_path, base_query) = split_query(base_uri);
+    let reference_path = reference.path().as_str();
+    let path = if reference_path.is_empty() {
+        base_path.to_owned()
+    } else if reference_path.starts_with('/') {
+        remove_dot_segments(reference_path)
+    } else {
+        let directory = base_path
+            .rfind('/')
+            .map_or("", |index| &base_path[..=index]);
+        remove_dot_segments(&format!("{directory}{reference_path}"))
+    };
+    let query = if reference_path.is_empty() {
+        reference
+            .query()
+            .map_or(base_query, |query| Some(query.as_str()))
+    } else {
+        reference.query().map(|query| query.as_str())
+    };
+    match query {
+        Some(query) => format!("{path}?{query}"),
+        None => path,
+    }
+}
+
+fn split_query(reference: &str) -> (&str, Option<&str>) {
+    reference
+        .split_once('?')
+        .map_or((reference, None), |(path, query)| (path, Some(query)))
+}
+
+fn remove_dot_segments(path: &str) -> String {
+    let mut output = Vec::new();
+    let absolute = path.starts_with('/');
+    let trailing_slash = path.ends_with('/') || path.ends_with("/.") || path.ends_with("/..");
+    for segment in path.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                output.pop();
+            }
+            value => output.push(value),
+        }
+    }
+    let mut normalized = String::new();
+    if absolute {
+        normalized.push('/');
+    }
+    normalized.push_str(&output.join("/"));
+    if trailing_slash && !normalized.ends_with('/') {
+        normalized.push('/');
+    }
+    if normalized.is_empty() && absolute {
+        normalized.push('/');
+    }
+    normalized
 }
 
 fn rejects_local_reference(raw_reference: &str, raw_path: &str) -> bool {
@@ -414,16 +475,17 @@ fn rejects_local_reference(raw_reference: &str, raw_path: &str) -> bool {
         || raw_path.contains(';')
         || raw_path.contains('\\')
         || raw_path.split('/').any(|segment| segment == "..")
-        || Path::new(raw_path).is_absolute()
+        || is_absolute_path(raw_path)
         || raw_reference.starts_with("//")
         || has_uri_scheme(raw_reference)
 }
 
-fn is_absolute_reference(reference: &str) -> bool {
-    let raw_reference = strip_fragment(reference);
-    raw_reference.starts_with("//")
-        || Path::new(raw_reference).is_absolute()
-        || has_uri_scheme(raw_reference)
+fn is_absolute_path(raw_path: &str) -> bool {
+    raw_path.starts_with('/')
+        || Path::new(raw_path)
+            .components()
+            .next()
+            .is_some_and(|component| matches!(component, Component::Prefix(_) | Component::RootDir))
 }
 
 fn has_uri_scheme(reference: &str) -> bool {
