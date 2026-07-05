@@ -1,6 +1,7 @@
 """Cross-document semantic rules: AKB001/002/004/005/007/010 + MAY-warn advisories."""
 
 import time
+import tracemalloc
 from typing import Any
 
 from openakb_validate import validate
@@ -18,6 +19,12 @@ _LARGE_CHAIN_CEILING_SECONDS = 2.0
 # A closed parent_id ring large enough that the pre-fix O(n^2) rotation-materializing
 # canonicalization would burn ~800 MB / ~4s; the O(n) rewrite must clear it cheaply.
 _RING_SECTIONS = 10_000
+
+# The O(n) canonicalization peaks at ~4.5 MB for the whole validate() call on a
+# 10k-node ring; a reintroduced O(n^2) rotation-materializing implementation peaks at
+# ~800 MB for the same input. 100 MB is a wide margin over the O(n) profile and far
+# below the O(n^2) one, so it hard-fails a quadratic regression without being flaky.
+_RING_MEMORY_CEILING_BYTES = 100 * 1024 * 1024
 
 
 def _descriptor(**overrides: object) -> dict[str, Any]:
@@ -378,13 +385,20 @@ def test_validate_large_chain_fast() -> None:
 
 
 def test_large_ring_cycle_completes() -> None:
-    """A 10k-node parent_id ring reports one canonical AKB004 cycle."""
+    """A 10k-node parent_id ring reports one canonical AKB004 cycle within a memory ceiling."""
     ids = [f"s{index:05d}" for index in range(_RING_SECTIONS)]
     sections = [
         _section(section_id, parent_id=ids[(index + 1) % _RING_SECTIONS])
         for index, section_id in enumerate(ids)
     ]
-    result = validate(_descriptor(sections=sections))
+    descriptor = _descriptor(sections=sections)
+    tracemalloc.start()
+    try:
+        result = validate(descriptor)
+        _, peak_bytes = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert peak_bytes < _RING_MEMORY_CEILING_BYTES, f"validate() peaked at {peak_bytes} bytes"
     cycle_findings = [finding for finding in result.findings if finding.code == "AKB004"]
     assert len(cycle_findings) == 1
     expected_message = f"parent_id cycle: {' -> '.join([*ids, ids[0]])}"

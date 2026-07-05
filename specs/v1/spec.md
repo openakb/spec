@@ -403,7 +403,7 @@ When a source carries `capture_uri`, the fetched capture can be verified against
 
 Content checks against a `type: "redacted"` source (§4.2) are unverifiable by construction and MUST be reported as unverifiable; a validator MAY warn when a claim `locator.quote` cites a redacted source, since the quote cannot be checked against any capture.
 
-Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure, such as a hash mismatch, malformed or inconsistently bound fetched sidecar, absent quote span, fetched content that cannot be decoded as UTF-8, or a `[cite:]` id in fetched content that resolves to nothing.
+Content checks yield three outcomes: verified, failed, and unverifiable. A validator MUST report an unresolvable or unfetchable URI — authentication required, an unsupported scheme, network unavailable, a capture not retained — as unverifiable, never as a structural failure; a conformance verdict never changes because of access. Only material that was actually fetched and fails its check is a failure, such as a hash mismatch, malformed or inconsistently bound fetched sidecar, absent quote span, fetched section content that cannot be decoded as UTF-8, or a `[cite:]` id in fetched content that resolves to nothing.
 
 > This completes a pattern already in the spec: cross-AKB links are best-effort rather than offline structural failures (§4.5), and an unknown hash algorithm is an unverifiable warning rather than an invalid descriptor.
 
@@ -476,5 +476,7 @@ The Widget Platform organizes work as a set of configurable widgets [cite: produ
 - [BCP 47](https://www.rfc-editor.org/info/bcp47)
 - [Subresource Integrity](https://www.w3.org/TR/SRI/)
 - [CommonMark](https://spec.commonmark.org/)
+- [ECMA-262](https://tc39.es/ecma262/)
+- [JSON Schema](https://json-schema.org/specification)
 
 This document is licensed under [CC-BY-4.0](../../LICENSE-DOCS).
