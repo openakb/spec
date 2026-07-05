@@ -6,3 +6,4 @@ mod result_tests;
 mod schema_tests;
 mod semantic_tests;
 mod strict_tests;
+mod validator_tests;
