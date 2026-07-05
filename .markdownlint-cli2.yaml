@@ -11,6 +11,7 @@ globs:
   - "**/*.md"
 ignores:
   - "docs/superpowers/**"
+  - ".superpowers/**"    # gitignored SDD working state
   - ".worktrees/**"
   - "node_modules/**"
   - "CLAUDE.md"            # symlink to AGENTS.md -- lint the target once, not twice
