@@ -46,6 +46,14 @@ fn test_result_ok_and_codes() {
 }
 
 #[test]
+fn test_finding_name() {
+    assert_eq!(
+        finding(Code::Akb012, "/sections/0/links/0").name(),
+        "link-missing-target"
+    );
+}
+
+#[test]
 fn test_finding_sort_order() {
     let mut findings = vec![
         Finding {
