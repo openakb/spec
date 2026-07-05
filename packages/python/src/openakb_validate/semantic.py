@@ -303,10 +303,16 @@ def _cycles(next_by_id: dict[str, str]) -> set[tuple[str, ...]]:
 
 
 def _canonical_cycle(cycle: list[str]) -> tuple[str, ...]:
+    """Rotate `cycle` so its lexicographically-least id comes first, in O(n).
+
+    The caller only ever passes a cycle of distinct ids (drawn from a `position` map
+    keyed by id), so the minimal rotation has a single, unique pivot -- no need to
+    materialize and compare all n rotations.
+    """
     if len(cycle) == 1:
         return (cycle[0],)
-    rotations = [tuple(cycle[index:] + cycle[:index]) for index in range(len(cycle))]
-    return min(rotations)
+    pivot = cycle.index(min(cycle))
+    return tuple(cycle[pivot:] + cycle[:pivot])
 
 
 def _render_cycle(cycle: tuple[str, ...]) -> str:

@@ -15,6 +15,10 @@ __all__ = ()
 _LARGE_CHAIN_SECTIONS = 3000
 _LARGE_CHAIN_CEILING_SECONDS = 2.0
 
+# A closed parent_id ring large enough that the pre-fix O(n^2) rotation-materializing
+# canonicalization would burn ~800 MB / ~4s; the O(n) rewrite must clear it cheaply.
+_RING_SECTIONS = 10_000
+
 
 def _descriptor(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
@@ -354,3 +358,17 @@ def test_validate_large_chain_fast() -> None:
     validate(descriptor)
     elapsed = time.perf_counter() - start
     assert elapsed < _LARGE_CHAIN_CEILING_SECONDS, f"validate() took {elapsed:.2f}s"
+
+
+def test_large_ring_cycle_completes() -> None:
+    """A 10k-node parent_id ring reports one canonical AKB004 cycle."""
+    ids = [f"s{index:05d}" for index in range(_RING_SECTIONS)]
+    sections = [
+        _section(section_id, parent_id=ids[(index + 1) % _RING_SECTIONS])
+        for index, section_id in enumerate(ids)
+    ]
+    result = validate(_descriptor(sections=sections))
+    cycle_findings = [finding for finding in result.findings if finding.code == "AKB004"]
+    assert len(cycle_findings) == 1
+    expected_message = f"parent_id cycle: {' -> '.join([*ids, ids[0]])}"
+    assert cycle_findings[0].message == expected_message
