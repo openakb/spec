@@ -1,10 +1,8 @@
 //! Validator for OpenAKB agent knowledge base descriptors.
 //!
 //! Validates a parsed descriptor ([`serde_json::Value`]) against the embedded
-//! OpenAKB v1 JSON Schema plus the spec's semantic and strict rules, reporting
-//! stable diagnostics `AKB001`-`AKB012`. Optional content checks verify
-//! hashes, provenance sidecars, citations, and quotes through an async
-//! `Resolver`.
+//! OpenAKB v1 JSON Schema and reports stable diagnostics `AKB001`-`AKB012`.
+//! Semantic, strict-profile, and content checks are reserved for later phases.
 
 mod catalog;
 mod result;
