@@ -29,6 +29,7 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
 
 
 def test_valid_in_both_modes() -> None:
+    """A minimal well-formed descriptor validates ok in both default and strict mode."""
     assert validate(_descriptor()).ok
     assert validate(_descriptor(), strict=True).ok
 
@@ -89,6 +90,7 @@ def test_layers_compose_sorted() -> None:
 
 
 def test_strict_adds_akb006() -> None:
+    """An unknown next-minor field passes by default but is flagged AKB006 under strict."""
     descriptor = _descriptor(next_minor_field=True)
 
     assert validate(descriptor).ok
@@ -116,6 +118,7 @@ def test_trailing_newline_id_rejected() -> None:
 
 
 def test_non_dict_input_invalid() -> None:
+    """A non-dict top-level input (a string) fails validation with AKB011."""
     result = validate("not a descriptor")
 
     assert not result.ok
@@ -123,6 +126,7 @@ def test_non_dict_input_invalid() -> None:
 
 
 def test_public_types_are_exported() -> None:
+    """Finding, Advisory, and ValidationResult are exported under their expected names."""
     assert Finding.__name__ == "Finding"
     assert Advisory.__name__ == "Advisory"
     assert ValidationResult.__name__ == "ValidationResult"

@@ -34,6 +34,7 @@ def _load(example: str) -> dict[str, Any]:
 
 @pytest.mark.parametrize("example", [*_AUTHORING, "widget-platform-served"])
 def test_example_validates(example: str) -> None:
+    """Every authoring example, plus the served variant, validates ok in strict mode."""
     descriptor = _load(example)
 
     result = validate(descriptor, strict=True)
@@ -43,6 +44,7 @@ def test_example_validates(example: str) -> None:
 
 @pytest.mark.parametrize("example", _AUTHORING)
 def test_authoring_content(example: str) -> None:
+    """check_content on each authoring example reports only verified/unverifiable checks."""
     descriptor = _load(example)
     directory = _EXAMPLES / example
 
@@ -61,6 +63,7 @@ def test_authoring_content(example: str) -> None:
 
 
 def test_widget_artifacts() -> None:
+    """check_content on widget-platform verifies capture, sidecar, and citations checks."""
     descriptor = _load("widget-platform")
     directory = _EXAMPLES / "widget-platform"
 
@@ -72,6 +75,7 @@ def test_widget_artifacts() -> None:
 
 
 def test_served_unverifiable() -> None:
+    """check_content on the served example reports ok with every check unverifiable."""
     descriptor = _load("widget-platform-served")
     directory = _EXAMPLES / "widget-platform-served"
 

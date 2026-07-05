@@ -58,6 +58,7 @@ def _section(section_id: str, **extra: object) -> dict[str, Any]:
 
 
 def test_clean_descriptor() -> None:
+    """A minimal well-formed descriptor produces no semantic findings."""
     assert semantic_findings(_descriptor()) == []
 
 
@@ -69,12 +70,14 @@ def test_akb001_shared_space() -> None:
 
 
 def test_akb001_duplicate_sections() -> None:
+    """Two sections sharing an id report a single AKB001 at the second section."""
     descriptor = _descriptor(sections=[_section("dup"), _section("dup")])
     findings = semantic_findings(descriptor)
     assert [(finding.code, finding.path) for finding in findings] == [("AKB001", "/sections/1/id")]
 
 
 def test_akb002_empty_section() -> None:
+    """A section without content_uri at all is reported as AKB002."""
     section = _section("root")
     del section["content_uri"]
     descriptor = _descriptor(sections=[section])
@@ -94,6 +97,7 @@ def test_null_content_uri() -> None:
 
 
 def test_container_with_child() -> None:
+    """A container section (null content_uri) with a resolvable child has no findings."""
     sections = [_section("root", content_uri=None), _section("child", parent_id="root")]
     assert semantic_findings(_descriptor(sections=sections)) == []
 
@@ -106,6 +110,7 @@ def test_akb004_parent_cycle() -> None:
 
 
 def test_akb004_self_parent() -> None:
+    """A section whose parent_id points to itself is reported as AKB004."""
     descriptor = _descriptor(sections=[_section("root", parent_id="root")])
     assert "AKB004" in _codes(descriptor)
 
@@ -121,6 +126,7 @@ def test_akb005_depth_over() -> None:
 
 
 def test_depth_64_allowed() -> None:
+    """A parent chain of exactly the depth cap (64) does not trigger AKB005."""
     sections = [
         _section(f"n{index}", **({"parent_id": f"n{index - 1}"} if index else {}))
         for index in range(64)
@@ -129,31 +135,37 @@ def test_depth_64_allowed() -> None:
 
 
 def test_akb007_unresolved_parent() -> None:
+    """A parent_id referencing a nonexistent id is reported as AKB007."""
     descriptor = _descriptor(sections=[_section("root", parent_id="ghost")])
     assert "AKB007" in _codes(descriptor)
 
 
 def test_akb010_parent_source() -> None:
+    """A parent_id pointing at a source id (wrong kind) is reported as AKB010."""
     descriptor = _descriptor(sections=[_section("root", parent_id="s1")])
     assert "AKB010" in _codes(descriptor)
 
 
 def test_akb007_unresolved_source() -> None:
+    """A section's source_ids referencing a nonexistent id is reported as AKB007."""
     descriptor = _descriptor(sections=[_section("root", source_ids=["ghost"])])
     assert "AKB007" in _codes(descriptor)
 
 
 def test_akb010_source_section() -> None:
+    """A section's source_ids pointing at a section id (wrong kind) is reported as AKB010."""
     descriptor = _descriptor(sections=[_section("root", source_ids=["root"])])
     assert "AKB010" in _codes(descriptor)
 
 
 def test_akb007_unresolved_discovery() -> None:
+    """A source's discovered_via_id referencing a nonexistent id is reported as AKB007."""
     descriptor = _descriptor(sources=[{"id": "s1", "discovered_via_id": "ghost"}])
     assert "AKB007" in _codes(descriptor)
 
 
 def test_akb010_discovery_section() -> None:
+    """A source's discovered_via_id pointing at a section id (wrong kind) is AKB010."""
     descriptor = _descriptor(sources=[{"id": "s1", "discovered_via_id": "root"}])
     assert "AKB010" in _codes(descriptor)
 
@@ -193,6 +205,7 @@ def test_akb010_link_source() -> None:
 
 
 def test_inline_claim_sources() -> None:
+    """An inline claim's source_ids referencing a nonexistent id is reported as AKB007."""
     descriptor = _descriptor(sections=[_section("root", provenance=[{"source_ids": ["ghost"]}])])
     findings = semantic_findings(descriptor)
     assert [(finding.code, finding.path) for finding in findings] == [
@@ -210,11 +223,13 @@ def test_akb010_claim_section() -> None:
 
 
 def test_invalid_tokens_skipped() -> None:
+    """A parent_id failing the id pattern is left to the schema layer, not reported here."""
     descriptor = _descriptor(sections=[_section("root", parent_id="Bad Id")])
     assert semantic_findings(descriptor) == []
 
 
 def test_arbitrary_shapes() -> None:
+    """Arbitrary malformed or None input never raises and yields no findings or warnings."""
     malformed = {"sources": [None, {"id": []}], "sections": [42, {"id": {}}]}
     assert semantic_findings(None) == []
     assert semantic_findings(malformed) == []
@@ -222,6 +237,7 @@ def test_arbitrary_shapes() -> None:
 
 
 def test_discovery_cycle_advisory() -> None:
+    """A two-source discovered_via_id cycle emits a single advisory mentioning 'cycle'."""
     sources = [
         {"id": "a", "discovered_via_id": "b"},
         {"id": "b", "discovered_via_id": "a"},
@@ -232,6 +248,7 @@ def test_discovery_cycle_advisory() -> None:
 
 
 def test_acyclic_discovery() -> None:
+    """A non-cyclic discovered_via_id chain emits no advisories."""
     sources = [
         {"id": "a"},
         {"id": "b", "discovered_via_id": "a"},

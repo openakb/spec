@@ -29,10 +29,12 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
 
 
 def test_clean_descriptor() -> None:
+    """A minimal well-formed descriptor produces no strict findings."""
     assert strict_findings(_descriptor()) == []
 
 
 def test_unknown_top_level() -> None:
+    """An unknown top-level field is reported as AKB006 at its own path."""
     findings = strict_findings(_descriptor(sponsor="example"))
     assert [(finding.code, finding.path) for finding in findings] == [("AKB006", "/sponsor")]
 
@@ -90,4 +92,5 @@ def test_unknown_nested_members() -> None:
 
 
 def test_non_dict_input() -> None:
+    """A non-dict input (None) produces no strict findings rather than raising."""
     assert strict_findings(None) == []
