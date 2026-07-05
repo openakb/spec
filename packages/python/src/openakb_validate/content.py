@@ -8,7 +8,7 @@ import hashlib
 import json
 import os
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import urldefrag, urljoin, urlparse
@@ -56,6 +56,11 @@ _MARKDOWN_TYPE = "text/markdown"
 _SHA256 = "sha256"
 _SHA256_LENGTH = 32
 
+# Unified detail for both `_quote_outcome` branches where a cited source's capture was
+# fetched but proved wrong by its content_hash -- distinct from the "not fetched at
+# all" fetch-gap details below, which describe a different situation.
+_QUOTE_HASH_FAILED_DETAIL = "a cited source's capture failed its content_hash"
+
 
 class Unfetchable(Exception):
     """Raised by resolvers when a resource cannot be fetched."""
@@ -96,11 +101,18 @@ class LocalFileResolver:
     """
 
     base_dir: str | os.PathLike[str]
+    # Path-typed cache of the coerced base_dir, computed once in __post_init__. Internal
+    # code reads this instead of `self.base_dir` so mypy sees a `Path` directly, with no
+    # repeated `Path(...)` re-wrap to reassure the checker about the field's wide
+    # declared type.
+    _resolved_base_dir: Path = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         # base_dir is a frozen field; coerce a str/PathLike to Path here so downstream
         # path handling never sees a raw str (which has no `.resolve()`).
-        object.__setattr__(self, "base_dir", Path(self.base_dir))
+        resolved = Path(self.base_dir)
+        object.__setattr__(self, "base_dir", resolved)
+        object.__setattr__(self, "_resolved_base_dir", resolved)
 
     def fetch(self, uri: str) -> bytes:
         try:
@@ -127,9 +139,7 @@ class LocalFileResolver:
             or Path(parsed.path).is_absolute()
         ):
             raise Unfetchable(f"outside local base: {uri}")
-        # base_dir is coerced to Path in __post_init__; Path(...) reassures the type
-        # checker without changing the runtime value.
-        base = Path(self.base_dir).resolve()
+        base = self._resolved_base_dir.resolve()
         path = (base / parsed.path).resolve()
         if path != base and base not in path.parents:
             raise Unfetchable(f"outside local base: {uri}")
@@ -532,13 +542,13 @@ def _quote_outcome(
         return FAILED, "quote absent from fetched captures"
     if not usable:
         if any(source_id in hash_failed for source_id in claim.source_ids):
-            return UNVERIFIABLE, "cited source capture failed its content hash"
+            return UNVERIFIABLE, _QUOTE_HASH_FAILED_DETAIL
         return UNVERIFIABLE, "no cited source capture fetched"
     if any(source_id in hash_failed for source_id in claim.source_ids):
         # A usable capture lacks the needle and a co-cited capture failed its hash:
         # the bytes were fetched but proven wrong, so this is a hash failure, not a
         # fetch gap.
-        return UNVERIFIABLE, "a cited source's capture failed its content_hash"
+        return UNVERIFIABLE, _QUOTE_HASH_FAILED_DETAIL
     return UNVERIFIABLE, "some cited source captures were not fetched"
 
 
