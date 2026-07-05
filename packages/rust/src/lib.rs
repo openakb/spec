@@ -6,6 +6,7 @@
 //! for later phases.
 
 mod catalog;
+mod citations;
 mod result;
 mod schema;
 mod semantic;
@@ -14,5 +15,6 @@ mod strict;
 mod validator;
 
 pub use catalog::*;
+pub use citations::*;
 pub use result::*;
 pub use validator::*;

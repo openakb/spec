@@ -1,4 +1,4 @@
-use openakb_validate::{Code, LOCAL_ID_MAX_LENGTH, PARENT_DEPTH_MAX};
+use openakb_validate::{Code, LOCAL_ID_CHARSET, LOCAL_ID_MAX_LENGTH, PARENT_DEPTH_MAX};
 
 #[test]
 fn test_code_round_trip() {
@@ -39,4 +39,5 @@ fn test_code_names() {
 fn test_spec_caps() {
     assert_eq!(PARENT_DEPTH_MAX, 64);
     assert_eq!(LOCAL_ID_MAX_LENGTH, 64);
+    assert_eq!(LOCAL_ID_CHARSET, "abcdefghijklmnopqrstuvwxyz0123456789_-");
 }

@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use serde_json::Value;
 
-use crate::{Code, LOCAL_ID_MAX_LENGTH};
+use crate::{Code, LOCAL_ID_CHARSET, LOCAL_ID_MAX_LENGTH};
 
 pub(crate) type Object = serde_json::Map<String, Value>;
 
@@ -55,9 +55,9 @@ impl EntityIndex {
 pub(crate) fn is_local_id(candidate: &str) -> bool {
     !candidate.is_empty()
         && candidate.len() <= LOCAL_ID_MAX_LENGTH
-        && candidate.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
-        })
+        && candidate
+            .bytes()
+            .all(|byte| LOCAL_ID_CHARSET.as_bytes().contains(&byte))
 }
 
 pub(crate) fn indexed_objects(value: Option<&Value>) -> impl Iterator<Item = (usize, &Object)> {
