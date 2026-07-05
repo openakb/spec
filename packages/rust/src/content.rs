@@ -34,6 +34,10 @@ const STRICT_STANDARD_BASE64: GeneralPurpose = GeneralPurpose::new(
 );
 
 /// Fetches descriptor-related content bytes.
+///
+/// `check_content` calls [`Resolver::fetch`] with effective references:
+/// descriptor URI references are resolved against `base_uri` when present and
+/// fragments are stripped before fetch.
 #[async_trait]
 pub trait Resolver: Send + Sync {
     /// Returns bytes for `uri`, or an [`Unfetchable`] error when the resource
@@ -41,6 +45,12 @@ pub trait Resolver: Send + Sync {
     async fn fetch(&self, uri: &str) -> Result<Vec<u8>, Unfetchable>;
 
     /// Returns true when `check_content` should pre-screen local path references.
+    ///
+    /// Resolvers that serve scheme-less local filesystem paths should opt into
+    /// this. The screening rejects raw descriptor references and `base_uri`
+    /// values containing queries, semicolon path parameters, backslashes, or
+    /// `..` path traversal before any fetch happens. Custom URI resolvers should
+    /// keep the default `false` and enforce their own safety policy in `fetch`.
     fn screens_local_paths(&self) -> bool {
         false
     }
@@ -67,6 +77,10 @@ impl Unfetchable {
 }
 
 /// Resolves scheme-less relative paths under a local base directory.
+///
+/// Fragments are ignored. Schemes, authorities, queries, semicolon path
+/// parameters, backslashes, absolute paths, `..` traversal, and symlink escapes
+/// are rejected as outside the base.
 pub struct LocalFileResolver {
     base_dir: PathBuf,
 }
@@ -680,6 +694,9 @@ async fn sidecar_checks(
             }
         };
         let (findings, binding_mismatch) = sidecar_findings(graph, *index, section, &sidecar);
+        // Match the reference validator: a failed provenance_hash remains a
+        // failed Sidecar check, but the fetched sidecar still contributes
+        // quote claims so callers can see every observable content result.
         result.claims.extend(sidecar_quote_claims(*index, &sidecar));
         let detail = sidecar_detail(section, &sidecar, binding_mismatch);
         result.checks.push(ContentCheck {

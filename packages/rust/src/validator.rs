@@ -41,7 +41,8 @@ impl FullReport {
 /// descriptor-local semantic rules.
 ///
 /// [`Mode::Strict`] adds `AKB006` findings for unknown core members outside
-/// extension payloads. Content checks are reserved for later phases.
+/// extension payloads. Content behind URIs is never fetched here; use
+/// [`validate_with_content`] for opt-in content verification.
 #[must_use]
 pub fn validate(descriptor: &Value, mode: Mode) -> ValidationResult {
     let mut findings = schema_findings(descriptor);
