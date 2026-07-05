@@ -54,6 +54,7 @@ build/
 .coverage
 htmlcov/
 coverage.xml
+conformance-report.json
 .python-version
 
 # ── Docs-site build output (if a site gets added later) ───

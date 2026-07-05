@@ -5,7 +5,7 @@
 | AKEP | 0001 |
 | Title | Genesis — establishes OpenAKB v1.0 |
 | Author | Frank Fang <fj@openakb.org> |
-| Status | Draft |
+| Status | Review |
 | Type | Standards |
 | Created | 2026-07-02 |
 | Requires | None |
@@ -37,9 +37,20 @@ There is no earlier OpenAKB version to migrate from; v1.0 is the baseline. Compa
 
 ## Reference implementation
 
-AKEP-0001 remains **Draft** during the current implementation phase. The running code at this point is the schema plus the AJV-based schema gate used by CI.
+The reference implementation is the Python validator library `openakb-validate` under
+[`packages/python`](../packages/python/). It implements the published descriptor and
+provenance schemas, the structural rules and stable `AKB001`–`AKB012` error codes, the
+strict lint, the normative `[cite:]` extraction grammar, and the opt-in
+content checks with verified / failed / unverifiable outcomes. Its
+conformance runner executes the fixtures under [`conformance/`](../conformance/),
+which are the acceptance suite for this and every subsequent validator.
 
-The proposal advances through the standard lifecycle — **Draft → Review → Accepted → Final** — as the validator lands: it moves to **Review** when the Rust reference validator is open for feedback alongside the v1 artifacts, to **Accepted** when the approach is approved in principle, and to **Final** only when that validator passes conformance execution and is published with the v1 artifacts.
+The proposal advances through the standard lifecycle — **Draft → Review → Accepted →
+Final** — with that validator: **Review** while the validator and v1 artifacts are
+open for feedback, **Accepted** when the approach is approved in principle, and
+**Final** only when the ADR-0002 v1.0.0 release gate is met: at least two independent
+validators pass the shared conformance suite in agreement, after validator packages have
+published on their own streams.
 
 ## Security considerations
 

@@ -2,7 +2,7 @@
 # Read automatically by markdownlint-cli2 (local `npx` runs and the CI action).
 config:
   default: true
-  MD013: false            # line length — prose and wide tables wrap freely
+  MD013: false            # line length -- prose and wide tables wrap freely
   MD024:
     siblings_only: true   # allow repeated headings under different parents (CHANGELOG, ADRs)
   MD033: false            # allow occasional inline HTML
@@ -11,7 +11,9 @@ globs:
   - "**/*.md"
 ignores:
   - "docs/superpowers/**"
+  - ".superpowers/**"    # gitignored SDD working state
   - ".worktrees/**"
   - "node_modules/**"
-  - "CLAUDE.md"            # symlink to AGENTS.md — lint the target once, not twice
+  - "CLAUDE.md"            # symlink to AGENTS.md -- lint the target once, not twice
+  - "packages/*/CLAUDE.md" # per-package symlinks, same reason
   - "conformance/content/**/content.md" # parser fixtures intentionally contain citation grammar edge cases

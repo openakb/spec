@@ -36,7 +36,8 @@ code"). Additive changes are a MINOR release; breaking changes are batched into 
 
 | AKEP | Title | Status |
 | ---- | ----- | ------ |
-| [0001](akep-0001-genesis.md) | Genesis — establishes OpenAKB v1.0 | Draft |
+| [0001](akep-0001-genesis.md) | Genesis — establishes OpenAKB v1.0 | Review |
 
-*(AKEP-0001 advances through Draft → Review → Accepted → Final as the reference validator
-lands; Final stays gated on the validator passing conformance execution.)*
+*(AKEP-0001 is in Review while the Python reference validator and v1 artifacts receive
+feedback; Final stays gated on the ADR-0002 v1.0.0 release bar for independent validators in
+conformance agreement.)*

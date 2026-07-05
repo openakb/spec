@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-claim-source-wrong-kind",
+  "title": "Invalid - claim source is a section",
+  "description": "An inline provenance claim cites a section id instead of a source id.",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "Carries an inline claim citing a section.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"],
+      "provenance": [
+        {
+          "text": "A grounded statement.",
+          "source_ids": ["child"]
+        }
+      ]
+    },
+    {
+      "id": "child",
+      "parent_id": "root",
+      "title": "Child",
+      "description": "The incorrectly cited section.",
+      "content_uri": "child.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

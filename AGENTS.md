@@ -14,7 +14,9 @@ top-level map:
 - `proposals/` — the AKEP process and enhancement proposals
 - `examples/` — worked, vendor-neutral example AKBs
 - `conformance/` — cross-validator conformance fixtures
-- `packages/` — validator libraries in Rust / TypeScript / Python *(later phases)*
+- `packages/` — validator libraries; `packages/python` is the reference validator, further
+  languages in later phases. Each package carries its own `AGENTS.md` with package-level
+  conventions.
 - `decisions/` — architecture decision records
 - `.github/`, `scripts/` — CI and automation
 
@@ -38,10 +40,12 @@ Any change under `schema/` or `specs/` MUST land **in the same pull request** as
 validator, conformance, and example updates. A proposal is not "done" until spec text, schema,
 validator, example, and conformance move together.
 
-Before the reference validator lands (implementation Phase 3), the committed JSON Schema and
-its `ajv` gate are the "running code" that must accompany `schema/`/`specs/` changes; the
-full validator + conformance-execution bar attaches with `packages/` in Phase 3, which also
-carries AKEP-0001 through its lifecycle (Draft → Review → Accepted → Final).
+The reference validator (`packages/python`) and the conformance suite are the "running
+code": its conformance runner executes every fixture group, so a `schema/`/`specs/`
+change must keep `uv run pytest` green in `packages/python` in the same PR, and the
+vendored schema copies must stay byte-identical to `schema/v1/`
+(`scripts/ci/check-schema-sync.sh`). AKEP-0001 advances through its lifecycle
+(Draft → Review → Accepted → Final) with this validator.
 
 ## Strict vendor neutrality
 
@@ -70,7 +74,16 @@ actionlint                                     # GitHub Actions workflow lint
 bash scripts/ci/check-neutrality.sh            # public artifact neutrality
 ```
 
-Per-package tests and the conformance harness are documented here as they land.
+Python validator checks (from `packages/python/`):
+
+```bash
+uv sync                    # install the dev environment (first run only)
+uv run ruff format --check . && uv run ruff check .
+uv run mypy
+uv run pytest              # tests + conformance suite + coverage gate
+uv run python tests/conformance_report.py > conformance-report.json
+node ../../scripts/ci/check-conformance-report.mjs conformance-report.json
+```
 
 ## Proposing changes
 
