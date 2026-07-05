@@ -24,6 +24,7 @@ fn case_dirs(kind: &str) -> Option<Vec<PathBuf>> {
         .filter(|path| path.is_dir())
         .collect();
     paths.sort();
+    assert!(!paths.is_empty(), "no conformance cases under {kind}");
     Some(paths)
 }
 
@@ -57,16 +58,20 @@ fn test_valid_fixtures() {
 
     for case_dir in case_dirs {
         let descriptor = read_json(&case_dir.join("openakb.json"));
+        let lenient = validate(&descriptor, Mode::Lenient);
+        let strict = validate(&descriptor, Mode::Strict);
 
         assert!(
-            validate(&descriptor, Mode::Lenient).ok(),
-            "{} should be lenient-valid",
-            case_dir.display()
+            lenient.ok(),
+            "{} should be lenient-valid: {:?}",
+            case_dir.display(),
+            lenient.findings
         );
         assert!(
-            validate(&descriptor, Mode::Strict).ok(),
-            "{} should be strict-valid",
-            case_dir.display()
+            strict.ok(),
+            "{} should be strict-valid: {:?}",
+            case_dir.display(),
+            strict.findings
         );
     }
 }

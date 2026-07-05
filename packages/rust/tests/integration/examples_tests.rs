@@ -31,18 +31,32 @@ fn examples_or_skip() -> Option<PathBuf> {
     Some(root)
 }
 
+fn example_names(root: &Path) -> Vec<String> {
+    let mut names: Vec<_> = fs::read_dir(root)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.join("openakb.json").is_file())
+        .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert!(!names.is_empty(), "no examples with openakb.json");
+    names
+}
+
 #[test]
 fn test_examples_validate() {
     let Some(root) = examples_or_skip() else {
         return;
     };
 
-    for example in AUTHORING.iter().copied().chain(["widget-platform-served"]) {
-        let descriptor = load_example(&root, example);
+    for example in example_names(&root) {
+        let descriptor = load_example(&root, &example);
+        let result = validate(&descriptor, Mode::Strict);
 
         assert!(
-            validate(&descriptor, Mode::Strict).ok(),
-            "{example} should be strict-valid"
+            result.ok(),
+            "{example} should be strict-valid: {:?}",
+            result.findings
         );
     }
 }
@@ -58,7 +72,11 @@ async fn test_authoring_content() {
         let resolver = LocalFileResolver::new(root.join(example));
         let report = check_content(&descriptor, &resolver).await;
 
-        assert!(report.ok(), "{example} content report should be ok");
+        assert!(
+            report.ok(),
+            "{example} content report should be ok: {:?}",
+            report.checks
+        );
         assert!(!report.checks.is_empty(), "{example} should emit checks");
         for check in report.checks {
             if check.kind == CheckKind::Quote {
