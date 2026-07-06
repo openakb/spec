@@ -75,6 +75,24 @@ at v1.0.0.
   (`invalid/unresolved-claim-source` → `AKB007`, `invalid/claim-source-wrong-kind`
   → `AKB010`), and a spec §7 sentence pinning sidecar binding semantics during
   content verification.
+- Rust reference validator `openakb-validate` (`packages/rust`): a pure library
+  (ADR-0001 — no binary target, no CLI, no runtime network) mirroring the Python
+  reference's contract. Bundled-schema structural validation with the normative
+  keyword→code mapping, the cross-document semantic rules and depth caps, the strict
+  unknown-member lint (`AKB006`), and the §4.4 raw-source `[cite:]` extraction grammar
+  with CommonMark masking via `pulldown-cmark`; opt-in async content verification behind
+  an injected `Resolver` (sandboxed `LocalFileResolver`) covering citation,
+  content/guide/sidecar/capture hashes, sidecar binding, and quote spans with
+  verified / failed / unverifiable outcomes; the stable `AKB001`–`AKB012` contract and a
+  `Mode` lenient/strict switch. Edition 2024, MSRV 1.88, `forbid(unsafe)` with clippy
+  denying `unwrap`/`expect`/`panic`; the conformance suite and worked examples run as
+  acceptance tests. Ships a conformance-report generator, a cross-validator agreement CI
+  gate that requires the Rust and Python reports to agree per fixture, and a tag-gated
+  (`rust-v*`) crates.io publish workflow behind the conformance gate (ADR-0002).
+- Conformance fixtures pinning §4.4 citation-masking edge cases
+  (`content/link-title-comment`, `content/link-destination-comment`,
+  `content/escaped-backtick-live`), with ADR-0007 recording the real-CommonMark-parser
+  extractor as the canonical citation extractor for masking edge cases.
 
 ### Changed
 
@@ -106,3 +124,14 @@ at v1.0.0.
   implementations passing the shared conformance suite in agreement. Validator
   packages release on their own tag streams before it; they bundle the published
   schemas and validate fully offline, so nothing depends on the domain being live.
+
+### Fixed
+
+- Python inline citation masking now matches CommonMark / spec §4.4: an escaped backtick
+  opens no code span, and a comment- or backtick-shaped run inside a link or image
+  destination or title is no longer masked — so live `[cite:]` markers that the Rust
+  extractor keeps are no longer dropped by the Python validator. Proven by a differential
+  fuzz against the Rust extractor (0 diffs across 640k inline inputs); released as the
+  `openakb-validate` Python package 0.1.1, with the public API and the `AKB001`–`AKB012`
+  contract unchanged. A residual, pre-existing block-level divergence between the two
+  parsers (HTML-block-type-4; link-reference-definition boundaries) is tracked in #14.
