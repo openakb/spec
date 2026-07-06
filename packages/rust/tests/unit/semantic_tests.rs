@@ -151,6 +151,16 @@ fn test_parent_depth_cap() {
 }
 
 #[test]
+fn test_parent_depth_early_bail() {
+    // A chain far deeper than the cap still reports exactly one Akb005; the walk
+    // bails out once depth passes the limit instead of tracing the whole chain.
+    let mut descriptor = descriptor();
+    descriptor["sections"] = chain_sections(128);
+
+    assert!(codes(&descriptor).contains(&Code::Akb005));
+}
+
+#[test]
 fn test_wide_parent_lookup() {
     let mut descriptor = descriptor();
     let mut sections = wide_sections(256);

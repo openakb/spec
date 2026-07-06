@@ -173,6 +173,51 @@ async fn test_unfetchable() {
 }
 
 #[tokio::test]
+async fn test_malformed_provenance_hash() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("sec.prov.json"), br#"{"section_id":"sec"}"#).unwrap();
+    let descriptor = json!({
+        "sections": [{
+            "id": "sec",
+            "provenance_uri": "sec.prov.json",
+            "provenance_hash": "sha256-@@@"
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    // A malformed provenance_hash SRI is an advisory, not a fatal finding: the
+    // provenance_hash check is unverifiable while the sidecar still gets checked.
+    let hash_check = report
+        .checks
+        .iter()
+        .find(|check| check.path == "/sections/0/provenance_hash")
+        .expect("provenance_hash check");
+    assert_eq!(hash_check.kind, CheckKind::Sidecar);
+    assert_eq!(hash_check.outcome, Outcome::Unverifiable);
+    assert_eq!(hash_check.warnings.len(), 1);
+}
+
+#[tokio::test]
+async fn test_non_object_sidecar() {
+    let dir = TempDir::new().unwrap();
+    // Valid JSON, but an array where the schema requires an object: schema findings
+    // are raised, then the non-object short-circuits binding and claim extraction.
+    fs::write(dir.path().join("sec.prov.json"), b"[]").unwrap();
+    let descriptor = json!({
+        "sections": [{ "id": "sec", "provenance_uri": "sec.prov.json" }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(!report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::Sidecar);
+    assert_eq!(report.checks[0].outcome, Outcome::Failed);
+    assert!(!report.checks[0].findings.is_empty());
+}
+
+#[tokio::test]
 async fn test_sidecar_schema_prefix() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("sec.prov.json"), br#"{"section_id":"sec"}"#).unwrap();

@@ -61,6 +61,7 @@ async fn test_guide_mismatch() {
 #[tokio::test]
 async fn test_malformed_sri() {
     let cases = [
+        "digestonly", // no '-' at all: not '<algorithm>-<base64>'
         "no-separator-missing",
         "md5-abcd",
         "sha256-@@@",

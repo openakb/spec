@@ -68,6 +68,39 @@ async fn test_missing_errors() {
     assert!(resolver.fetch("missing.md").await.is_err());
 }
 
+#[tokio::test]
+async fn test_directory_read_errors() {
+    // `sub` resolves inside the base and canonicalizes, so screening admits it, but
+    // reading a directory as bytes fails at the filesystem layer, not the guard.
+    let dir = fixture_dir();
+    let resolver = LocalFileResolver::new(dir.path());
+
+    let error = resolver.fetch("sub").await.unwrap_err();
+
+    assert!(
+        !error.reason.contains("outside local base"),
+        "{}",
+        error.reason
+    );
+}
+
+#[tokio::test]
+async fn test_colon_after_slash_not_scheme() {
+    // A colon after a path segment (`a/b:c`) and a leading colon (`:x`) are not URI
+    // schemes, so screening admits them; the read then fails on the missing file.
+    let dir = fixture_dir();
+    let resolver = LocalFileResolver::new(dir.path());
+
+    for uri in ["sub/leaf:x.md", ":missing.md"] {
+        let error = resolver.fetch(uri).await.unwrap_err();
+        assert!(
+            !error.reason.contains("outside local base"),
+            "{uri}: {}",
+            error.reason
+        );
+    }
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn test_rejects_symlink_escape() {

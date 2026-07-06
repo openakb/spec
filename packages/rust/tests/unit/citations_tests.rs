@@ -139,6 +139,14 @@ fn test_nul_normalized() {
 }
 
 #[test]
+fn test_trailing_unclosed_comment() {
+    // A bare `<!--` at the very end of a text run has no room left for a `-->`, so
+    // the opener masks nothing and any earlier marker stays prose.
+    assert_eq!(ids("[cite:a] tail <!--"), vec![vec!["a"]]);
+    assert!(ids("prose <!--").is_empty());
+}
+
+#[test]
 fn test_unclosed_comment_run_live() {
     // Several unclosed `<!--` openers before a live marker: the first opener has no
     // `-->`, so no later opener in the run can close one either; the marker stays

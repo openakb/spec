@@ -233,6 +233,70 @@ async fn test_redacted_warning() {
 }
 
 #[tokio::test]
+async fn test_quote_non_string_source_ids() {
+    // A claim whose source_ids hold no strings has no usable citation, so it yields
+    // no quote check rather than a claim with an empty source list.
+    let dir = TempDir::new().unwrap();
+    let descriptor = json!({
+        "sections": [{
+            "id": "sec",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": [123],
+                "locator": { "quote": "quoted text" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert!(
+        report
+            .checks
+            .iter()
+            .all(|check| check.kind != CheckKind::Quote)
+    );
+}
+
+#[tokio::test]
+async fn test_quote_usable_with_hash_failure() {
+    // One cited capture fetches cleanly without the quote while another fails its
+    // content_hash: the usable capture is not empty, yet a distrusted sibling keeps
+    // the quote unverifiable rather than failed.
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("clean.txt"), "unrelated prose").unwrap();
+    fs::write(dir.path().join("tampered.txt"), "tampered bytes").unwrap();
+    let descriptor = json!({
+        "sources": [
+            { "id": "s1", "capture_uri": "clean.txt" },
+            { "id": "s2", "capture_uri": "tampered.txt", "content_hash": sri(b"expected") }
+        ],
+        "sections": [{
+            "id": "sec",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": ["s1", "s2"],
+                "locator": { "quote": "quoted text" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(!report.ok());
+    assert_eq!(report.checks.len(), 2);
+    assert_eq!(report.checks[0].kind, CheckKind::Capture);
+    assert_eq!(report.checks[0].outcome, Outcome::Failed);
+    assert_eq!(report.checks[1].kind, CheckKind::Quote);
+    assert_eq!(report.checks[1].outcome, Outcome::Unverifiable);
+    assert_eq!(
+        report.checks[1].detail,
+        "a cited source's capture failed its content_hash"
+    );
+}
+
+#[tokio::test]
 async fn test_sidecar_quote() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("capture.txt"), "source quote").unwrap();

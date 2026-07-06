@@ -268,6 +268,69 @@ async fn test_content_hash_order() {
 }
 
 #[tokio::test]
+async fn test_markdown_malformed_hash() {
+    // A Markdown section carries both a content_hash and citation checks. A malformed
+    // hash SRI is an advisory, so the section is still fetched and its citations run.
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("section.md"), "A [cite:s1].\n").unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "s1" }],
+        "sections": [{
+            "id": "sec",
+            "content_uri": "section.md",
+            "content_hash": "sha256-@@@"
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 2);
+    assert_eq!(report.checks[0].kind, CheckKind::ContentHash);
+    assert_eq!(report.checks[0].path, "/sections/0/content_hash");
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(report.checks[0].warnings.len(), 1);
+    assert_eq!(report.checks[1].kind, CheckKind::Citations);
+    assert_eq!(report.checks[1].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
+async fn test_relative_base_reference_join() {
+    // A relative base_uri resolves references RFC-3986-style without an absolute
+    // authority: `..` pops a segment, a bare query keeps the base path, and a
+    // trailing-slash reference stays a directory.
+    let content = b"A [cite:s1].\n".to_vec();
+    let resolver = MapResolver::new([
+        ("a/c/section.md".to_owned(), content.clone()),
+        ("a/b/index.akb.json?content".to_owned(), content.clone()),
+        ("a/b/sub/".to_owned(), content.clone()),
+    ]);
+    let descriptor = json!({
+        "base_uri": "a/b/index.akb.json",
+        "sources": [{ "id": "s1" }],
+        "sections": [
+            { "id": "s_a", "content_uri": "../c/section.md" },
+            { "id": "s_b", "content_uri": "?content" },
+            { "id": "s_c", "content_uri": "sub/" }
+        ]
+    });
+
+    let report = check_content(&descriptor, &resolver).await;
+
+    assert!(report.ok());
+    assert_eq!(
+        resolver.fetched(),
+        vec!["a/c/section.md", "a/b/index.akb.json?content", "a/b/sub/"]
+    );
+    assert!(
+        report
+            .checks
+            .iter()
+            .all(|check| check.kind == CheckKind::Citations && check.outcome == Outcome::Verified)
+    );
+}
+
+#[tokio::test]
 async fn test_local_prescreen() {
     let dir = TempDir::new().unwrap();
     let descriptor = json!({
