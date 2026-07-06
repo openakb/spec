@@ -1,7 +1,7 @@
 //! Opt-in content checks that fetch descriptor-related resources.
 
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     path::{Component, Path, PathBuf},
     string::FromUtf8Error,
 };
@@ -499,12 +499,17 @@ fn citation_results(
 }
 
 fn append_duplicate_warnings(warnings: &mut Vec<Advisory>, path: &[PathSegment], ids: &[String]) {
-    let duplicates: Vec<_> = ids
-        .iter()
-        .filter(|id| ids.iter().filter(|candidate| *candidate == *id).count() > 1)
-        .collect::<BTreeSet<_>>()
+    // One pass counts occurrences; the BTreeMap keeps ids sorted and unique, so the
+    // reported list stays the same sorted, deduped, comma-joined form as a nested
+    // per-id rescan produced, without its O(k^2) cost.
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for id in ids {
+        *counts.entry(id).or_default() += 1;
+    }
+    let duplicates: Vec<&str> = counts
         .into_iter()
-        .cloned()
+        .filter(|&(_, count)| count > 1)
+        .map(|(id, _)| id)
         .collect();
     if duplicates.is_empty() {
         return;
@@ -918,7 +923,7 @@ fn quote_outcome(claim: &QuoteClaim, captures: &CaptureResult) -> (Outcome, Stri
     let needle = claim.quote.as_bytes();
     if usable
         .iter()
-        .any(|payload| payload.windows(needle.len()).any(|window| window == needle))
+        .any(|payload| memchr::memmem::find(payload, needle).is_some())
     {
         return (Outcome::Verified, "quote found in capture".to_owned());
     }

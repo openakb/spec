@@ -77,6 +77,35 @@ async fn test_quote_missing() {
 }
 
 #[tokio::test]
+async fn test_empty_quote_no_check() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("capture.txt"), "some capture text").unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "s1", "capture_uri": "capture.txt" }],
+        "sections": [{
+            "id": "sec",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": ["s1"],
+                "locator": { "quote": "" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    // The schema caps `quote` at `minLength: 1`, so an empty quote is not a
+    // checkable claim: it is dropped before any substring search, so no Quote check
+    // is produced and the linear searcher never receives an empty needle.
+    assert!(
+        report
+            .checks
+            .iter()
+            .all(|check| check.kind != CheckKind::Quote)
+    );
+}
+
+#[tokio::test]
 async fn test_hash_failed_distrust() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("capture.txt"), "quoted text").unwrap();

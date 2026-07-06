@@ -563,6 +563,7 @@ dependencies = [
  "base64",
  "fluent-uri",
  "jsonschema",
+ "memchr",
  "pulldown-cmark",
  "regex",
  "serde",

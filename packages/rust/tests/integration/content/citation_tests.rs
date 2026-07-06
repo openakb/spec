@@ -69,6 +69,72 @@ async fn test_citation_findings() {
 }
 
 #[tokio::test]
+async fn test_duplicate_ids_sorted_deduped() {
+    let dir = TempDir::new().unwrap();
+    fs::write(
+        dir.path().join("section.md"),
+        "A [cite:b, a, b, a, c, a].\n",
+    )
+    .unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "a" }, { "id": "b" }, { "id": "c" }],
+        "sections": [{
+            "id": "sec",
+            "content_uri": "section.md",
+            "content_type": "text/markdown"
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert_eq!(report.checks.len(), 1);
+    let check = &report.checks[0];
+    assert_eq!(check.kind, CheckKind::Citations);
+    assert_eq!(check.outcome, Outcome::Verified);
+    assert_eq!(check.warnings.len(), 1);
+    // Reported sorted and deduped: `a` (x3) and `b` (x2) are duplicates; `c` (x1)
+    // is not, and each duplicate id appears once.
+    assert_eq!(
+        check.warnings[0].message,
+        "duplicate citation id in marker: a, b"
+    );
+}
+
+#[tokio::test]
+async fn test_duplicate_ids_large_marker() {
+    let dir = TempDir::new().unwrap();
+    let ids_list = std::iter::repeat_n("dup", 40_000)
+        .collect::<Vec<_>>()
+        .join(",");
+    fs::write(
+        dir.path().join("section.md"),
+        format!("A [cite:{ids_list}].\n"),
+    )
+    .unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "dup" }],
+        "sections": [{
+            "id": "sec",
+            "content_uri": "section.md",
+            "content_type": "text/markdown"
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    // A single-pass count keeps a 40k-id marker linear; the nested per-id rescan it
+    // replaced would not finish within the suite.
+    assert_eq!(report.checks.len(), 1);
+    let check = &report.checks[0];
+    assert_eq!(check.kind, CheckKind::Citations);
+    assert_eq!(check.warnings.len(), 1);
+    assert_eq!(
+        check.warnings[0].message,
+        "duplicate citation id in marker: dup"
+    );
+}
+
+#[tokio::test]
 async fn test_markdown_parameters() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("section.md"), "A [cite:s1].\n").unwrap();

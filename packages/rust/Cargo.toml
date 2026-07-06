@@ -18,6 +18,9 @@ async-trait = "0.1"
 base64 = "0.22"
 fluent-uri = "0.4"
 jsonschema = { version = "0.46", default-features = false }
+# Linear-time substring search for quote-in-capture checks; already in the tree
+# transitively via regex, so it adds no new transitive weight.
+memchr = "2"
 pulldown-cmark = { version = "0.13", default-features = false }
 regex = "1.12"
 serde = { version = "1", features = ["derive"] }
