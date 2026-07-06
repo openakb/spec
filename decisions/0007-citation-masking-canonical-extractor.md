@@ -37,38 +37,57 @@ already consumed those bytes as link syntax. In content-verification mode this f
 `AKB007` fires for the enclosed id, so "the Rust validator is behaviorally equivalent to the
 reference" holds only on the constructs the shared conformance suite currently exercises.
 
-Correcting root cause (2) is the hard part: `markdown-it-py` does not expose source spans for
+Correcting root cause (2) is the harder part: `markdown-it-py` does not expose source spans for
 inline link/image destinations and titles (their inline child tokens carry no source map), so
-the hand-rolled masker cannot exclude a shape embedded in them without reimplementing
-CommonMark link, image, and autolink parsing — including its precedence over code spans. That
-is a real CommonMark inline parser, which is a larger change than this decision resolves.
+the hand-rolled masker cannot exclude a shape embedded in them by consulting the tokenizer. The
+fix therefore keeps the raw-source-offset model and teaches the inline scan a **bounded**
+destination/title sub-grammar (angle and balanced-paren destinations; single-, double-, and
+paren-quoted titles; autolinks; raw inline HTML spans), rather than adopting a full CommonMark
+inline-link delimiter stack.
 
 ## Decision
 
 The **real-CommonMark-parser behavior is canonical**: the `[cite:…]` extraction contract of
 spec §4.4 is whatever a conformant CommonMark parser masks, as realized by the Rust
 validator's `pulldown-cmark`-driven extractor. The Python reference validator's hand-rolled
-inline masker is the side that is **wrong** on the cases above and is to be corrected to
-match; until it is, its over-masking is a known deviation, not the contract.
+inline masker was the side that was **wrong** on the cases above, and this PR corrects it to
+match. The correction keeps the raw-source-offset model and makes the inline scan:
 
-No conformance fixture is added for these constructs yet. A fixture pins both validators to
-one expected extraction, and the shared cross-validator gate
-(`scripts/ci/check-conformance-report.mjs`) requires per-fixture agreement; adding one now
-would red the gate until the Python masker is fixed. The suite therefore continues to cover
-only constructs on which both validators already agree.
+- **escape-aware** — a backslash-escaped `` ` `` opens no code span and a backslash-escaped
+  `<` opens no comment, closing root cause (1); and
+- **link- and HTML-aware** — a link, image, or autolink destination or title, and a raw inline
+  HTML span (open/close tag, processing instruction, declaration), are skipped whole so a
+  code-span or comment shape inside them is left as ordinary source, closing root cause (2).
+
+The escape awareness lives only in this masking layer; the marker grammar itself still has no
+escapes (§4.4), so `\[cite: a]`, `[[cite: a]]`, and `[cite: _a_]` remain markers and
+`&#91;cite: a]` remains literal text.
+
+Conformance fixtures now pin the reconciled families through the public content surface —
+`conformance/content/link-title-comment`, `link-destination-comment`, and
+`escaped-backtick-live` — and the shared cross-validator gate
+(`scripts/ci/check-conformance-report.mjs`) confirms per-fixture agreement between the Python
+and Rust reports.
 
 ## Consequences
 
-The follow-up is to replace the Python reference validator's hand-rolled inline masker with a
-real CommonMark inline walk, so it masks exactly the code spans, code blocks, HTML blocks, and
-HTML comments a conformant parser reports — the same basis the Rust validator already uses —
-rather than re-deriving them by hand-scanning. Because `markdown-it-py` does not surface inline
-source spans, that walk must recover them (or the masker must adopt a parser that does), which
-is why the fix is deferred to a dedicated task rather than bolted onto the current scanner: a
-piecemeal patch (for example, adding only backslash-escape handling) would close root cause
-(1) while leaving the link/image family of root cause (2) divergent, giving a false impression
-of parity. When that task lands, it lands with the Python correction, the conformance fixtures
-that pin this construct family, and regenerated cross-validator reports in one PR, per the
-same-PR "spec + running code" rule. Until then, a downstream tool that must agree with the
-standard on markers embedded in link/image titles or destinations, or after backslash-escaped
-openers, should follow the Rust extractor.
+Both validators now agree on inline citation masking for the construct families above: the
+Python reference validator no longer over-masks markers embedded in link/image destinations or
+titles, in autolinks, or in raw inline HTML, nor after backslash-escaped openers. A
+differential fuzz sweep (hundreds of thousands of assembled inputs) drives the two extractors
+to identical output on inline content. The correction, the conformance fixtures, and the
+regenerated cross-validator reports land together in one PR, per the same-PR "spec + running
+code" rule.
+
+The bounded destination/title sub-grammar is a deliberate non-goal-reduction: it recognizes the
+destination and title shapes CommonMark actually admits without implementing the full inline
+link-resolution delimiter stack, and it matches the canonical extractor on the reconciled
+families. One pulldown-specific detail is mirrored on purpose: inline `<![CDATA[…]]>` is **not**
+treated as raw HTML by the canonical extractor, so the Python masker does not treat it as raw
+HTML either.
+
+One difference remains, and it is **out of scope** for this decision: `markdown-it-py` and
+`pulldown-cmark` draw a few **block**-level boundaries differently (for example, whether a
+bare `<!` declaration or a tag line after a link-reference definition opens an HTML block).
+That divergence lives in the block tokenizer, predates this correction, and is untouched by
+it; it is a separate concern from the inline citation-masking contract this ADR governs.

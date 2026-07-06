@@ -45,6 +45,54 @@ _COMMENT_CLOSE = "-->"
 _COMMENT_EMPTY = "<!-->"
 _COMMENT_DASH = "<!--->"
 
+# Link, image, and autolink syntax is not one of the five suppressing constructs, so a
+# code-span or comment *shape* inside a destination, title, or autolink is link syntax,
+# not a construct, and must not be masked. Backslash also has no marker-level meaning
+# (spec §4.4), but at the CommonMark masking layer an escaped `` ` `` opens no code span
+# and an escaped `<` opens no comment, so the inline scan skips a backslash-escaped byte.
+_BACKSLASH = "\\"
+_OPEN_BRACKET = "["
+_CLOSE_BRACKET = "]"
+_OPEN_PAREN = "("
+_CLOSE_PAREN = ")"
+_ANGLE_OPEN = "<"
+_ANGLE_CLOSE = ">"
+_TITLE_QUOTES = frozenset("\"'")
+# Inter-token space inside a link tail; a single inline run never spans a blank line.
+_LINK_SPACE = frozenset(" \t\n")
+# Largest ASCII control codepoint plus the DEL codepoint bound a bare destination, which
+# admits neither space nor control characters (CommonMark link-destination grammar).
+_LOW_CONTROL_MAX = 0x1F
+_DEL = 0x7F
+# CommonMark autolinks: an absolute URI (scheme, then no space/`<`/`>`/control) or an
+# email address, wrapped in angle brackets. Their content is destination syntax, so a
+# marker or construct shape inside is never masked.
+_AUTOLINK_URI = r"[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\s<>\x00-\x1f\x7f]*"
+_AUTOLINK_EMAIL = (
+    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~\-]+@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*"
+)
+_AUTOLINK_RE = re.compile(rf"<(?:{_AUTOLINK_URI}|{_AUTOLINK_EMAIL})>")
+
+# Inline raw HTML (canonical parser's tag grammar): an open/close tag, processing
+# instruction, or declaration is opaque like an autolink -- a backtick inside is not a
+# code span -- but a whole `<!--...-->` comment inside its span is still masked, mirroring
+# how the canonical parser reports raw inline HTML and then removes any comment it covers.
+# A CDATA section is deliberately absent: the canonical extractor does not treat inline
+# `<![CDATA[...]]>` as raw HTML, so its bytes stay ordinary source here too.
+_HTML_SPACE = r"[ \t\n]"
+_HTML_TAG_NAME = r"[A-Za-z][A-Za-z0-9-]*"
+_HTML_ATTR_NAME = r"[A-Za-z_:][A-Za-z0-9_.:-]*"
+_HTML_ATTR_VALUE = r"(?:[^ \t\n\"'=<>`]+|'[^']*'|\"[^\"]*\")"
+_HTML_ATTR_SPEC = rf"(?:{_HTML_SPACE}*={_HTML_SPACE}*{_HTML_ATTR_VALUE})"
+_HTML_ATTR = rf"(?:{_HTML_SPACE}+{_HTML_ATTR_NAME}{_HTML_ATTR_SPEC}?)"
+_HTML_OPEN = rf"<{_HTML_TAG_NAME}{_HTML_ATTR}*{_HTML_SPACE}*/?>"
+_HTML_CLOSE = rf"</{_HTML_TAG_NAME}{_HTML_SPACE}*>"
+_HTML_PI = r"<\?[\s\S]*?\?>"
+_HTML_DECL = r"<![A-Za-z][^>]*>"
+_HTML_TAG_RE = re.compile(rf"(?:{_HTML_OPEN}|{_HTML_CLOSE}|{_HTML_PI}|{_HTML_DECL})")
+
 
 @dataclass(frozen=True)
 class Citation:
@@ -103,15 +151,203 @@ def _mask_range(chars: list[str], start: int, end: int) -> None:
 
 
 def _mask_inline(chars: list[str], source: str, start: int, end: int) -> None:
-    """Mask inline code spans and HTML comments within one inline run's source region."""
+    """Mask inline code spans and HTML comments within one inline run's source region.
+
+    The scan is escape- and link-aware so it masks exactly what a CommonMark parser would:
+    a backslash-escaped `` ` `` or `<` opens no construct, and a link, image, or autolink
+    destination/title is skipped whole -- its bytes are link syntax, so a code-span or
+    comment shape inside them is never a suppressing construct (spec §4.4).
+    """
+    openers: list[int] = []
     index = start
     while index < end:
-        if source[index] == _BACKTICK:
-            index = _mask_code_span(chars, source, index, end)
-        elif source.startswith(_COMMENT_OPEN, index, end):
-            index = _mask_comment(chars, source, index, end)
-        else:
+        index = _mask_inline_step(chars, source, index, end, openers)
+
+
+def _mask_inline_step(
+    chars: list[str], source: str, index: int, end: int, openers: list[int]
+) -> int:
+    """Advance one inline token from index, masking or skipping it; return the next index."""
+    char = source[index]
+    if char == _BACKSLASH:
+        return index + 2  # an escaped byte opens no code span or comment (masking layer)
+    if char == _BACKTICK:
+        return _mask_code_span(chars, source, index, end)
+    if source.startswith(_COMMENT_OPEN, index, end):
+        return _mask_comment(chars, source, index, end)
+    if char == _ANGLE_OPEN:
+        return _skip_angle_construct(chars, source, index, end)
+    if char == _OPEN_BRACKET:
+        openers.append(index)
+        return index + 1
+    if char == _CLOSE_BRACKET:
+        return _close_bracket(source, index, end, openers)
+    return index + 1
+
+
+def _close_bracket(source: str, index: int, end: int, openers: list[int]) -> int:
+    """Resolve a `]`: skip a link/image tail when one opened, else advance one char."""
+    if not openers:
+        return index + 1
+    openers.pop()
+    tail_end = _link_tail_end(source, index + 1, end)
+    return tail_end if tail_end is not None else index + 1
+
+
+def _link_tail_end(source: str, pos: int, end: int) -> int | None:
+    """End offset of an inline `](dest title)` tail opening at pos, else None.
+
+    Reference, collapsed, and shortcut tails carry no destination or title to skip -- any
+    label or definition sits elsewhere in the run and is scanned as ordinary source -- so
+    only the inline form needs a skip here.
+    """
+    if pos < end and source[pos] == _OPEN_PAREN:
+        return _inline_link_end(source, pos, end)
+    return None
+
+
+def _inline_link_end(source: str, index: int, end: int) -> int | None:
+    """End offset just past the `)` of an inline link tail at `(`, else None."""
+    index = _skip_link_space(source, index + 1, end)
+    dest_end = _skip_destination(source, index, end)
+    if dest_end is None:
+        return None
+    index = _skip_link_space(source, dest_end, end)
+    title_end = _skip_title(source, index, end)
+    if title_end is None:
+        return None
+    index = _skip_link_space(source, title_end, end)
+    if index < end and source[index] == _CLOSE_PAREN:
+        return index + 1
+    return None
+
+
+def _skip_destination(source: str, index: int, end: int) -> int | None:
+    """End offset of a link destination (angle or bare) at index, else None."""
+    if index < end and source[index] == _ANGLE_OPEN:
+        return _skip_angle_dest(source, index, end)
+    return _skip_bare_dest(source, index, end)
+
+
+def _skip_angle_dest(source: str, index: int, end: int) -> int | None:
+    """End offset just past the `>` of a `<...>` destination, else None."""
+    index += 1
+    while index < end:
+        char = source[index]
+        if char == _BACKSLASH and index + 1 < end:
+            index += 2
+            continue
+        if char in ("\n", _ANGLE_OPEN):
+            return None
+        if char == _ANGLE_CLOSE:
+            return index + 1
+        index += 1
+    return None
+
+
+def _skip_bare_dest(source: str, index: int, end: int) -> int | None:
+    """End offset of a bare destination: non-space, non-control run, balanced parens.
+
+    An unmatched `(` (parens still open where the run ends) is not a valid destination,
+    so the tail is rejected and its bytes stay ordinary source (CommonMark link grammar).
+    """
+    depth = 0
+    while index < end:
+        char = source[index]
+        if char == _BACKSLASH and index + 1 < end:
+            index += 2
+            continue
+        if char == " " or ord(char) <= _LOW_CONTROL_MAX or ord(char) == _DEL:
+            break
+        if char == _OPEN_PAREN:
+            depth += 1
+        elif char == _CLOSE_PAREN:
+            if depth == 0:
+                break
+            depth -= 1
+        index += 1
+    return None if depth else index
+
+
+def _skip_title(source: str, index: int, end: int) -> int | None:
+    """End offset of an optional link title; index unchanged when absent, None if malformed."""
+    if index >= end:
+        return index
+    char = source[index]
+    if char in _TITLE_QUOTES:
+        return _skip_delimited(source, index, end, char)
+    if char == _OPEN_PAREN:
+        return _skip_paren_title(source, index, end)
+    return index
+
+
+def _skip_delimited(source: str, index: int, end: int, quote: str) -> int | None:
+    """End offset just past the closing quote of a `"..."` or `'...'` title, else None."""
+    index += 1
+    while index < end:
+        char = source[index]
+        if char == _BACKSLASH and index + 1 < end:
+            index += 2
+            continue
+        if char == quote:
+            return index + 1
+        index += 1
+    return None
+
+
+def _skip_paren_title(source: str, index: int, end: int) -> int | None:
+    """End offset just past the `)` of a `(...)` title, else None; nesting is disallowed."""
+    index += 1
+    while index < end:
+        char = source[index]
+        if char == _BACKSLASH and index + 1 < end:
+            index += 2
+            continue
+        if char == _OPEN_PAREN:
+            return None
+        if char == _CLOSE_PAREN:
+            return index + 1
+        index += 1
+    return None
+
+
+def _skip_link_space(source: str, index: int, end: int) -> int:
+    """Advance past inter-token link whitespace starting at index."""
+    while index < end and source[index] in _LINK_SPACE:
+        index += 1
+    return index
+
+
+def _skip_angle_construct(chars: list[str], source: str, index: int, end: int) -> int:
+    """Skip a `<...>` autolink or raw inline HTML span, else advance past the `<`.
+
+    An autolink cannot enclose a comment. Raw inline HTML can (a `<!--...-->` may fall
+    inside a declaration or a quoted attribute), so its span is scanned for comments and
+    any it fully encloses is masked, matching the canonical parser; its other bytes are
+    link/HTML syntax, so an enclosed marker or backtick is left as ordinary source.
+    """
+    autolink = _AUTOLINK_RE.match(source, index, end)
+    if autolink is not None:
+        return autolink.end()
+    html = _HTML_TAG_RE.match(source, index, end)
+    if html is None:
+        return index + 1
+    _mask_comments_in_range(chars, source, index, html.end())
+    return html.end()
+
+
+def _mask_comments_in_range(chars: list[str], source: str, start: int, end: int) -> None:
+    """Mask every complete `<!--...-->` comment fully inside [start, end)."""
+    index = start
+    while index < end:
+        if not source.startswith(_COMMENT_OPEN, index, end):
             index += 1
+            continue
+        comment_end = _comment_end(source, index, end)
+        if comment_end is None:
+            return
+        _mask_range(chars, index, comment_end)
+        index = comment_end
 
 
 def _mask_code_span(chars: list[str], source: str, open_start: int, end: int) -> int:

@@ -1,0 +1,1 @@
+A comment shape inside a link title is link syntax, not one of the five suppressing constructs, so [the handbook](https://example.org/handbook "<!-- [cite: handbook] -->") keeps its citation live, and a plain marker [cite: notes] closes the line.
