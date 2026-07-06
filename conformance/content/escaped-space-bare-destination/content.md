@@ -1,0 +1,1 @@
+A backslash before a space is a literal backslash, so it does not escape the space that ends the bare link destination in [the report](a\ `[cite: masked]`); the trailing code span then masks that marker, while a plain [cite: live] closes the line.

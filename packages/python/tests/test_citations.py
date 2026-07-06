@@ -314,8 +314,32 @@ def test_escaped_angle_destination() -> None:
 
 
 def test_escaped_space_bare_destination() -> None:
-    """A backslash-escaped space does not end a bare destination; the tail still parses."""
-    assert _ids(r"[t](a\ b) [cite: a]") == [["a"]]
+    """A backslash before a space is a literal backslash (only ASCII punctuation is
+    escapable), so the space ends the bare destination: the tail is not a link and the
+    following code span masks the enclosed marker, matching the canonical extractor."""
+    assert _ids("[t](a\\ `[cite:s]`)") == []
+    assert _ids("See [t](a\\ `[cite:s]`) and [cite: t].") == [["t"]]
+
+
+def test_image_escaped_space_bare_dest() -> None:
+    """An image tail behaves like a link: a backslash before a space is literal, so the
+    space ends the bare destination and the trailing code span masks the enclosed
+    marker (matches the canonical extractor)."""
+    assert _ids("![img](a\\ `[cite:s]`)") == []
+
+
+def test_escaped_punct_keeps_bare_dest() -> None:
+    """The punctuation control to the space case: a backslash escapes ASCII punctuation,
+    so `\\!` keeps the bare destination running; the enclosed code-span shape is then
+    destination syntax, not a real span, so the marker stays live (matches Rust)."""
+    assert _ids("[t](a\\!`[cite:s]`)") == [["s"]]
+
+
+def test_escaped_newline_angle_dest() -> None:
+    """A backslash before a line ending is literal, so the line ending invalidates the
+    angle destination: the tail is not a link and the trailing code span masks the
+    enclosed marker (matches the canonical extractor)."""
+    assert _ids("[t](<a\\\n`[cite:s]`>)") == []
 
 
 def test_escaped_paren_title() -> None:

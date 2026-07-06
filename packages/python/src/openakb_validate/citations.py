@@ -64,6 +64,12 @@ _LINK_SPACE = frozenset(" \t\n")
 # admits neither space nor control characters (CommonMark link-destination grammar).
 _LOW_CONTROL_MAX = 0x1F
 _DEL = 0x7F
+# CommonMark backslash escapes act only on ASCII punctuation; a backslash before any other
+# byte (space, tab, line ending, letter, digit, control, or non-ASCII) is a literal
+# backslash. This is load-bearing in a link destination: `\`+punctuation keeps the run
+# going (the escaped byte is destination text), while `\`+space/line-ending is a literal
+# backslash that the following space or line ending then terminates the destination on.
+_ASCII_PUNCTUATION = frozenset("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
 # CommonMark autolinks: an absolute URI (scheme, then no space/`<`/`>`/control) or an
 # email address, wrapped in angle brackets. Their content is destination syntax, so a
 # marker or construct shape inside is never masked.
@@ -229,14 +235,27 @@ def _skip_destination(source: str, index: int, end: int) -> int | None:
     return _skip_bare_dest(source, index, end)
 
 
+def _is_dest_escape(source: str, index: int, end: int) -> bool:
+    """True when source[index] is a backslash escaping an ASCII-punctuation byte.
+
+    Only ASCII punctuation is escapable (CommonMark); a backslash before any other byte is
+    literal, so the following byte keeps its structural meaning -- an unescaped space or
+    line ending still ends the destination and a bare `>` still closes an angle one. Both
+    destination scanners share this so their escape semantics cannot drift apart.
+    """
+    return (
+        source[index] == _BACKSLASH and index + 1 < end and source[index + 1] in _ASCII_PUNCTUATION
+    )
+
+
 def _skip_angle_dest(source: str, index: int, end: int) -> int | None:
     """End offset just past the `>` of a `<...>` destination, else None."""
     index += 1
     while index < end:
-        char = source[index]
-        if char == _BACKSLASH and index + 1 < end:
+        if _is_dest_escape(source, index, end):
             index += 2
             continue
+        char = source[index]
         if char in ("\n", _ANGLE_OPEN):
             return None
         if char == _ANGLE_CLOSE:
@@ -253,10 +272,10 @@ def _skip_bare_dest(source: str, index: int, end: int) -> int | None:
     """
     depth = 0
     while index < end:
-        char = source[index]
-        if char == _BACKSLASH and index + 1 < end:
+        if _is_dest_escape(source, index, end):
             index += 2
             continue
+        char = source[index]
         if char == " " or ord(char) <= _LOW_CONTROL_MAX or ord(char) == _DEL:
             break
         if char == _OPEN_PAREN:
