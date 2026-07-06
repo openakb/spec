@@ -7,6 +7,19 @@ use serde::ser::{Serialize, Serializer};
 /// Maximum allowed depth for parent chains.
 pub const PARENT_DEPTH_MAX: usize = 64;
 
+/// Maximum structural nesting depth a descriptor may reach before
+/// [`crate::validate`] declines the recursive schema walk and reports `AKB011`
+/// instead of risking a stack-overflow abort.
+///
+/// [`serde_json::from_str`] caps deserialization nesting at 128, so every
+/// descriptor obtained by parsing text has a structural depth of at most 128.
+/// This cap sits an order of magnitude above that, so no parsed descriptor can
+/// ever reach it (zero false positives on real input), while staying far below
+/// the empirically observed ~150,000-level depth at which the recursive
+/// `jsonschema` structural walk overflows the stack and aborts. The wide margin
+/// on both sides keeps validation total without rejecting any realistic input.
+pub const STRUCTURAL_DEPTH_MAX: usize = 1024;
+
 /// Maximum allowed length for local identifiers.
 pub const LOCAL_ID_MAX_LENGTH: usize = 64;
 

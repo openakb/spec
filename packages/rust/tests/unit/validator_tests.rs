@@ -1,6 +1,8 @@
 use serde_json::{Value, json};
 
-use openakb_validate::{Advisory, Code, Finding, Mode, ValidationResult, validate};
+use openakb_validate::{
+    Advisory, Code, Finding, Mode, STRUCTURAL_DEPTH_MAX, ValidationResult, validate,
+};
 
 fn descriptor() -> Value {
     json!({
@@ -92,6 +94,27 @@ fn test_warnings_never_block() {
 #[test]
 fn test_mode_default_lenient() {
     assert_eq!(Mode::default(), Mode::Lenient);
+}
+
+#[test]
+fn test_deep_value_diagnosed() {
+    // A value nested far beyond the structural depth cap would overflow the
+    // recursive schema walk and abort. Build it iteratively (no recursion) so the
+    // test itself is safe, then assert validate() returns instead of aborting and
+    // reports the structural AKB011 finding. Nesting through objects makes the
+    // guard's verdict distinct from the schema layer's: an ungarded root object
+    // missing every required field would report AKB009, so AKB011 here can only
+    // come from the depth guard short-circuiting ahead of the schema walk.
+    let mut deep = json!({});
+    for _ in 0..(STRUCTURAL_DEPTH_MAX + 100) {
+        deep = json!({ "child": deep });
+    }
+
+    let result = validate(&deep, Mode::Lenient);
+
+    assert_eq!(codes(&result), vec![Code::Akb011]);
+    // A normal shallow descriptor is unaffected by the depth guard.
+    assert!(validate(&descriptor(), Mode::Lenient).ok());
 }
 
 #[test]
