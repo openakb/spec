@@ -137,3 +137,27 @@ fn test_crlf_normalized() {
 fn test_nul_normalized() {
     assert!(ids("[ci\0te:a]").is_empty());
 }
+
+#[test]
+fn test_unclosed_comment_run_live() {
+    // Several unclosed `<!--` openers before a live marker: the first opener has no
+    // `-->`, so no later opener in the run can close one either; the marker stays
+    // prose, matching the reference validator.
+    assert_eq!(ids("prose <!-- <!-- [cite:x]"), vec![vec!["x"]]);
+}
+
+#[test]
+fn test_closed_comment_masks_then_live() {
+    // A normal closed comment still masks its enclosed marker, and a later live
+    // marker on the same line survives.
+    assert_eq!(ids("prose <!-- [cite:z] --> [cite:y]"), vec![vec!["y"]]);
+}
+
+#[test]
+fn test_comment_opener_flood_linear() {
+    // Adversarial: a long run of unclosed `<!--` openers parses as one HTML block,
+    // so the trailing marker is masked. Breaking on the first unclosable opener
+    // keeps this linear; an O(n^2) rescan of every opener would not finish here.
+    let flooded = format!("{}[cite:z]", "<!--".repeat(200_000));
+    assert!(ids(&flooded).is_empty());
+}

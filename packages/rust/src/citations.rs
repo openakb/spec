@@ -122,8 +122,15 @@ fn mask_comments(source: &str, masked: &mut [u8], range: Range<usize>) {
     while index < range.end {
         if starts_with_at(bytes, index, range.end, COMMENT_OPEN) {
             let Some(end) = comment_end(bytes, index, range.end) else {
-                index += 1;
-                continue;
+                // `comment_end` is `None` only when no `-->` closes this `<!--`
+                // anywhere in `[index + 4, range.end)` and it is not a degenerate
+                // `<!-->`/`<!--->`. No later `<!--` in the same range can close
+                // either: a general form would need a `-->` in a subrange that was
+                // just shown to hold none, and a degenerate form itself contains a
+                // `-->` that the same search would have found. The old scan masked
+                // nothing past this point, so breaking is behavior-preserving and
+                // drops the wasted O(n) rescans per later opener (O(n^2) -> O(n)).
+                break;
             };
             mask_range(masked, index..end);
             index = end;
