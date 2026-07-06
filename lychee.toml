@@ -1,7 +1,11 @@
 # Link-check config for the offline relative-link check in ci.yml.
 
 # Skip paths that are not part of the published repo or are vendored.
-exclude_path = ["docs/superpowers", ".worktrees", ".git", "node_modules"]
+# `conformance/content` holds content-verification fixtures whose Markdown is
+# deliberately malformed/edge-case (citation-shaped link destinations, unclosed
+# HTML comments) to exercise §4.4 masking — not published docs, so their "links"
+# must not be link-checked. markdownlint ignores the same fixtures for the same reason.
+exclude_path = ["docs/superpowers", ".worktrees", ".git", "node_modules", "conformance/content"]
 
 # Domains registered but not yet serving; provisioning is tracked as a prerequisite in
 # ADR-0002 (publishing & versioning). Remove each pattern once the endpoint is live.

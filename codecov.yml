@@ -2,6 +2,27 @@
 # keeps a flag's last report when a CI run
 # does not produce a new one for it - inert while CI is always-run, load-bearing
 # once CI becomes path-filtered with per-language jobs.
+
+# Coverage gates. The real, blocking enforcement lives in the test jobs: the Rust
+# job runs `cargo llvm-cov --fail-under-lines 95` and the Python job's pytest uses
+# `fail_under = 95` - both fail CI below the documented >=95% floor (packages/*/AGENTS.md).
+# Codecov is an advisory overlay, so pin its targets to that same 95% floor. Without
+# this, Codecov defaults the `patch` target to `auto` (the base commit's coverage);
+# main is currently Python-only at an incidental 100%, so `auto` would demand 100%
+# on new code and fail any language whose testable surface leaves defensive/unreachable
+# branches uncovered - stricter than the policy and than every in-job gate. `informational`
+# keeps the reports non-blocking, since the fail-under gates above are the source of truth.
+coverage:
+  status:
+    project:
+      default:
+        target: 95%
+        informational: true
+    patch:
+      default:
+        target: 95%
+        informational: true
+
 flag_management:
   default_rules:
     carryforward: true
