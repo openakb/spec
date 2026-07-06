@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openakb-validate"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reference validator for the OpenAKB descriptor format (spec major v1)."
 readme = "README.md"
 license = "Apache-2.0"

@@ -14,9 +14,9 @@ top-level map:
 - `proposals/` — the AKEP process and enhancement proposals
 - `examples/` — worked, vendor-neutral example AKBs
 - `conformance/` — cross-validator conformance fixtures
-- `packages/` — validator libraries; `packages/python` is the reference validator, further
-  languages in later phases. Each package carries its own `AGENTS.md` with package-level
-  conventions.
+- `packages/` — validator libraries; `packages/python` is the reference validator and
+  `packages/rust` is the Rust validator. Each package carries its own `AGENTS.md` with
+  package-level conventions.
 - `decisions/` — architecture decision records
 - `.github/`, `scripts/` — CI and automation
 

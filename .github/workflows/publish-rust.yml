@@ -1,0 +1,67 @@
+name: Publish Rust
+
+on:
+  push:
+    tags: ["rust-v[0-9]*"]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Conformance Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/rust
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Install Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/rust
+      - name: Check Schema Sync
+        working-directory: .
+        run: bash scripts/ci/check-schema-sync.sh
+      - name: Verify Tag Matches Version
+        working-directory: .
+        run: bash scripts/ci/check-rust-tag-version.sh "$GITHUB_REF_NAME"
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - name: Test
+        run: cargo test --all-features --locked
+      - name: Generate Conformance Report
+        run: cargo run --locked --example conformance_report > conformance-report.json
+      - name: Set Up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Check Conformance Report
+        working-directory: .
+        run: node scripts/ci/check-conformance-report.mjs packages/rust/conformance-report.json
+      - name: Check Crate Schemas
+        working-directory: .
+        run: bash scripts/ci/check-crate-schemas.sh
+
+  publish:
+    name: Publish To Crates
+    runs-on: ubuntu-latest
+    needs: gate
+    environment: crates-io
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v7
+      - name: Install Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Publish Crate
+        working-directory: packages/rust
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

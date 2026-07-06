@@ -1,0 +1,1 @@
+A backslash-escaped backtick opens no code span in v1, so \`not code [cite: draft]\` stays live prose, while a genuine code span `[cite: hidden]` right after it is masked, and a trailing marker [cite: final] closes the fixture.

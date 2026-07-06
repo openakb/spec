@@ -1,0 +1,60 @@
+[package]
+name = "openakb-validate"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Schema, semantic, and strict-profile validator for OpenAKB descriptors with stable AKB001-AKB012 diagnostics."
+license = "Apache-2.0"
+repository = "https://github.com/openakb/spec"
+homepage = "https://openakb.org"
+documentation = "https://docs.rs/openakb-validate"
+readme = "README.md"
+keywords = ["openakb", "knowledge-base", "validation", "json-schema", "provenance"]
+categories = ["development-tools"]
+exclude = ["AGENTS.md", "CLAUDE.md"]
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+fluent-uri = "0.4"
+jsonschema = { version = "0.46", default-features = false }
+# Linear-time substring search for quote-in-capture checks; already in the tree
+# transitively via regex, so it adds no new transitive weight.
+memchr = "2"
+pulldown-cmark = { version = "0.13", default-features = false }
+regex = "1.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+thiserror = "2"
+tokio = { version = "1", features = ["fs"] }
+
+[dev-dependencies]
+anyhow = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[[test]]
+name = "unit"
+path = "tests/unit/main.rs"
+
+[[test]]
+name = "integration"
+path = "tests/integration/main.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+expect_used = "deny"
+panic = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
