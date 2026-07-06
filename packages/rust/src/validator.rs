@@ -43,6 +43,17 @@ impl FullReport {
 /// [`Mode::Strict`] adds `AKB006` findings for unknown core members outside
 /// extension payloads. Content behind URIs is never fetched here; use
 /// [`validate_with_content`] for opt-in content verification.
+///
+/// # Preconditions
+///
+/// The `descriptor` must come from a recursion-limited deserializer.
+/// [`serde_json::from_str`] caps nesting at 128 by default, which keeps the
+/// schema walk within a safe depth; the untrusted-text path therefore cannot
+/// reach it. Callers must not hand this function a `Value` built by a
+/// deserializer whose recursion limit was disabled (or an equivalently deep
+/// programmatically-constructed `Value`): the underlying `jsonschema` walk is
+/// recursive, so an unbounded-depth value can overflow the stack — an
+/// uncatchable abort this crate cannot turn into a diagnostic.
 #[must_use]
 pub fn validate(descriptor: &Value, mode: Mode) -> ValidationResult {
     let mut findings = schema_findings(descriptor);
@@ -60,6 +71,12 @@ pub fn validate(descriptor: &Value, mode: Mode) -> ValidationResult {
 }
 
 /// Runs structural validation and opt-in content checks.
+///
+/// # Preconditions
+///
+/// Shares [`validate`]'s precondition: `descriptor` must come from a
+/// recursion-limited deserializer, since structural validation runs the same
+/// recursive schema walk.
 pub async fn validate_with_content(
     descriptor: &Value,
     resolver: &dyn Resolver,
