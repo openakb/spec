@@ -34,7 +34,6 @@ pub(crate) fn schema_findings(descriptor: &Value) -> Vec<Finding> {
 }
 
 /// Returns schema findings for a provenance sidecar value.
-#[allow(dead_code)] // Required sidecar schema seam; later validation tasks call it.
 #[must_use]
 pub(crate) fn provenance_schema_findings(sidecar: &Value) -> Vec<Finding> {
     findings_for(&PROVENANCE_VALIDATOR, sidecar)
