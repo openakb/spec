@@ -27,12 +27,9 @@ trapped in one vendor's storage or serving model.
 ## Status
 
 Pre-1.0 and under active design. The normative specification, JSON Schema, worked
-examples, conformance suite, the reference `openakb-validate` validator for Python
-under [packages/python](packages/python/), and the `openakb-validate` Rust validator
-under [packages/rust](packages/rust/) have landed. The validators enforce the full
-`AKB001`–`AKB012` catalog, including the cross-document semantic rules, and execute
-the conformance suite as their acceptance gate.
-See [CHANGELOG.md](CHANGELOG.md) for what has landed.
+examples, conformance suite, and the reference validators have landed and enforce the
+full `AKB001`–`AKB012` catalog against the conformance suite. See
+[CHANGELOG.md](CHANGELOG.md) for what has landed.
 
 ## Specification
 
@@ -48,6 +45,16 @@ See [CHANGELOG.md](CHANGELOG.md) for what has landed.
   - [sidecar-provenance](examples/sidecar-provenance/) — claim-level provenance sidecar
 - **Conformance** — [conformance/](conformance/README.md)
 - **Genesis proposal** — [AKEP-0001](proposals/akep-0001-genesis.md)
+
+## Packages
+
+Reference validators live in this monorepo and publish to their language registries.
+Both are pure libraries — no CLI — per [ADR-0001](decisions/0001-repo-topology.md).
+
+| Package | Language | Source | Registry |
+| --- | --- | --- | --- |
+| `openakb-validate` | Python | [packages/python](packages/python/) | [PyPI](https://pypi.org/project/openakb-validate/) |
+| `openakb-validate` | Rust | [packages/rust](packages/rust/) | [crates.io](https://crates.io/crates/openakb-validate) |
 
 ## Get involved
 
