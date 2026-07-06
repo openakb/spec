@@ -93,6 +93,17 @@ fn test_unclosed_comment_live() {
 }
 
 #[test]
+fn test_escaped_comment_opener_live() {
+    // §4.4 / CommonMark: a backslash-escaped `<` opens no HTML comment, so
+    // `\<!-- ... -->` is prose and its marker stays live; the unescaped
+    // `<!-- ... -->` is a comment and masks its marker. This pins the "escaped
+    // `<` opens no comment" rule against a regression in pulldown-cmark's escape
+    // segmentation, which is what keeps `<!--` from ever being contiguous here.
+    assert_eq!(ids(r"\<!-- [cite:s] -->"), vec![vec!["s"]]);
+    assert!(ids("<!-- [cite:s] -->").is_empty());
+}
+
+#[test]
 fn test_inline_html_not_masked() {
     assert_eq!(
         ids(r#"<span data-x="[cite:a]">label</span>"#),
