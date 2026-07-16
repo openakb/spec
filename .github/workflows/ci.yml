@@ -40,7 +40,7 @@ jobs:
       - name: Check Out
         uses: actions/checkout@v7
       - name: Set Up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -85,7 +85,7 @@ jobs:
       - name: Generate Conformance Report
         run: uv run python tests/conformance_report.py > conformance-report.json
       - name: Set Up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Check Conformance Report
@@ -155,7 +155,7 @@ jobs:
         run: cargo run --locked --example conformance_report > conformance-report.json
       - name: Set Up Node
         if: matrix.toolchain == 'stable'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Check Conformance Report
@@ -185,7 +185,7 @@ jobs:
       - name: Check Out
         uses: actions/checkout@v7
       - name: Set Up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Download Reports

@@ -41,7 +41,7 @@ jobs:
       - name: Generate Conformance Report
         run: uv run python tests/conformance_report.py > conformance-report.json
       - name: Set Up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Check Conformance Report
