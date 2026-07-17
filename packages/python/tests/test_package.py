@@ -10,7 +10,7 @@ __all__ = ()
 
 def test_version_is_exposed() -> None:
     """__version__ equals the package's current release version."""
-    assert openakb_validate.__version__ == "0.1.1"
+    assert openakb_validate.__version__ == "0.1.2"
 
 
 def test_public_names_are_importable() -> None:

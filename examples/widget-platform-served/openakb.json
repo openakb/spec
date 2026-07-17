@@ -37,6 +37,7 @@
       "captured_at": "2026-06-27T00:00:00Z",
       "content_hash": "sha256-yzPCGNBXoCbfiZ13AdgO7cF+z15Jw/b4udfu81pt68Q=",
       "capture_uri": "https://kb.example.org/widget-platform/captures/blog-widgets-launch.html",
+      "content_length": 750,
       "discovered_via_id": "blog-index"
     }
   ],
@@ -65,6 +66,7 @@
       "source_ids": ["product-docs"],
       "provenance_uri": "https://kb.example.org/widget-platform/sections/configuration.prov.json",
       "provenance_hash": "sha256-x+/nfK2zzvdIrpCJevc7FRScmryrSo9qftnRcXTfKfA=",
+      "provenance_length": 537,
       "links": [
         { "rel": "depends-on", "section_id": "overview" },
         {

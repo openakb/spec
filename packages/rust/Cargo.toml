@@ -1,6 +1,6 @@
 [package]
 name = "openakb-validate"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Schema, semantic, and strict-profile validator for OpenAKB descriptors with stable AKB001-AKB012 diagnostics."
