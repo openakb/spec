@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-negative-source-content-length",
+  "title": "Invalid — negative source content_length",
+  "description": "A source content_length below zero violates the minimum:0 integer constraint (AKB011).",
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/",
+      "content_length": -1
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "The only section.",
+      "content_uri": "root.md",
+      "source_ids": ["s1"]
+    }
+  ]
+}

@@ -46,6 +46,7 @@
         "captured_at": { "$ref": "#/$defs/timestamp" },
         "content_hash": { "$ref": "#/$defs/sriHash" },
         "capture_uri": { "type": "string", "format": "uri-reference", "minLength": 1 },
+        "content_length": { "type": "integer", "minimum": 0 },
         "refresh_class": { "type": "string", "minLength": 1 },
         "cadence": { "type": "string", "minLength": 1 },
         "discovered_via_id": { "$ref": "#/$defs/localId" },
@@ -72,6 +73,7 @@
         "provenance": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/claim" } },
         "provenance_uri": { "type": "string", "format": "uri-reference" },
         "provenance_hash": { "$ref": "#/$defs/sriHash" },
+        "provenance_length": { "type": "integer", "minimum": 0 },
         "links": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/link" } },
         "refreshed_at": { "$ref": "#/$defs/timestamp" },
         "x": { "$ref": "#/$defs/extensions" }

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "valid-payload-length-stamps",
+  "title": "Valid — payload length stamps",
+  "description": "Exercises every optional *_length size hint: top-level guide_length, section content_length, section provenance_length, and source content_length. All are known core members, so the descriptor is valid in both lenient and strict mode.",
+  "tags": ["fixtures", "length_stamps"],
+  "guide_uri": "AKB.md",
+  "guide_hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+  "guide_length": 1024,
+  "sources": [
+    {
+      "id": "s1",
+      "type": "url",
+      "uri": "https://docs.example.com/a/",
+      "captured_at": "2026-01-01T00:00:00Z",
+      "content_hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+      "capture_uri": "captures/s1.html",
+      "content_length": 750
+    }
+  ],
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "description": "A content section carrying content and provenance length stamps.",
+      "content_uri": "root.md",
+      "content_hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+      "content_length": 186,
+      "source_ids": ["s1"],
+      "provenance_uri": "root.prov.json",
+      "provenance_hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+      "provenance_length": 537
+    }
+  ]
+}

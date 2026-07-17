@@ -75,6 +75,7 @@ A Source is raw provenance material a section can be grounded in. Sources are no
 | `captured_at` | optional | RFC 3339 UTC timestamp | When the source snapshot was captured. |
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the captured evidence bytes: the snapshot taken at `captured_at` (the bytes at `capture_uri` when present), not a claim about the live resource at `uri`. The §4.3 hash rules apply: canonical base64, and `sha256` MUST be supported. |
 | `capture_uri` | optional | URI reference | Where the captured snapshot is re-servable, when the provider offers one. The spec defines no capture, retention, or serving mechanism. |
+| `content_length` | optional | integer, minimum 0 | Captured-evidence byte count: the same bytes the source `content_hash` covers (the bytes at `capture_uri` when present). An advisory, untrusted size hint, like section `content_length`. |
 | `refresh_class` | optional | non-empty string | Freshness policy hint, such as `static`, `polled`, `event`, or `streaming`; descriptive only. |
 | `cadence` | optional | non-empty string | Expected refresh interval hint, meaningful only by convention. |
 | `discovered_via_id` | optional | source `id`, `[a-z0-9_-]`, ≤64 chars | The listing source via which this source was discovered. MUST resolve to a Source in this descriptor. |
@@ -102,7 +103,7 @@ With a pinned capture, claim `locator.quote` spans can be mechanically verified 
 
 - `uri` points at a provider-hosted stub that acts as the accountable origin of the citation.
 - `captured_at` MAY be retained as a dated marker.
-- A redacted source SHOULD NOT carry identifying fields: `title`, `content_hash`, `capture_uri`, `refresh_class`, `cadence`, and `discovered_via_id` are omitted.
+- A redacted source SHOULD NOT carry identifying fields: `title`, `content_hash`, `content_length`, `capture_uri`, `refresh_class`, `cadence`, and `discovered_via_id` are omitted. Leaving `content_length` behind would still disclose the withheld source's exact captured size.
 - The source keeps its `id`, so `source_ids` entries and inline `[cite:]` markers — which are baked into content bytes pinned by `content_hash` — keep resolving unchanged.
 
 The type string `redacted` is the convention's interoperable name: a provider-specific or extended type does not receive the §5 rewrite exception and carries none of the redaction semantics.
@@ -129,6 +130,7 @@ The Section is the atomic unit of browse, pull, and grounding. The tree is expre
 | `provenance` | optional | array, 1-256 Claim objects | Inline claim-level provenance. |
 | `provenance_uri` | optional | URI reference | Per-section provenance sidecar. |
 | `provenance_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the sidecar bytes. |
+| `provenance_length` | optional | integer, minimum 0 | Sidecar byte count: the same bytes `provenance_hash` covers. An advisory, untrusted size hint, like `content_length`. |
 | `links` | optional | array, max 256 Link objects | Typed cross-references. |
 | `refreshed_at` | optional | RFC 3339 UTC timestamp | Section last content-edit timestamp, set by maintainer or infra. It is not derived and has no required relationship to source `captured_at`. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
@@ -278,12 +280,12 @@ Authoring form vs served form:
 | `base_uri` | usually absent | MAY be set to the canonical root | provider |
 | `revision` | absent | present (minted) | provider |
 | `content_hash`, `provenance_hash` | optional/absent | stamped from the served bytes | provider (publish-time) |
-| `content_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
+| section `content_length`, `provenance_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
 | `guide_hash`, `guide_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
 | `refreshed_at` | MAY be author-set | MAY be set/updated | maintainer or provider (not derived) |
 | source `uri` (`type: url`) | absolute | unchanged (never rewritten) | — |
 | source `uri` (`type: file`) | relative | absolute, self-contained | provider |
-| source `content_hash`, `capture_uri` | optional/absent; `capture_uri` MAY be a relative capture path | `capture_uri` absolute, self-contained; both stamped at capture time | provider (capture-time) |
+| source `content_hash`, `capture_uri`, `content_length` | optional/absent; `capture_uri` MAY be a relative capture path | `capture_uri` absolute, self-contained; `content_hash` and `content_length` stamped from the captured bytes | provider (capture-time) |
 
 Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `subject_type`, `tags`, `language`, `refresh_class`, `cadence`, `discovered_via_id`) is author-supplied — `discovered_via_id` is set by the maintainer or infrastructure at discovery time — and carried verbatim, except for a provider-served redacted projection using the redacted source form (§4.2).
 
@@ -295,10 +297,10 @@ The directory [examples/widget-platform-served/](../../examples/widget-platform-
 
 The inverse transformation — fetching a served descriptor and materializing it as an editable local working copy — is exercised by every pull, mirror, and fork workflow. The following detach procedure is RECOMMENDED so that independently written tools produce working copies that behave alike. A *hosted reference* below is a URI that resolves under the descriptor's own root: `base_uri` when set, otherwise the retrieval URI.
 
-1. **Resolve, then relativize hosted references.** For each hosted `content_uri`, `provenance_uri`, `guide_uri`, and `type: file` source `uri`: resolve it per §5, fetch the payload to a local file, and rewrite the reference as a relative path to that file. Keeping a hosted reference absolute is NOT RECOMMENDED: after local edits, the descriptor silently keeps resolving to the remote, pre-edit content. A hosted `capture_uri` MAY be mirrored and relativized in the same way, or kept absolute: captures are immutable evidence pinned by the source `content_hash`, so a remote reference stays truthful after local edits.
+1. **Resolve, then relativize hosted references.** For each hosted `content_uri`, `provenance_uri`, `guide_uri`, and `type: file` source `uri`: resolve it per §5, fetch the payload to a local file, and rewrite the reference as a relative path to that file. Keeping a hosted reference absolute is NOT RECOMMENDED: after local edits, the descriptor silently keeps resolving to the remote, pre-edit content. A hosted `capture_uri` MAY be mirrored and relativized in the same way, or kept absolute: captures are immutable evidence pinned by the source `content_hash` and sized by `content_length`, so a remote reference stays truthful after local edits.
 2. **Drop `base_uri`.** It exists to make the served form self-contained; carried into a working copy, it makes the copy's relative references resolve remotely.
 3. **Drop `revision`.** It is provider-minted and serve-only (§5); a stale value in a working copy misdescribes the copy, and the provider mints a fresh one on the next publish.
-4. **Keep stamped hashes and lengths through the pull; treat them as stale after the first edit.** `content_hash`, `content_length`, `provenance_hash`, `guide_hash`, and `guide_length` are exactly what make the just-pulled copy verifiable: verify them against the fetched bytes at detach time. After any local edit they describe bytes that no longer exist; a detach tool MAY drop them at first edit or leave them to be restamped at the next publish (§5).
+4. **Keep stamped hashes and lengths through the pull; treat them as stale after the first edit.** Section `content_hash`, `content_length`, `provenance_hash`, and `provenance_length`, together with the top-level `guide_hash` and `guide_length`, are exactly what make the just-pulled copy verifiable: verify them against the fetched bytes at detach time. After any local edit they describe bytes that no longer exist; a detach tool MAY drop them at first edit or leave them to be restamped at the next publish (§5). Source `content_hash` and `content_length` are not in this list: they pin immutable capture evidence (step 1) and stay truthful across section edits.
 5. **Keep external references verbatim.** Source `uri` values of `type: url`, of unknown or extended types — including `type: "redacted"` stubs (§4.2) — and cross-AKB `akb_uri` values are original locations; the never-rewritten rule (§5) holds in both directions. The one exception is a relative `akb_uri`: it names a remote descriptor, not a local file, so it is rewritten to its §5-resolved absolute form before step 2 removes the base it resolves against. All author-supplied fields, including `refreshed_at`, carry verbatim.
 
 A validator running on a working copy already treats every serve-only field as optional (§5), so a partially detached descriptor remains valid throughout migration; a detached-then-edited copy simply loses its stamps until republished. The [examples/widget-platform-served/](../../examples/widget-platform-served/) and [examples/widget-platform/](../../examples/widget-platform/) directories illustrate the two ends of this round trip.
