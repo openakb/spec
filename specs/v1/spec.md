@@ -103,7 +103,7 @@ With a pinned capture, claim `locator.quote` spans can be mechanically verified 
 
 - `uri` points at a provider-hosted stub that acts as the accountable origin of the citation.
 - `captured_at` MAY be retained as a dated marker.
-- A redacted source SHOULD NOT carry identifying fields: `title`, `content_hash`, `capture_uri`, `refresh_class`, `cadence`, and `discovered_via_id` are omitted.
+- A redacted source SHOULD NOT carry identifying fields: `title`, `content_hash`, `content_length`, `capture_uri`, `refresh_class`, `cadence`, and `discovered_via_id` are omitted. Leaving `content_length` behind would still disclose the withheld source's exact captured size.
 - The source keeps its `id`, so `source_ids` entries and inline `[cite:]` markers — which are baked into content bytes pinned by `content_hash` — keep resolving unchanged.
 
 The type string `redacted` is the convention's interoperable name: a provider-specific or extended type does not receive the §5 rewrite exception and carries none of the redaction semantics.
@@ -280,7 +280,7 @@ Authoring form vs served form:
 | `base_uri` | usually absent | MAY be set to the canonical root | provider |
 | `revision` | absent | present (minted) | provider |
 | `content_hash`, `provenance_hash` | optional/absent | stamped from the served bytes | provider (publish-time) |
-| `content_length`, `provenance_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
+| section `content_length`, `provenance_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
 | `guide_hash`, `guide_length` | optional/absent | stamped from the served bytes | provider (publish-time) |
 | `refreshed_at` | MAY be author-set | MAY be set/updated | maintainer or provider (not derived) |
 | source `uri` (`type: url`) | absolute | unchanged (never rewritten) | — |

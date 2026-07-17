@@ -45,8 +45,9 @@ at v1.0.0.
   source `content_hash`, the captured-evidence bytes) — the advisory, untrusted size hint
   already carried for section content and the guide, extended to the provenance sidecar,
   file-source, and capture payloads so every hosted-payload `*_hash` has an optional
-  `*_length` companion (spec §4.2, §4.3, §5, §5.1), with schema and worked-example coverage
-  in both authoring and served form.
+  `*_length` companion (spec §4.2, §4.3, §5, §5.1), with schema, worked-example, and
+  conformance coverage; `content_length` is omitted from redacted source projections so a
+  withheld source's captured size stays undisclosed.
 - Provider-side source redaction: a RECOMMENDED `type: "redacted"` source form whose `uri`
   points at a provider-hosted stub as the accountable origin, a narrowly scoped exception to
   the §5 never-rewritten-on-serve rule, and unverifiable-by-construction content checks
