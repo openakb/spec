@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from openakb_validate import validate
 from openakb_validate.schema import _ecma_anchor, provenance_validator, schema_findings
 
 __all__ = ()
@@ -15,14 +16,14 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
         "id": "kb",
         "title": "KB",
         "description": "A test descriptor.",
-        "sources": [{"id": "s1", "type": "url", "uri": "https://docs.example.com/"}],
+        "sources": [{"id": "SRC-000001", "type": "url", "uri": "https://docs.example.com/"}],
         "sections": [
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "Root section.",
                 "content_uri": "root.md",
-                "source_ids": ["s1"],
+                "source_ids": ["SRC-000001"],
             }
         ],
     }
@@ -32,6 +33,22 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
 
 def _codes(instance: object) -> set[str]:
     return {finding.code for finding in schema_findings(instance)}
+
+
+def _minimal(*, source_id: str, section_id: str, source_ids: list[str]) -> dict[str, Any]:
+    """A minimal descriptor carrying the given source/section ids."""
+    return _descriptor(
+        sources=[{"id": source_id, "type": "url", "uri": "https://docs.example.com/"}],
+        sections=[
+            {
+                "id": section_id,
+                "title": "Root",
+                "description": "Root section.",
+                "content_uri": "root.md",
+                "source_ids": source_ids,
+            }
+        ],
+    )
 
 
 def test_valid_descriptor_has_no_findings() -> None:
@@ -84,14 +101,14 @@ def test_akb012_link_without_target() -> None:
 def test_akb008_unknown_rel() -> None:
     """A link rel outside the enum/reverse-DNS grammar is reported as AKB008."""
     descriptor = _descriptor()
-    descriptor["sections"][0]["links"] = [{"rel": "not-a-rel", "section_id": "root"}]
+    descriptor["sections"][0]["links"] = [{"rel": "not-a-rel", "section_id": "SEC-000001"}]
     assert "AKB008" in _codes(descriptor)
 
 
 def test_akb011_non_string_rel() -> None:
     """A non-string rel value is reported as AKB011, not AKB008."""
     descriptor = _descriptor()
-    descriptor["sections"][0]["links"] = [{"rel": 42, "section_id": "root"}]
+    descriptor["sections"][0]["links"] = [{"rel": 42, "section_id": "SEC-000001"}]
     codes = _codes(descriptor)
     assert "AKB011" in codes
     assert "AKB008" not in codes
@@ -167,13 +184,38 @@ def test_akb011_trailing_newline_x_key() -> None:
 def test_akb008_trailing_newline_rel() -> None:
     """A trailing newline breaks the reverse-DNS rel escape, yielding AKB008."""
     descriptor = _descriptor()
-    descriptor["sections"][0]["links"] = [{"rel": "a.b:c\n", "section_id": "root"}]
+    descriptor["sections"][0]["links"] = [{"rel": "a.b:c\n", "section_id": "SEC-000001"}]
     assert "AKB008" in _codes(descriptor)
 
 
 def test_pattern_matches_without_trailing_newline() -> None:
     """Well-formed values still validate: the ECMA anchoring is not over-broad."""
     assert schema_findings(_descriptor(namespace="abc", tags=["ok"])) == []
+
+
+def test_typed_ids_accepted() -> None:
+    """A descriptor whose source/section ids use the typed form passes schema shape."""
+    descriptor = _minimal(
+        source_id="SRC-000001", section_id="SEC-000001", source_ids=["SRC-000001"]
+    )
+    codes = {f.code for f in validate(descriptor, strict=False).findings}
+    assert "AKB011" not in codes
+
+
+def test_malformed_typed_section_id_is_akb011() -> None:
+    """A too-short section id fails the sectionId pattern as AKB011."""
+    descriptor = _minimal(source_id="SRC-000001", section_id="SEC-12", source_ids=["SRC-000001"])
+    codes = {f.code for f in validate(descriptor, strict=False).findings}
+    assert "AKB011" in codes
+
+
+def test_akb011_wrong_prefix_source_id() -> None:
+    """A source id carrying the section prefix fails the sourceId pattern as AKB011."""
+    descriptor = _minimal(
+        source_id="SEC-000001", section_id="SEC-000001", source_ids=["SEC-000001"]
+    )
+    codes = {f.code for f in validate(descriptor, strict=False).findings}
+    assert "AKB011" in codes
 
 
 @pytest.mark.parametrize(
@@ -197,7 +239,7 @@ def test_provenance_validator_is_usable() -> None:
     """The provenance sidecar validator accepts a well-formed provenance document."""
     provenance = {
         "$schema": "https://schema.openakb.org/v1/provenance.schema.json",
-        "section_id": "root",
-        "claims": [{"text": "A claim.", "source_ids": ["s1"]}],
+        "section_id": "SEC-000001",
+        "claims": [{"text": "A claim.", "source_ids": ["SRC-000001"]}],
     }
     assert schema_findings(provenance, provenance_validator()) == []
