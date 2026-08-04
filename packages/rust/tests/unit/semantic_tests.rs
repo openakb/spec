@@ -161,7 +161,9 @@ fn test_akb011_mixed_case_across_arrays_not_flagged() {
 }
 
 #[test]
-fn test_link_with_akb_uri_skipped() {
+fn test_link_with_akb_uri_existence_skipped() {
+    // A cross-AKB link's section_id is still checked for kind (SEC- prefix); only
+    // existence in the remote AKB is skipped, so a nonexistent target is not AKB007.
     let mut descriptor = descriptor();
     descriptor["sections"][0]["links"] = json!([
         {"rel":"see-also","akb_uri":"https://kb.example.org/other","section_id":"SEC-999999"}

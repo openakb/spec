@@ -88,22 +88,29 @@ def reference_code(
 
 
 def casefolded_duplicate_indices(items: Iterable[object]) -> list[int]:
-    """Indices of id-array entries whose casefolded id repeats an earlier entry.
+    """Indices of id-array entries that are a case-variant duplicate of an earlier entry.
 
-    The schema's `uniqueItems` compares raw JSON strings, so a case-variant
-    duplicate like "SRC-00000A" and "src-00000a" passes it even though both denote
-    the same id under the case-insensitive id policy (spec Section 4.3/4.4). Only
-    grammar-valid typed ids are keyed here; a non-typed entry is already the
+    The schema's `uniqueItems` compares raw JSON strings, so it already reports an
+    exact-string duplicate like ["SRC-000001", "SRC-000001"] as AKB011; flagging it
+    again here would double-report the same violation. This helper instead catches
+    what `uniqueItems` cannot see: a case-variant duplicate like "SRC-00000A" and
+    "src-00000a", which denote the same id under the case-insensitive id policy
+    (spec Section 4.3/4.4) but compare unequal as raw strings. An entry is flagged
+    only when its casefolded key matches an earlier entry AND its raw string does
+    not equal any earlier entry -- exact duplicates stay the schema's job alone.
+    Only grammar-valid typed ids are keyed here; a non-typed entry is already the
     schema's AKB011 and must not be double-reported.
     """
-    seen: set[str] = set()
+    seen_keys: set[str] = set()
+    seen_raw: set[str] = set()
     duplicates: list[int] = []
     for index, item in enumerate(items):
         if not is_typed_id(item):
             continue
-        key = normalize_id(cast("str", item))
-        if key in seen:
+        raw = cast("str", item)
+        key = normalize_id(raw)
+        if key in seen_keys and raw not in seen_raw:
             duplicates.append(index)
-        else:
-            seen.add(key)
+        seen_keys.add(key)
+        seen_raw.add(raw)
     return duplicates

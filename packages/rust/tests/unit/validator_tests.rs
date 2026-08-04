@@ -92,6 +92,27 @@ fn test_warnings_never_block() {
 }
 
 #[test]
+fn test_exact_duplicate_source_id_single_akb011() {
+    // An exact-string duplicate in a source_ids array is one AKB011, not two: the
+    // schema's uniqueItems already reports it, and the semantic casefolded-duplicate
+    // check exists only for the case-variant duplicate uniqueItems cannot see (spec
+    // Section 4.3/4.4/7), so it must not also fire here.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "SRC-000001"]);
+
+    let result = validate(&descriptor, Mode::Lenient);
+
+    assert_eq!(
+        result
+            .findings
+            .iter()
+            .map(|finding| finding.code)
+            .collect::<Vec<_>>(),
+        vec![Code::Akb011]
+    );
+}
+
+#[test]
 fn test_mode_default_lenient() {
     assert_eq!(Mode::default(), Mode::Lenient);
 }

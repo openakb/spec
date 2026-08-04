@@ -127,23 +127,32 @@ pub(crate) fn reference_code_id(
     }
 }
 
-/// Indices of id-array entries whose casefolded id repeats an earlier entry.
+/// Indices of id-array entries that are a case-variant duplicate of an earlier entry.
 ///
-/// The schema's `uniqueItems` compares raw JSON strings, so a case-variant
-/// duplicate like "SRC-00000A" and "src-00000a" passes it even though both denote
-/// the same id under the case-insensitive id policy (spec Section 4.3/4.4). Only
-/// grammar-valid typed ids are keyed here; a non-typed entry is already the
+/// The schema's `uniqueItems` compares raw JSON strings, so it already reports an
+/// exact-string duplicate like `["SRC-000001", "SRC-000001"]` as `AKB011`; flagging
+/// it again here would double-report the same violation. This helper instead catches
+/// what `uniqueItems` cannot see: a case-variant duplicate like "SRC-00000A" and
+/// "src-00000a", which denote the same id under the case-insensitive id policy
+/// (spec Section 4.3/4.4) but compare unequal as raw strings. An entry is flagged
+/// only when its casefolded key matches an earlier entry AND its raw string does
+/// not equal any earlier entry -- exact duplicates stay the schema's job alone.
+/// Only grammar-valid typed ids are keyed here; a non-typed entry is already the
 /// schema's `AKB011` and must not be double-reported.
 pub(crate) fn casefolded_duplicate_indices(items: &[Value]) -> Vec<usize> {
-    let mut seen = BTreeSet::new();
+    let mut seen_keys = BTreeSet::new();
+    let mut seen_raw: BTreeSet<&str> = BTreeSet::new();
     let mut duplicates = Vec::new();
     for (index, item) in items.iter().enumerate() {
         let Some(id) = item.as_str().filter(|id| is_typed_id(id)) else {
             continue;
         };
-        if !seen.insert(normalize_id(id)) {
+        let key = normalize_id(id);
+        if seen_keys.contains(&key) && !seen_raw.contains(id) {
             duplicates.push(index);
         }
+        seen_keys.insert(key);
+        seen_raw.insert(id);
     }
     duplicates
 }

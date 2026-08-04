@@ -196,7 +196,11 @@ def test_akb010_discovery_section() -> None:
 
 
 def test_local_cross_links() -> None:
-    """Local links validate section_id; cross-AKB links with akb_uri do not."""
+    """Local links validate section_id fully.
+
+    Cross-AKB links with akb_uri validate only the kind (prefix); existence is
+    skipped.
+    """
     descriptor = _descriptor(
         sections=[
             _section(

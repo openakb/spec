@@ -117,6 +117,29 @@ def test_trailing_newline_id_rejected() -> None:
     assert "AKB011" in result.codes
 
 
+def test_exact_duplicate_source_id_single_akb011() -> None:
+    """An exact-string duplicate in a source_ids array is one AKB011, not two.
+
+    The schema's `uniqueItems` already reports the exact-string duplicate; the
+    semantic casefolded-duplicate check exists only for the case-variant duplicate
+    `uniqueItems` cannot see (spec Section 4.3/4.4/7) and must not also fire here.
+    """
+    descriptor = _descriptor(
+        sections=[
+            {
+                "id": "SEC-000001",
+                "title": "Root",
+                "description": "Root section.",
+                "content_uri": "root.md",
+                "source_ids": ["SRC-000001", "SRC-000001"],
+            }
+        ]
+    )
+    result = validate(descriptor)
+
+    assert [finding.code for finding in result.findings] == ["AKB011"]
+
+
 def test_non_dict_input_invalid() -> None:
     """A non-dict top-level input (a string) fails validation with AKB011."""
     result = validate("not a descriptor")
