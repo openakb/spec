@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-case-insensitive-duplicate-id",
+  "title": "Invalid — case-insensitive duplicate id",
+  "description": "Two sections whose ids differ only in case collide in the casefolded id space.",
+  "sources": [
+    {
+      "id": "SRC-000001",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "SEC-00000A",
+      "title": "First",
+      "description": "First section using the uppercase form of the id.",
+      "content_uri": "first.md",
+      "source_ids": ["SRC-000001"]
+    },
+    {
+      "id": "SEC-00000a",
+      "title": "Second",
+      "description": "Second section using the lowercase form of the id.",
+      "content_uri": "second.md",
+      "source_ids": ["SRC-000001"]
+    }
+  ]
+}

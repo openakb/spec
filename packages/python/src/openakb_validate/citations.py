@@ -17,11 +17,11 @@ from functools import cache
 
 from markdown_it import MarkdownIt
 
-from .catalog import LOCAL_ID_CHARSET, LOCAL_ID_MAX_LENGTH
+from .catalog import CITE_ID_CHARSET, CITE_ID_MAX_LENGTH
 
 __all__ = ["Citation", "extract_citations"]
 
-_ID = rf"[{LOCAL_ID_CHARSET}]{{1,{LOCAL_ID_MAX_LENGTH}}}"
+_ID = rf"[{CITE_ID_CHARSET}]{{1,{CITE_ID_MAX_LENGTH}}}"
 _MARKER_RE = re.compile(rf"\[cite:[ \t]*({_ID}(?:[ \t]*,[ \t]*{_ID})*)\]")
 _SEPARATOR_RE = re.compile(r"[ \t]*,[ \t]*")
 

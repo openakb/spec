@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-cross-akb-link-wrong-kind",
+  "title": "Invalid — cross-AKB link target is a source",
+  "description": "A cross-AKB link section_id resolves to a source id instead of a section id.",
+  "sources": [
+    {
+      "id": "SRC-000001",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "SEC-000001",
+      "title": "Root",
+      "description": "Links, by section_id, to a source id in another AKB rather than a section.",
+      "content_uri": "root.md",
+      "source_ids": ["SRC-000001"],
+      "links": [
+        {
+          "rel": "see-also",
+          "akb_uri": "https://kb.example.org/other.openakb.json",
+          "section_id": "SRC-000001"
+        }
+      ]
+    }
+  ]
+}

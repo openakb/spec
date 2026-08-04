@@ -10,8 +10,8 @@ fn descriptor() -> Value {
         "id": "facade-fixture",
         "title": "Facade",
         "description": "Base for facade tests.",
-        "sources": [{"id":"s1","type":"url","uri":"https://docs.example.com/a/"}],
-        "sections": [{"id":"root","title":"Root","description":"The only section.","content_uri":"root.md","source_ids":["s1"]}]
+        "sources": [{"id":"SRC-000001","type":"url","uri":"https://docs.example.com/a/"}],
+        "sections": [{"id":"SEC-000001","title":"Root","description":"The only section.","content_uri":"root.md","source_ids":["SRC-000001"]}]
     })
 }
 
@@ -50,7 +50,7 @@ fn test_lenient_vs_strict() {
 fn test_findings_sorted_deduped() {
     let mut descriptor = descriptor();
     descriptor.as_object_mut().unwrap().remove("title");
-    descriptor["sections"][0]["source_ids"] = json!(["ghost"]);
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-999999"]);
 
     let result = validate(&descriptor, Mode::Strict);
     let mut sorted_deduped = result.findings.clone();
@@ -80,8 +80,8 @@ fn test_total_on_any_json() {
 fn test_warnings_never_block() {
     let mut descriptor = descriptor();
     descriptor["sources"] = json!([
-        {"id":"s1","type":"url","uri":"https://docs.example.com/a/","discovered_via_id":"s2"},
-        {"id":"s2","type":"url","uri":"https://docs.example.com/b/","discovered_via_id":"s1"}
+        {"id":"SRC-000001","type":"url","uri":"https://docs.example.com/a/","discovered_via_id":"SRC-000002"},
+        {"id":"SRC-000002","type":"url","uri":"https://docs.example.com/b/","discovered_via_id":"SRC-000001"}
     ]);
 
     let result = validate(&descriptor, Mode::Lenient);
@@ -89,6 +89,27 @@ fn test_warnings_never_block() {
     assert!(result.ok());
     assert_eq!(result.warnings.len(), 1);
     assert_eq!(codes(&result), Vec::<Code>::new());
+}
+
+#[test]
+fn test_exact_duplicate_source_id_single_akb011() {
+    // An exact-string duplicate in a source_ids array is one AKB011, not two: the
+    // schema's uniqueItems already reports it, and the semantic casefolded-duplicate
+    // check exists only for the case-variant duplicate uniqueItems cannot see (spec
+    // Section 4.3/4.4/7), so it must not also fire here.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "SRC-000001"]);
+
+    let result = validate(&descriptor, Mode::Lenient);
+
+    assert_eq!(
+        result
+            .findings
+            .iter()
+            .map(|finding| finding.code)
+            .collect::<Vec<_>>(),
+        vec![Code::Akb011]
+    );
 }
 
 #[test]

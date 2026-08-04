@@ -8,7 +8,7 @@
   "language": "en",
   "sources": [
     {
-      "id": "api-reference",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/widget-api/",
       "captured_at": "2026-06-30T00:00:00Z"
@@ -16,12 +16,12 @@
   ],
   "sections": [
     {
-      "id": "api",
+      "id": "SEC-000001",
       "title": "API",
       "description": "The public request/response contract, with per-claim provenance.",
       "content_uri": "sections/api.md",
       "content_type": "text/markdown",
-      "source_ids": ["api-reference"],
+      "source_ids": ["SRC-000001"],
       "provenance_uri": "sections/api.prov.json"
     }
   ]

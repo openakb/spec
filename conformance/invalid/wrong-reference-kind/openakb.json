@@ -5,25 +5,25 @@
   "description": "A section source_ids entry names a section instead of a source.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "This section cites another section as if it were a source.",
       "content_uri": "root.md",
-      "source_ids": ["child"]
+      "source_ids": ["SEC-000002"]
     },
     {
-      "id": "child",
+      "id": "SEC-000002",
       "title": "Child",
       "description": "The incorrectly cited section.",
       "content_uri": "child.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

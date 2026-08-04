@@ -25,18 +25,18 @@ let descriptor = json!({
     "description": "A small descriptor for validation examples.",
     "sources": [
         {
-            "id": "primary-source",
+            "id": "SRC-000001",
             "type": "url",
             "uri": "https://docs.example.com/source/"
         }
     ],
     "sections": [
         {
-            "id": "overview",
+            "id": "SEC-000001",
             "title": "Overview",
             "description": "A section grounded in the primary source.",
             "content_uri": "sections/overview.md",
-            "source_ids": ["primary-source"]
+            "source_ids": ["SRC-000001"]
         }
     ]
 });

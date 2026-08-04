@@ -5,19 +5,19 @@
   "description": "A local link section_id names a section that does not exist in this AKB.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Links, by section_id, to a section that is not present.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
-      "links": [{ "rel": "see-also", "section_id": "ghost" }]
+      "source_ids": ["SRC-000001"],
+      "links": [{ "rel": "see-also", "section_id": "SEC-000009" }]
     }
   ]
 }

@@ -8,8 +8,8 @@ fn descriptor() -> Value {
         "id": "semantic-fixture",
         "title": "Semantic",
         "description": "Base for semantic-rule tests.",
-        "sources": [{"id":"s1","type":"url","uri":"https://docs.example.com/a/"}],
-        "sections": [{"id":"root","title":"Root","description":"The only section.","content_uri":"root.md","source_ids":["s1"]}]
+        "sources": [{"id":"SRC-000001","type":"url","uri":"https://docs.example.com/a/"}],
+        "sections": [{"id":"SEC-000001","title":"Root","description":"The only section.","content_uri":"root.md","source_ids":["SRC-000001"]}]
     })
 }
 
@@ -33,8 +33,8 @@ fn paths_for(descriptor: &Value, code: Code) -> Vec<String> {
 fn test_duplicate_ids() {
     let mut descriptor = descriptor();
     descriptor["sources"] = json!([
-        {"id":"s1","type":"url","uri":"https://docs.example.com/a/"},
-        {"id":"s1","type":"url","uri":"https://docs.example.com/b/"}
+        {"id":"SRC-000001","type":"url","uri":"https://docs.example.com/a/"},
+        {"id":"SRC-000001","type":"url","uri":"https://docs.example.com/b/"}
     ]);
 
     let paths = paths_for(&descriptor, Code::Akb001);
@@ -43,9 +43,23 @@ fn test_duplicate_ids() {
 }
 
 #[test]
+fn test_case_insensitive_duplicate() {
+    // Ids differing only in ASCII case collide under the casefolded policy.
+    let mut descriptor = descriptor();
+    descriptor["sections"] = json!([
+        {"id":"SEC-00000A","title":"A","description":"A.","content_uri":"a.md","source_ids":["SRC-000001"]},
+        {"id":"SEC-00000a","title":"a","description":"a.","content_uri":"b.md","source_ids":["SRC-000001"]}
+    ]);
+
+    let paths = paths_for(&descriptor, Code::Akb001);
+
+    assert_eq!(paths, vec!["/sections/1/id"]);
+}
+
+#[test]
 fn test_shared_namespace_duplicate() {
     let mut descriptor = descriptor();
-    descriptor["sections"][0]["id"] = json!("s1");
+    descriptor["sections"][0]["id"] = json!("SRC-000001");
 
     assert!(codes(&descriptor).contains(&Code::Akb001));
 }
@@ -56,7 +70,7 @@ fn test_empty_section() {
     descriptor["sections"]
         .as_array_mut()
         .unwrap()
-        .push(json!({"id":"hollow","title":"Hollow","description":"No content or child."}));
+        .push(json!({"id":"SEC-000002","title":"Hollow","description":"No content or child."}));
 
     let paths = paths_for(&descriptor, Code::Akb002);
 
@@ -66,14 +80,14 @@ fn test_empty_section() {
 #[test]
 fn test_unresolved_references() {
     let mut descriptor = descriptor();
-    descriptor["sources"][0]["discovered_via_id"] = json!("ghost-source");
-    descriptor["sections"][0]["parent_id"] = json!("ghost-parent");
-    descriptor["sections"][0]["source_ids"] = json!(["s1", "ghost-source"]);
+    descriptor["sources"][0]["discovered_via_id"] = json!("SRC-999999");
+    descriptor["sections"][0]["parent_id"] = json!("SEC-999999");
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "SRC-999999"]);
     descriptor["sections"][0]["links"] = json!([
-        {"rel":"see-also","section_id":"ghost-section"}
+        {"rel":"see-also","section_id":"SEC-999999"}
     ]);
     descriptor["sections"][0]["provenance"] = json!([
-        {"text":"Inline claim.","source_ids":["ghost-claim-source"]}
+        {"text":"Inline claim.","source_ids":["SRC-999999"]}
     ]);
 
     let paths = paths_for(&descriptor, Code::Akb007);
@@ -93,8 +107,8 @@ fn test_unresolved_references() {
 #[test]
 fn test_wrong_kind_references() {
     let mut descriptor = descriptor();
-    descriptor["sections"][0]["parent_id"] = json!("s1");
-    descriptor["sections"][0]["source_ids"] = json!(["s1", "root"]);
+    descriptor["sections"][0]["parent_id"] = json!("SRC-000001");
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "SEC-000001"]);
 
     let result = validate(&descriptor, Mode::Lenient);
     let findings: Vec<_> = result
@@ -111,10 +125,69 @@ fn test_wrong_kind_references() {
 }
 
 #[test]
-fn test_link_with_akb_uri_skipped() {
+fn test_akb011_casefolded_duplicate_section_source_ids() {
+    // The schema's uniqueItems compares raw strings, so a case-variant duplicate
+    // passes it; the semantic layer must still flag it as AKB011.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "src-000001"]);
+
+    let paths = paths_for(&descriptor, Code::Akb011);
+
+    assert_eq!(paths, vec!["/sections/0/source_ids/1"]);
+}
+
+#[test]
+fn test_akb011_casefolded_duplicate_claim_source_ids() {
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["provenance"] = json!([
+        {"text":"Inline claim.","source_ids":["SRC-000001", "src-000001"]}
+    ]);
+
+    let paths = paths_for(&descriptor, Code::Akb011);
+
+    assert_eq!(paths, vec!["/sections/0/provenance/0/source_ids/1"]);
+}
+
+#[test]
+fn test_akb011_mixed_case_across_arrays_not_flagged() {
+    // Case variants cited in different arrays are not a within-array duplicate.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001"]);
+    descriptor["sections"][0]["provenance"] = json!([
+        {"text":"Inline claim.","source_ids":["src-000001"]}
+    ]);
+
+    assert!(!codes(&descriptor).contains(&Code::Akb011));
+}
+
+#[test]
+fn test_link_with_akb_uri_existence_skipped() {
+    // A cross-AKB link's section_id is still checked for kind (SEC- prefix); only
+    // existence in the remote AKB is skipped, so a nonexistent target is not AKB007.
     let mut descriptor = descriptor();
     descriptor["sections"][0]["links"] = json!([
-        {"rel":"see-also","akb_uri":"https://kb.example.org/other","section_id":"ghost-section"}
+        {"rel":"see-also","akb_uri":"https://kb.example.org/other","section_id":"SEC-999999"}
+    ]);
+
+    assert_eq!(codes(&descriptor), Vec::new());
+}
+
+#[test]
+fn test_cross_link_wrong_kind() {
+    // A cross-AKB link's section_id still enforces the SEC- prefix (kind), not existence.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["links"] = json!([
+        {"rel":"see-also","akb_uri":"https://kb.example.org/other.openakb.json","section_id":"SRC-000001"}
+    ]);
+
+    assert_eq!(codes(&descriptor), vec![Code::Akb010]);
+}
+
+#[test]
+fn test_cross_link_section_valid() {
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["links"] = json!([
+        {"rel":"see-also","akb_uri":"https://kb.example.org/other.openakb.json","section_id":"SEC-000001"}
     ]);
 
     assert_eq!(codes(&descriptor), Vec::new());
@@ -124,8 +197,8 @@ fn test_link_with_akb_uri_skipped() {
 fn test_parent_cycle() {
     let mut descriptor = descriptor();
     descriptor["sections"] = json!([
-        {"id":"a","title":"A","description":"A.","parent_id":"b","content_uri":"a.md","source_ids":["s1"]},
-        {"id":"b","title":"B","description":"B.","parent_id":"a","content_uri":"b.md","source_ids":["s1"]}
+        {"id":"SEC-000001","title":"A","description":"A.","parent_id":"SEC-000002","content_uri":"a.md","source_ids":["SRC-000001"]},
+        {"id":"SEC-000002","title":"B","description":"B.","parent_id":"SEC-000001","content_uri":"b.md","source_ids":["SRC-000001"]}
     ]);
 
     let result = validate(&descriptor, Mode::Lenient);
@@ -136,7 +209,11 @@ fn test_parent_cycle() {
         .collect();
 
     assert_eq!(findings.len(), 1);
-    assert!(findings[0].message.contains("a -> b -> a"));
+    assert!(
+        findings[0]
+            .message
+            .contains("SEC-000001 -> SEC-000002 -> SEC-000001")
+    );
 }
 
 #[test]
@@ -167,7 +244,7 @@ fn test_wide_parent_lookup() {
     sections
         .as_array_mut()
         .unwrap()
-        .push(json!({"id":"child","title":"Child","description":"Child section.","parent_id":"n255","content_uri":"child.md","source_ids":["s1"]}));
+        .push(json!({"id":"SEC-000256","title":"Child","description":"Child section.","parent_id":"SEC-000255","content_uri":"child.md","source_ids":["SRC-000001"]}));
     descriptor["sections"] = sections;
 
     let result = validate(&descriptor, Mode::Lenient);
@@ -181,15 +258,19 @@ fn test_wide_parent_lookup() {
 fn test_discovery_cycle_warns() {
     let mut descriptor = descriptor();
     descriptor["sources"] = json!([
-        {"id":"s1","type":"url","uri":"https://docs.example.com/a/","discovered_via_id":"s2"},
-        {"id":"s2","type":"url","uri":"https://docs.example.com/b/","discovered_via_id":"s1"}
+        {"id":"SRC-000001","type":"url","uri":"https://docs.example.com/a/","discovered_via_id":"SRC-000002"},
+        {"id":"SRC-000002","type":"url","uri":"https://docs.example.com/b/","discovered_via_id":"SRC-000001"}
     ]);
 
     let result = validate(&descriptor, Mode::Lenient);
 
     assert!(result.ok());
     assert_eq!(result.warnings.len(), 1);
-    assert!(result.warnings[0].message.contains("s1 -> s2 -> s1"));
+    assert!(
+        result.warnings[0]
+            .message
+            .contains("SRC-000001 -> SRC-000002 -> SRC-000001")
+    );
 }
 
 #[test]
@@ -212,16 +293,16 @@ fn test_garbage_shapes_ignored() {
 fn chain_sections(depth: usize) -> Value {
     let sections: Vec<_> = (0..depth)
         .map(|index| {
-            let id = format!("n{index}");
+            let id = format!("SEC-{index:06}");
             let parent_id = index
                 .checked_sub(1)
-                .map(|parent_index| format!("n{parent_index}"));
+                .map(|parent_index| format!("SEC-{parent_index:06}"));
             let mut section = json!({
                 "id": id,
                 "title": format!("Node {index}"),
                 "description": "Depth fixture.",
                 "content_uri": format!("n{index}.md"),
-                "source_ids": ["s1"]
+                "source_ids": ["SRC-000001"]
             });
             if let Some(parent_id) = parent_id {
                 section["parent_id"] = json!(parent_id);
@@ -237,11 +318,11 @@ fn wide_sections(count: usize) -> Value {
     let sections: Vec<_> = (0..count)
         .map(|index| {
             json!({
-                "id": format!("n{index}"),
+                "id": format!("SEC-{index:06}"),
                 "title": format!("Node {index}"),
                 "description": "Wide parent lookup fixture.",
                 "content_uri": format!("n{index}.md"),
-                "source_ids": ["s1"]
+                "source_ids": ["SRC-000001"]
             })
         })
         .collect();

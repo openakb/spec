@@ -1,3 +1,3 @@
 # Overview
 
-This is the only section in the minimal example [cite: primary-source].
+This is the only section in the minimal example [cite: SRC-000001].

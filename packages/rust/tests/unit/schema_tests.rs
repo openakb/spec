@@ -11,18 +11,18 @@ fn descriptor() -> Value {
         "tags": ["fixtures", "single_section"],
         "sources": [
             {
-                "id": "s1",
+                "id": "SRC-000001",
                 "type": "url",
                 "uri": "https://docs.example.com/a/"
             }
         ],
         "sections": [
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "The only section.",
                 "content_uri": "root.md",
-                "source_ids": ["s1"]
+                "source_ids": ["SRC-000001"]
             }
         ]
     })
@@ -43,8 +43,8 @@ fn test_minimal_descriptor_passes() {
 #[test]
 fn test_trailing_newline_id_rejected() {
     let mut descriptor = descriptor();
-    descriptor["sources"][0]["id"] = json!("s1\n");
-    descriptor["sections"][0]["source_ids"][0] = json!("s1\n");
+    descriptor["sources"][0]["id"] = json!("SRC-000001\n");
+    descriptor["sections"][0]["source_ids"][0] = json!("SRC-000001\n");
 
     assert!(codes(&descriptor).contains(&Code::Akb011));
 }
@@ -71,7 +71,7 @@ fn test_unknown_rel() {
     descriptor["sections"][0]["links"] = json!([
         {
             "rel": "totally made up",
-            "section_id": "root"
+            "section_id": "SEC-000001"
         }
     ]);
 
@@ -84,7 +84,7 @@ fn test_non_string_rel() {
     descriptor["sections"][0]["links"] = json!([
         {
             "rel": 42,
-            "section_id": "root"
+            "section_id": "SEC-000001"
         }
     ]);
 
@@ -203,7 +203,7 @@ fn test_duplicate_tags() {
 #[test]
 fn test_duplicate_source_ids() {
     let mut descriptor = descriptor();
-    descriptor["sections"][0]["source_ids"] = json!(["s1", "s1"]);
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "SRC-000001"]);
 
     assert_eq!(codes(&descriptor), vec![Code::Akb011]);
 }

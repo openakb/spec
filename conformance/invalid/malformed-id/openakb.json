@@ -5,18 +5,18 @@
   "description": "The top-level id contains uppercase letters.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "The descriptor id is malformed.",
       "content_uri": "root.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

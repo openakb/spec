@@ -29,6 +29,8 @@ Related-resource URIs end in `_uri`, such as `content_uri`, `guide_uri`, `proven
 
 ID references end in `_id` or `_ids`, such as `parent_id`, `source_ids`, and `section_id`. An object's own identity is `id`. Arrays of embedded objects use the plural noun, such as `sources`, `sections`, and `links`.
 
+Source and Section `id`s are typed: a Source id is `SRC-` followed by six base36 characters, and a Section id is `SEC-` followed by six base36 characters. Ids are compared case-insensitively; the recommended emit form is an uppercase prefix with a lowercase body, such as `SEC-0f9x2q`.
+
 Boolean fields use `is_` or `has_` prefixes. Enum values are lowercase strings.
 
 ## §4 Descriptor model
@@ -45,7 +47,7 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 | `title` | REQUIRED | string, 1-200 chars | Display name. |
 | `description` | REQUIRED | string, 1-2000 chars | Bounded AKB abstract. |
 | `subject_type` | optional | non-empty string | Open subject classification. |
-| `tags` | optional | array, max 32 unique items; each `[a-z0-9_-]`, max 40 chars | Discovery and filtering labels. Tags share the local ID charset, so an id within the tag length cap can serve as a tag verbatim; tags are labels, not references. |
+| `tags` | optional | array, max 32 unique items; each `[a-z0-9_-]`, max 40 chars | Discovery and filtering labels. Tags share the slug charset (`[a-z0-9_-]`); they are labels, not references. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Primary language of AKB content. Sections MAY override. |
 | `guide_uri` | optional | URI reference | Maintainer guide, conventionally `AKB.md`. |
 | `guide_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the decoded guide bytes at `guide_uri`. The §4.3 hash rules apply: canonical base64, and `sha256` MUST be supported. |
@@ -68,7 +70,7 @@ A Source is raw provenance material a section can be grounded in. Sources are no
 
 | Field | Req? | Type / rule | Notes |
 | --- | --- | --- | --- |
-| `id` | REQUIRED | `[a-z0-9_-]`, ≤64 chars | Citation target; unique in the shared source and section id space. |
+| `id` | REQUIRED | `SRC-` + six base36 chars | Citation target; unique in the shared source and section id space, compared case-insensitively. |
 | `type` | REQUIRED | non-empty string | Source kind, such as `url` or `file`; extensible. |
 | `uri` | REQUIRED | URI reference | Location of the evidence. External URLs remain absolute. |
 | `title` | optional | string, max 200 chars | Display title. |
@@ -78,7 +80,7 @@ A Source is raw provenance material a section can be grounded in. Sources are no
 | `content_length` | optional | integer, minimum 0 | Captured-evidence byte count: the same bytes the source `content_hash` covers (the bytes at `capture_uri` when present). An advisory, untrusted size hint, like section `content_length`. |
 | `refresh_class` | optional | non-empty string | Freshness policy hint, such as `static`, `polled`, `event`, or `streaming`; descriptive only. |
 | `cadence` | optional | non-empty string | Expected refresh interval hint, meaningful only by convention. |
-| `discovered_via_id` | optional | source `id`, `[a-z0-9_-]`, ≤64 chars | The listing source via which this source was discovered. MUST resolve to a Source in this descriptor. |
+| `discovered_via_id` | optional | source `id` (`SRC-` form) | The listing source via which this source was discovered. MUST resolve to a Source in this descriptor. |
 | `x` | optional | reverse-DNS extension object | Namespaced extensions. |
 
 Freshness policy hints live on the Source object. There is no top-level freshness map in v1.
@@ -114,10 +116,12 @@ The type string `redacted` is the convention's interoperable name: a provider-sp
 
 The Section is the atomic unit of browse, pull, and grounding. The tree is expressed by `parent_id` plus document order; `id` is position-independent so references and diffs can survive restructuring.
 
+An `id` is the stable machine anchor; `title` is the human label. Tools presenting a cite or reference to a person SHOULD resolve the id to the referenced object's `title` and display that in place of the raw id.
+
 | Field | Req? | Type / rule | Notes |
 | --- | --- | --- | --- |
-| `id` | REQUIRED | `[a-z0-9_-]`, ≤64 chars | Stable identity; unique in the shared source and section id space. |
-| `parent_id` | optional | section `id`, `[a-z0-9_-]`, ≤64 chars | Parent section. Absence means root. |
+| `id` | REQUIRED | `SEC-` + six base36 chars | Stable identity; unique in the shared source and section id space, compared case-insensitively. |
+| `parent_id` | optional | section `id` (`SEC-` form) | Parent section. Absence means root. |
 | `title` | REQUIRED | string, 1-200 chars | Display title. |
 | `description` | REQUIRED | string, 1-2000 chars | Consumer-facing browse abstract. |
 | `purpose` | optional | string, max 2000 chars | Maintainer-facing statement of what the section should cover. |
@@ -126,7 +130,7 @@ The Section is the atomic unit of browse, pull, and grounding. The tree is expre
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the decoded content bytes. |
 | `content_length` | optional | integer, minimum 0 | Decoded content byte count: the same bytes `content_hash` covers. This is an advisory, untrusted size hint for pull budgeting, not a token estimate. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Per-section language override. |
-| `source_ids` | conditionally REQUIRED | array of unique source ids, each `[a-z0-9_-]`, ≤64 chars | Every section with `content_uri` MUST cite at least one `source_ids` entry. |
+| `source_ids` | conditionally REQUIRED | array of unique source ids, each in the typed `SRC-` form; uniqueness is compared case-insensitively | Every section with `content_uri` MUST cite at least one `source_ids` entry. |
 | `provenance` | optional | array, 1-256 Claim objects | Inline claim-level provenance. |
 | `provenance_uri` | optional | URI reference | Per-section provenance sidecar. |
 | `provenance_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the sidecar bytes. |
@@ -157,7 +161,7 @@ The inline citation grammar is normative, and it is matched against the **raw Ma
 
 - A citation is `[cite: <id-list>]` -- literal `[cite:`, the list, literal `]`.
 - `<id-list>` is one or more source `id`s separated by commas: `[cite: a]`, `[cite: a, b, c]`.
-- Optional horizontal whitespace is allowed after `cite:` and around each comma; each `id` matches the `[a-z0-9_-]`, ≤64 char local ID grammar, so the tokens are unambiguous.
+- Optional horizontal whitespace is allowed after `cite:` and around each comma; each `id` is a case-insensitive token matching `[A-Za-z0-9_-]`, ≤64 chars, so the tokens are unambiguous. A well-formed marker references a source, so in practice cite ids are the typed `SRC-` form.
 - Each `id` MUST reference a source declared in the descriptor (checked during content verification, §7).
 - Exactly five [CommonMark](https://spec.commonmark.org/) constructs suppress a marker they contain, and their spans MUST be removed from the source before matching: fenced code blocks (```` ``` ```` / `~~~`), indented code blocks, inline code spans (any backtick run length), HTML blocks, and HTML comments. The grammar is then matched literally over what remains. Nothing else affects recognition: there is no backslash escape, no character-reference decoding, and no rule about the brackets, emphasis, or other text adjacent to or enclosing a marker.
 - Any bracketed text that does not match the grammar exactly — for example `[cite:]` or `[cite: Bad ID]` — is ordinary literal text. It is never a marker and never an extraction error, and a well-formed marker written beside or within it is still recognized on its own.
@@ -169,22 +173,22 @@ Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are proven
 
 Inline claim-level provenance uses the Section `provenance` array, capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets. Each Claim object:
 
-- has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique, and each id uses the `[a-z0-9_-]`, ≤64 char local ID grammar.
+- has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique (compared case-insensitively), and each id is a typed source id (§3).
 - MAY include `locator` with `quote`, `page`, or `anchor`; `quote`, when present, is a non-empty string, and `page` is an integer greater than or equal to 0.
 - MAY carry its own `x` extension object, as MAY the `locator`.
 
 `locator.quote` SHOULD be a verbatim span of the cited source's captured content (§4.2), so the quote remains checkable against the capture even after the live source changes.
 
-The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` and claim `source_ids` use the `[a-z0-9_-]`, ≤64 char local ID grammar; each sidecar claim's `source_ids` likewise contains at least one entry, and its entries are unique. Its shape is:
+The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` is a typed section id and claim `source_ids` entries are typed source ids (§3); each sidecar claim's `source_ids` likewise contains at least one entry, and its entries are unique, compared case-insensitively. Its shape is:
 
 ```json
 {
   "$schema": "https://schema.openakb.org/v1/provenance.schema.json",
-  "section_id": "configuration",
+  "section_id": "SEC-000002",
   "claims": [
     {
       "text": "Configuration keys have defaults.",
-      "source_ids": ["product-docs"],
+      "source_ids": ["SRC-000001"],
       "locator": { "anchor": "configuration-defaults" }
     }
   ]
@@ -202,7 +206,7 @@ Links are navigation, not provenance. They express related local or cross-AKB co
 | Field | Req? | Type / rule | Notes |
 | --- | --- | --- | --- |
 | `rel` | REQUIRED | controlled value or reverse-DNS escape | Controlled values are `see-also`, `related`, `depends-on`, `prerequisite`, `extends`, and `part-of`. Escape form is `prefix:suffix`, where `prefix` matches `[a-z0-9-]+(\.[a-z0-9-]+)+` — at least two dot-separated labels, the same reverse-DNS shape as `x` keys — and `suffix` is `[a-z0-9-]+`. |
-| `section_id` | optional | section id, `[a-z0-9_-]`, ≤64 chars | On local links, MUST resolve to a section in this AKB. On cross-AKB links, names a target section in the linked AKB. |
+| `section_id` | optional | section `id` (`SEC-` form) | On local links, MUST resolve to a section in this AKB. On cross-AKB links, names a target section in the linked AKB. |
 | `akb_uri` | optional | URI reference | Target AKB descriptor for cross-AKB links. |
 | `revision` | optional | string | Target AKB revision to resolve. A link is pinned if and only if it carries `revision`. |
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity hint for a pinned target section: the target section's declared `content_hash`, copied at pin time. Meaningful only alongside `section_id`. |
@@ -213,7 +217,7 @@ Every link MUST carry a target: `section_id`, `akb_uri`, or both. A link with ne
 
 The parent tree is an acyclic forest. The link graph is a general network and MAY be cyclic.
 
-Local links MUST resolve offline: a `section_id` with no `akb_uri` MUST name a section in this AKB. Cross-AKB links are best-effort because the target is remote and may change or disappear. Consumers MUST tolerate unresolvable or changed cross-AKB targets.
+Local links MUST resolve offline: a `section_id` with no `akb_uri` MUST name a section in this AKB. Cross-AKB links are best-effort because the target is remote and may change or disappear — a cross-AKB link's `section_id`, when present, is still checked offline for its `SEC-` prefix (`AKB010`), just not for existence in the remote AKB. Consumers MUST tolerate unresolvable or changed cross-AKB targets.
 
 **Pinning.** `revision` and `content_hash` are meaningful only on links with `akb_uri`; they are ignored on local links. A link's `content_hash` covers the decoded content bytes of the target section named by `section_id` — the same bytes that section's own declared `content_hash` covers (§4.3, §5) — copied from the target descriptor at pin time. On a link that carries `akb_uri` but no `section_id`, `content_hash` has no defined referent and is ignored; a validator MAY warn.
 
@@ -326,13 +330,16 @@ Structural validation runs offline on the descriptor. A provenance sidecar (§4.
 The following structural rules are normative:
 
 - Schema-required fields MUST be present at every level: top-level, Source, Section, Link, and Claim.
-- Source and Section `id`s MUST be unique across one shared id space.
-- Top-level `id`, `namespace`, Source and Section `id`, and all local ID references using the local ID grammar MUST match `[a-z0-9_-]` and be ≤64 chars. This includes `parent_id`, Section `source_ids`, Source `discovered_via_id`, sidecar `section_id`, sidecar claim `source_ids`, inline `[cite:]` ids, and local link `section_id`.
+- Source `id`s match `^[Ss][Rr][Cc]-[0-9A-Za-z]{6}$` and Section `id`s match `^[Ss][Ee][Cc]-[0-9A-Za-z]{6}$`: the `SRC-` or `SEC-` prefix plus six base36 characters, a fixed 10-character form, compared case-insensitively.
+- Source and Section `id`s MUST be unique across one shared id space, checked case-insensitively. Because the prefixes are disjoint, a source id and a section id cannot collide.
+- Entries within an id array — a section's `source_ids`, an inline claim's `source_ids`, or a sidecar claim's `source_ids` — MUST be unique, checked case-insensitively. The schema's `uniqueItems` keyword compares raw JSON strings and so only catches an exact-string duplicate; a case-variant duplicate (e.g. `SRC-00000A` and `src-00000a` in the same array) is instead caught by a semantic check and reported as `AKB011`, the same code `uniqueItems` uses for an exact duplicate.
+- Every reference is a typed id of the kind it references: `parent_id`, sidecar `section_id`, and link `section_id` (local or cross-AKB) name sections; Section `source_ids`, sidecar claim `source_ids`, Source `discovered_via_id`, and inline `[cite:]` ids name sources. A reference carrying the other kind's prefix is `AKB010`, checked offline for every reference including a cross-AKB link's `section_id`. A reference with the right prefix that names no declared id is `AKB007` for a local reference; a cross-AKB link's `section_id` is exempt from this existence check because its target AKB is not resolved offline (see the Local links rule below).
+- Top-level `id` and `namespace` are lowercase slugs matching `[a-z0-9_-]`, ≤64 chars.
 - Every section MUST have `content_uri` or at least one child.
 - Every section with `content_uri` MUST cite at least one `source_ids` entry.
 - The `parent_id` graph MUST be acyclic.
 - References MUST resolve to existing ids of the right kind.
-- Local links MUST resolve. Cross-AKB links are best-effort and are not an offline structural failure.
+- Local links MUST resolve. Cross-AKB links are best-effort for existence and are not an offline structural failure, though a cross-AKB link's `section_id` prefix (kind) is still checked offline (`AKB010`).
 - `rel` MUST be in the controlled vocabulary or match the reverse-DNS escape pattern.
 - Every link MUST carry `section_id`, `akb_uri`, or both.
 - All schema type, charset, timestamp, URI-reference, language, hash, length, cardinality, and depth constraints MUST hold.
@@ -365,7 +372,7 @@ Error-code catalog:
 
 | Code | Name | Rule (MUST) |
 | ------ | ------ | ------------- |
-| `AKB001` | `id-not-unique` | `id`s unique across the shared source+section id space. |
+| `AKB001` | `id-not-unique` | `id`s unique across the shared source+section id space, compared case-insensitively. |
 | `AKB002` | `empty-section` | Every section has a `content_uri` or ≥1 child. |
 | `AKB003` | `missing-source-cite` | Every section with `content_uri` cites ≥1 `source_ids`. |
 | `AKB004` | `parent-cycle` | The `parent_id` graph is acyclic. |
@@ -374,11 +381,11 @@ Error-code catalog:
 | `AKB007` | `unresolved-reference` | A `parent_id`, `source_ids` entry, `discovered_via_id`, inline `[cite:]` id, or local link `section_id` names an id that does not exist in the AKB. |
 | `AKB008` | `unknown-rel` | `rel` in the controlled vocab or a reverse-DNS `prefix:suffix` escape. |
 | `AKB009` | `missing-required-field` | Every schema-required field present, at every level: top-level, source, section, link, and claim. |
-| `AKB010` | `invalid-reference-kind` | A reference resolves to an entity of the **wrong kind** (`source_ids`/`[cite:]`/`discovered_via_id` → a section; `parent_id`/local link → a source). |
-| `AKB011` | `malformed-value` | Charset (`[a-z0-9_-]`), format (RFC 3339 UTC / RFC 3986), and type constraints hold. |
+| `AKB010` | `invalid-reference-kind` | A reference carries the wrong kind's prefix: `SEC-` where a source is required, or `SRC-` where a section is required. |
+| `AKB011` | `malformed-value` | Charset/shape (typed `SEC-`/`SRC-` id form; slug `[a-z0-9_-]` for top-level `id`/`namespace`), format (RFC 3339 UTC / RFC 3986), type constraints, and within-array id uniqueness (including case-variant duplicates, checked semantically) hold. |
 | `AKB012` | `link-missing-target` | Every link carries `section_id`, `akb_uri`, or both. |
 
-The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char local ID grammar limit is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap.
+The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char limit applies to the slug fields — top-level `id` and `namespace` — and is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap. Typed ids are a fixed 10-character form and need no length cap.
 
 The schema is authoritative for mechanical field types and formats. Claim `text` is deliberately uncapped; the per-section claim-count cap bounds the manifest instead.
 
@@ -393,11 +400,13 @@ When validation is performed with the published JSON Schema, keyword violations 
 | `required` (elsewhere) | `AKB009` |
 | `pattern`, `format`, `type`, `minimum`, `minLength`, `minItems`, `uniqueItems`, `propertyNames`, `enum` (elsewhere) | `AKB011` |
 
-`pattern` is a JSON Schema regular expression, so it is written and matched against the ECMA-262 regex dialect. Schema patterns use explicit ASCII digit classes (`[0-9]`) rather than `\d`: ECMA-262's `\d` is already ASCII-only, but some validator implementations run patterns through a host regex engine whose `\d` matches the wider set of Unicode decimal digits by default, and `[0-9]` sidesteps that divergence so independent validators converge on identical codes for identical documents regardless of host engine. The one v1 schema pattern with a digit class, `$defs/timestamp`, uses `[0-9]` for exactly this reason.
+`uniqueItems` compares JSON strings case-sensitively, so it catches only an exact-string duplicate within `source_ids`. A duplicate that differs solely in the case of a typed id is not schema-catchable; it is caught by the semantic check in the structural rules above and reported as the same `AKB011`, since it is the same class of malformed value under the case-insensitive id policy.
+
+`pattern` is a JSON Schema regular expression, so it is written and matched against the ECMA-262 regex dialect. Schema patterns use explicit ASCII digit classes (`[0-9]`) rather than `\d`: ECMA-262's `\d` is already ASCII-only, but some validator implementations run patterns through a host regex engine whose `\d` matches the wider set of Unicode decimal digits by default, and `[0-9]` sidesteps that divergence so independent validators converge on identical codes for identical documents regardless of host engine. The v1 patterns with digit classes, such as `$defs/timestamp` and the typed-id forms, use `[0-9]` (or `[0-9A-Za-z]`) for exactly this reason. The typed-id patterns likewise spell case-insensitivity with explicit classes (`[Ss][Ee][Cc]`, `[0-9A-Za-z]`) rather than a regex flag, since JSON Schema `pattern` has no portable case-insensitive flag; this keeps independent validators convergent.
 
 Conformance-fixture match semantics are also normative: a validator passes an invalid fixture if and only if it emits every code listed in the fixture's `codes` array. Extra codes are permitted only when they report distinct additional violations; duplicate emissions of a code are ignored.
 
-Deeper checks that require fetching referenced content are an opt-in **content-verification** mode, distinct from the default offline structural validation. Whether a validator offers content verification, and how it is invoked — a command-line flag, a separate API entry point, a configuration option — is an implementation choice this specification does not constrain; the spec defines only which checks run and what each yields. During content verification, inline `[cite:]` resolution failures emit `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes, and the top-level `guide_hash` likewise against the fetched guide bytes.
+Deeper checks that require fetching referenced content are an opt-in **content-verification** mode, distinct from the default offline structural validation. Whether a validator offers content verification, and how it is invoked — a command-line flag, a separate API entry point, a configuration option — is an implementation choice this specification does not constrain; the spec defines only which checks run and what each yields. During content verification, an inline `[cite:]` id whose token is not a typed id (neither `SRC-` nor `SEC-` form) emits `AKB011`; a marker carrying the wrong kind's prefix emits `AKB010`; and a well-formed marker naming no declared source emits `AKB007`. Section `content_hash` and `provenance_hash` can be verified against fetched bytes, and the top-level `guide_hash` likewise against the fetched guide bytes.
 
 A fetched provenance sidecar is additionally checked against the descriptor: it MUST conform to `schema/v1/provenance.schema.json`, its `section_id` and claim `source_ids` MUST resolve to declared ids of the right kind per `AKB007`/`AKB010`, and a fetched sidecar whose `section_id` names a section other than the one referencing it via `provenance_uri` (§4.4) is a failed content check.
 
@@ -421,7 +430,7 @@ Content behind URIs is unbounded payload. Consumers should apply size, time, and
 
 Integrity is not authenticity. `content_hash` and `provenance_hash` can show that fetched bytes match a stamped value; they do not prove who authored the descriptor or content. OpenAKB v1 defines no descriptor-signing or author-attestation primitive.
 
-Redaction is projection, not protection. The redacted source form (§4.2) only withholds a source's identity from a served document; it grants no confidentiality by itself, and enforcing who may fetch which projection remains access control outside this specification. The retained fields are themselves part of the projection: the source `id` and any `captured_at` stay visible, and an `id` that describes its subject discloses that description.
+Redaction is projection, not protection. The redacted source form (§4.2) only withholds a source's identity from a served document; it grants no confidentiality by itself, and enforcing who may fetch which projection remains access control outside this specification. The retained fields are themselves part of the projection: the source `id` and any `captured_at` stay visible. Typed source and section ids are opaque and non-descriptive, so a retained `id` does not reveal the withheld subject; the descriptor `id` (a slug) may still be descriptive.
 
 ## §9 Worked example
 
@@ -440,7 +449,7 @@ Authoring descriptor excerpt:
   "guide_uri": "AKB.md",
   "sources": [
     {
-      "id": "product-docs",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/widget-platform/",
       "captured_at": "2026-06-28T00:00:00Z",
@@ -450,11 +459,11 @@ Authoring descriptor excerpt:
   ],
   "sections": [
     {
-      "id": "overview",
+      "id": "SEC-000001",
       "title": "Overview",
       "description": "What the Widget Platform is and its core model.",
       "content_uri": "sections/overview.md",
-      "source_ids": ["product-docs"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }
@@ -463,7 +472,7 @@ Authoring descriptor excerpt:
 One Markdown content line with an inline citation:
 
 ```markdown
-The Widget Platform organizes work as a set of configurable widgets [cite: product-docs].
+The Widget Platform organizes work as a set of configurable widgets [cite: SRC-000001].
 ```
 
 ## §10 References

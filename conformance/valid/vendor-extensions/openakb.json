@@ -10,7 +10,7 @@
   },
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/",
       "x": {
@@ -22,11 +22,11 @@
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Section with a vendor extension, a namespaced rel, and inline provenance.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
+      "source_ids": ["SRC-000001"],
       "x": {
         "com.example": {
           "weight": 5
@@ -35,13 +35,13 @@
       "provenance": [
         {
           "text": "An inline claim.",
-          "source_ids": ["s1"]
+          "source_ids": ["SRC-000001"]
         }
       ],
       "links": [
         {
           "rel": "com.example:mirrors",
-          "section_id": "root",
+          "section_id": "SEC-000001",
           "description": "Namespaced escape-hatch rel."
         }
       ]

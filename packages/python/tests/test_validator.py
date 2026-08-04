@@ -13,14 +13,14 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
         "id": "kb",
         "title": "KB",
         "description": "A test descriptor.",
-        "sources": [{"id": "s1", "type": "url", "uri": "https://docs.example.com/"}],
+        "sources": [{"id": "SRC-000001", "type": "url", "uri": "https://docs.example.com/"}],
         "sections": [
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "Root section.",
                 "content_uri": "root.md",
-                "source_ids": ["s1"],
+                "source_ids": ["SRC-000001"],
             }
         ],
     }
@@ -39,25 +39,25 @@ def test_discovery_cycle_warns_ok() -> None:
     descriptor = _descriptor(
         sources=[
             {
-                "id": "a",
+                "id": "SRC-000001",
                 "type": "feed",
                 "uri": "https://docs.example.com/a",
-                "discovered_via_id": "b",
+                "discovered_via_id": "SRC-000002",
             },
             {
-                "id": "b",
+                "id": "SRC-000002",
                 "type": "feed",
                 "uri": "https://docs.example.com/b",
-                "discovered_via_id": "a",
+                "discovered_via_id": "SRC-000001",
             },
         ],
         sections=[
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "Root section.",
                 "content_uri": "root.md",
-                "source_ids": ["a"],
+                "source_ids": ["SRC-000001"],
             }
         ],
     )
@@ -75,10 +75,10 @@ def test_layers_compose_sorted() -> None:
         title="x" * 201,
         sections=[
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "Root section.",
-                "source_ids": ["s1"],
+                "source_ids": ["SRC-000001"],
             }
         ],
     )
@@ -100,14 +100,14 @@ def test_strict_adds_akb006() -> None:
 def test_trailing_newline_id_rejected() -> None:
     """A trailing-newline id is AKB011 and never silently valid (schema+semantic agree)."""
     descriptor = _descriptor(
-        sources=[{"id": "s1\n", "type": "url", "uri": "https://docs.example.com/"}],
+        sources=[{"id": "SRC-000001\n", "type": "url", "uri": "https://docs.example.com/"}],
         sections=[
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "Root section.",
                 "content_uri": "root.md",
-                "source_ids": ["s1\n"],
+                "source_ids": ["SRC-000001\n"],
             }
         ],
     )
@@ -115,6 +115,29 @@ def test_trailing_newline_id_rejected() -> None:
 
     assert not result.ok
     assert "AKB011" in result.codes
+
+
+def test_exact_duplicate_source_id_single_akb011() -> None:
+    """An exact-string duplicate in a source_ids array is one AKB011, not two.
+
+    The schema's `uniqueItems` already reports the exact-string duplicate; the
+    semantic casefolded-duplicate check exists only for the case-variant duplicate
+    `uniqueItems` cannot see (spec Section 4.3/4.4/7) and must not also fire here.
+    """
+    descriptor = _descriptor(
+        sections=[
+            {
+                "id": "SEC-000001",
+                "title": "Root",
+                "description": "Root section.",
+                "content_uri": "root.md",
+                "source_ids": ["SRC-000001", "SRC-000001"],
+            }
+        ]
+    )
+    result = validate(descriptor)
+
+    assert [finding.code for finding in result.findings] == ["AKB011"]
 
 
 def test_non_dict_input_invalid() -> None:

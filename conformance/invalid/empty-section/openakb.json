@@ -5,14 +5,14 @@
   "description": "A section has no content and no child.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "empty",
+      "id": "SEC-000001",
       "title": "Empty",
       "description": "This section has neither content nor children."
     }

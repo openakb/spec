@@ -125,7 +125,7 @@ fn test_underscore_id() {
 
 #[test]
 fn test_malformed_markers_literal() {
-    assert!(ids("[cite:] [cite: A] [cite:a b] [cite:a,] [CITE:a]").is_empty());
+    assert!(ids("[cite:] [cite: a.b] [cite:a b] [cite:a,] [CITE:a]").is_empty());
 }
 
 #[test]

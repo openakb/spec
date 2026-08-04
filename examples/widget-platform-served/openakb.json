@@ -8,13 +8,13 @@
   "tags": ["sample", "documentation"],
   "language": "en",
   "guide_uri": "https://kb.example.org/widget-platform/AKB.md",
-  "guide_hash": "sha256-CY0JUgCkILkScaLGM5riN5r1V7BbxbL1OUaONdbpBXg=",
-  "guide_length": 1024,
+  "guide_hash": "sha256-LVpNyrEPum58Jeqcf+VQ1u0ZsjNUxv0mZiHauWC57u0=",
+  "guide_length": 1048,
   "base_uri": "https://kb.example.org/widget-platform/",
   "revision": "2026-06-28T12-00-00Z-a1b2c3d4",
   "sources": [
     {
-      "id": "product-docs",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/widget-platform/",
       "captured_at": "2026-06-28T00:00:00Z",
@@ -22,7 +22,7 @@
       "cadence": "weekly"
     },
     {
-      "id": "blog-index",
+      "id": "SRC-000002",
       "type": "feed",
       "uri": "https://www.example.com/blog/",
       "title": "Product blog index",
@@ -30,7 +30,7 @@
       "cadence": "weekly"
     },
     {
-      "id": "blog-widgets-launch",
+      "id": "SRC-000003",
       "type": "url",
       "uri": "https://www.example.com/blog/widgets-launch",
       "title": "Widgets launch announcement",
@@ -38,42 +38,42 @@
       "content_hash": "sha256-yzPCGNBXoCbfiZ13AdgO7cF+z15Jw/b4udfu81pt68Q=",
       "capture_uri": "https://kb.example.org/widget-platform/captures/blog-widgets-launch.html",
       "content_length": 750,
-      "discovered_via_id": "blog-index"
+      "discovered_via_id": "SRC-000002"
     }
   ],
   "sections": [
     {
-      "id": "overview",
+      "id": "SEC-000001",
       "title": "Overview",
       "description": "What the Widget Platform is and its core model.",
       "content_uri": "https://kb.example.org/widget-platform/sections/overview.md",
-      "content_hash": "sha256-tFynLbU1EGH6hMnjpW4fYVi5/LqbsY8tRCO0OfMVJhQ=",
-      "content_length": 186,
+      "content_hash": "sha256-aZwZ7P5oQ9kjM08E9umMWdLAUza379tyXf3HTY+G6DU=",
+      "content_length": 182,
       "refreshed_at": "2026-06-28T00:00:00Z",
-      "source_ids": ["product-docs", "blog-widgets-launch"]
+      "source_ids": ["SRC-000001", "SRC-000003"]
     },
     {
-      "id": "configuration",
-      "parent_id": "overview",
+      "id": "SEC-000002",
+      "parent_id": "SEC-000001",
       "title": "Configuration",
       "description": "How widgets are configured and how defaults resolve.",
       "purpose": "Explain configuration keys, defaults, and precedence.",
       "content_uri": "https://kb.example.org/widget-platform/sections/configuration.md",
       "content_type": "text/markdown",
-      "content_hash": "sha256-5j6gQ/um7XOsvLy++OxHoxCgKs/jmmbi8/ezbl2rbY4=",
-      "content_length": 182,
+      "content_hash": "sha256-wMHO6bnya3xa4dbwjYUacq0rPbcPcLzMC8RXIWnN53U=",
+      "content_length": 178,
       "refreshed_at": "2026-06-28T00:00:00Z",
-      "source_ids": ["product-docs"],
+      "source_ids": ["SRC-000001"],
       "provenance_uri": "https://kb.example.org/widget-platform/sections/configuration.prov.json",
-      "provenance_hash": "sha256-x+/nfK2zzvdIrpCJevc7FRScmryrSo9qftnRcXTfKfA=",
-      "provenance_length": 537,
+      "provenance_hash": "sha256-cLHkoEe06GJRa3Z2Ihab1VMsYJFgPBr9T5qpgj9lfN0=",
+      "provenance_length": 530,
       "links": [
-        { "rel": "depends-on", "section_id": "overview" },
+        { "rel": "depends-on", "section_id": "SEC-000001" },
         {
           "rel": "see-also",
           "akb_uri": "https://kb.example.org/widget-cli.openakb.json",
           "revision": "2026-06-20T00-00-00Z-eeff0011",
-          "section_id": "commands",
+          "section_id": "SEC-000009",
           "content_hash": "sha256-JiHgFeDcBa0011223344556677889900AaBbCcDdEeF=",
           "description": "Reference detail on the companion CLI's commands, pinned for reproducibility."
         }

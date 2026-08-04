@@ -10,7 +10,7 @@
   "guide_uri": "AKB.md",
   "sources": [
     {
-      "id": "product-docs",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/widget-platform/",
       "captured_at": "2026-06-28T00:00:00Z",
@@ -18,7 +18,7 @@
       "cadence": "weekly"
     },
     {
-      "id": "blog-index",
+      "id": "SRC-000002",
       "type": "feed",
       "uri": "https://www.example.com/blog/",
       "title": "Product blog index",
@@ -26,7 +26,7 @@
       "cadence": "weekly"
     },
     {
-      "id": "blog-widgets-launch",
+      "id": "SRC-000003",
       "type": "url",
       "uri": "https://www.example.com/blog/widgets-launch",
       "title": "Widgets launch announcement",
@@ -34,33 +34,33 @@
       "content_hash": "sha256-yzPCGNBXoCbfiZ13AdgO7cF+z15Jw/b4udfu81pt68Q=",
       "capture_uri": "captures/blog-widgets-launch.html",
       "content_length": 750,
-      "discovered_via_id": "blog-index"
+      "discovered_via_id": "SRC-000002"
     }
   ],
   "sections": [
     {
-      "id": "overview",
+      "id": "SEC-000001",
       "title": "Overview",
       "description": "What the Widget Platform is and its core model.",
       "content_uri": "sections/overview.md",
-      "source_ids": ["product-docs", "blog-widgets-launch"]
+      "source_ids": ["SRC-000001", "SRC-000003"]
     },
     {
-      "id": "configuration",
-      "parent_id": "overview",
+      "id": "SEC-000002",
+      "parent_id": "SEC-000001",
       "title": "Configuration",
       "description": "How widgets are configured and how defaults resolve.",
       "purpose": "Explain configuration keys, defaults, and precedence.",
       "content_uri": "sections/configuration.md",
       "content_type": "text/markdown",
-      "source_ids": ["product-docs"],
+      "source_ids": ["SRC-000001"],
       "provenance_uri": "sections/configuration.prov.json",
       "links": [
-        { "rel": "depends-on", "section_id": "overview" },
+        { "rel": "depends-on", "section_id": "SEC-000001" },
         {
           "rel": "see-also",
           "akb_uri": "https://kb.example.org/widget-cli.openakb.json",
-          "section_id": "commands",
+          "section_id": "SEC-000009",
           "description": "Reference detail on the companion CLI's commands."
         }
       ]

@@ -1,10 +1,10 @@
 {
   "$schema": "https://schema.openakb.org/v1/provenance.schema.json",
-  "section_id": "api",
+  "section_id": "SEC-000001",
   "claims": [
     {
       "text": "Requests are authenticated with a bearer token.",
-      "source_ids": ["api-reference"],
+      "source_ids": ["SRC-000001"],
       "locator": {
         "anchor": "auth",
         "quote": "authenticate requests with a bearer token"
@@ -12,7 +12,7 @@
     },
     {
       "text": "Responses are paginated with a cursor.",
-      "source_ids": ["api-reference"],
+      "source_ids": ["SRC-000001"],
       "locator": { "anchor": "pagination" }
     }
   ]

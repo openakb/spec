@@ -5,18 +5,18 @@
   "description": "A source id carries a trailing newline, which the local ID pattern rejects under ECMA-262 end-of-input anchoring.",
   "sources": [
     {
-      "id": "s1\n",
+      "id": "SRC-000001\n",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Root section citing the malformed source id.",
       "content_uri": "root.md",
-      "source_ids": ["s1\n"]
+      "source_ids": ["SRC-000001\n"]
     }
   ]
 }

@@ -5,25 +5,25 @@
   "description": "Two sections declare the same local id.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "dup",
+      "id": "SEC-000001",
       "title": "First",
       "description": "First section using the duplicate id.",
       "content_uri": "first.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     },
     {
-      "id": "dup",
+      "id": "SEC-000001",
       "title": "Second",
       "description": "Second section using the duplicate id.",
       "content_uri": "second.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

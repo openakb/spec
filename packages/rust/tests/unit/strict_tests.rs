@@ -8,8 +8,8 @@ fn descriptor() -> Value {
         "id": "strict-fixture",
         "title": "Strict",
         "description": "Base for strict-rule tests.",
-        "sources": [{"id":"s1","type":"url","uri":"https://docs.example.com/a/"}],
-        "sections": [{"id":"root","title":"Root","description":"The only section.","content_uri":"root.md","source_ids":["s1"]}]
+        "sources": [{"id":"SRC-000001","type":"url","uri":"https://docs.example.com/a/"}],
+        "sections": [{"id":"SEC-000001","title":"Root","description":"The only section.","content_uri":"root.md","source_ids":["SRC-000001"]}]
     })
 }
 
@@ -46,7 +46,8 @@ fn test_extension_keys_exempt() {
 fn test_nested_unknown_key() {
     let mut descriptor = descriptor();
     descriptor["sources"][0]["wild"] = json!(1);
-    descriptor["sections"][0]["links"] = json!([{"rel":"see-also","section_id":"root","why":"?"}]);
+    descriptor["sections"][0]["links"] =
+        json!([{"rel":"see-also","section_id":"SEC-000001","why":"?"}]);
 
     assert_eq!(
         akb006_paths(&descriptor),
@@ -63,7 +64,7 @@ fn test_known_keys_clean() {
 fn test_claim_locator_unknown() {
     let mut descriptor = descriptor();
     descriptor["sections"][0]["provenance"] = json!([
-        {"text":"Inline claim.","source_ids":["s1"],"confidence":0.8,"locator":{"quote":"Inline","extra":true}}
+        {"text":"Inline claim.","source_ids":["SRC-000001"],"confidence":0.8,"locator":{"quote":"Inline","extra":true}}
     ]);
 
     assert_eq!(

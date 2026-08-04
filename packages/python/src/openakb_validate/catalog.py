@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["CODE_NAMES", "LOCAL_ID_CHARSET", "LOCAL_ID_MAX_LENGTH", "PARENT_DEPTH_MAX"]
+__all__ = ["CITE_ID_CHARSET", "CITE_ID_MAX_LENGTH", "CODE_NAMES", "PARENT_DEPTH_MAX"]
 
 CODE_NAMES: dict[str, str] = {
     "AKB001": "id-not-unique",
@@ -23,8 +23,8 @@ CODE_NAMES: dict[str, str] = {
 # depth 1; the deepest permitted section has depth 64.
 PARENT_DEPTH_MAX = 64
 
-# The local ID grammar (spec §7): every id and inline `[cite:]` id is one or more of
-# these characters, capped at this length. Shared so the shape checker and the citation
-# extractor read the cap from one place and cannot drift apart.
-LOCAL_ID_CHARSET = "a-z0-9_-"
-LOCAL_ID_MAX_LENGTH = 64
+# The inline [cite:] id token (spec §4.4). Case-insensitive superset of the typed
+# source-id form, so a marker like [cite: SRC-000001] is recognized; kind and
+# existence are enforced at resolution, not extraction.
+CITE_ID_CHARSET = "A-Za-z0-9_-"
+CITE_ID_MAX_LENGTH = 64

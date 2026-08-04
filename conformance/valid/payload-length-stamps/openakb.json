@@ -9,7 +9,7 @@
   "guide_length": 1024,
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/",
       "captured_at": "2026-01-01T00:00:00Z",
@@ -20,13 +20,13 @@
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "A content section carrying content and provenance length stamps.",
       "content_uri": "root.md",
       "content_hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
       "content_length": 186,
-      "source_ids": ["s1"],
+      "source_ids": ["SRC-000001"],
       "provenance_uri": "root.prov.json",
       "provenance_hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
       "provenance_length": 537

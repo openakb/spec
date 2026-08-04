@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "invalid-malformed-typed-id",
+  "title": "Invalid — malformed typed id",
+  "description": "A section id with the SEC- prefix but a body shorter than six characters.",
+  "sources": [
+    {
+      "id": "SRC-000001",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "SEC-12",
+      "title": "Root",
+      "description": "The section id body is too short.",
+      "content_uri": "root.md",
+      "source_ids": ["SRC-000001"]
+    }
+  ]
+}

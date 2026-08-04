@@ -5,7 +5,7 @@
   "description": "A captured_at uses a space separator instead of the RFC 3339 uppercase T.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/",
       "captured_at": "2026-06-28 00:00:00Z"
@@ -13,11 +13,11 @@
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "The source timestamp is not in the normative UTC profile.",
       "content_uri": "root.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

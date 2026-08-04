@@ -5,27 +5,27 @@
   "description": "Two sections whose parent_id pointers form a cycle.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "a",
-      "parent_id": "b",
+      "id": "SEC-000001",
+      "parent_id": "SEC-000002",
       "title": "A",
       "description": "Points at B.",
       "content_uri": "a.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     },
     {
-      "id": "b",
-      "parent_id": "a",
+      "id": "SEC-000002",
+      "parent_id": "SEC-000001",
       "title": "B",
       "description": "Points at A.",
       "content_uri": "b.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

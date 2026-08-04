@@ -5,31 +5,31 @@
   "description": "Two roots plus a container with a child; exercises the acyclic forest shape.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root-a",
+      "id": "SEC-000001",
       "title": "Root A",
       "description": "First root; a pure container."
     },
     {
-      "id": "child-a",
-      "parent_id": "root-a",
+      "id": "SEC-000002",
+      "parent_id": "SEC-000001",
       "title": "Child A",
       "description": "Child of root A.",
       "content_uri": "a.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     },
     {
-      "id": "root-b",
+      "id": "SEC-000003",
       "title": "Root B",
       "description": "Second root with content.",
       "content_uri": "b.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

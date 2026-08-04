@@ -6,7 +6,10 @@ use serde_json::Value;
 
 use crate::{
     Advisory, Code, Finding, PARENT_DEPTH_MAX, Segment, json_pointer,
-    shape::{EntityIndex, EntityKind, Object, indexed_objects, local_id_value, reference_code},
+    shape::{
+        EntityIndex, EntityKind, Object, casefolded_duplicate_indices, id_kind, indexed_objects,
+        is_typed_id, normalize_id, reference_code, typed_id_value,
+    },
 };
 
 const DEPTH_LIMIT: usize = PARENT_DEPTH_MAX + 1;
@@ -72,12 +75,13 @@ pub(crate) fn semantic_warnings(descriptor: &Value) -> Vec<Advisory> {
 
 fn duplicate_ids(graph: &Graph<'_>) -> Vec<Finding> {
     let mut findings = Vec::new();
-    let mut first_seen: BTreeMap<&str, String> = BTreeMap::new();
+    let mut first_seen: BTreeMap<String, String> = BTreeMap::new();
     let entries = id_entries(graph);
 
     for entry in entries {
         let path = id_path(entry.kind, entry.index);
-        if let Some(first_path) = first_seen.get(entry.value) {
+        let key = normalize_id(entry.value);
+        if let Some(first_path) = first_seen.get(&key) {
             findings.push(finding(
                 Code::Akb001,
                 path,
@@ -87,7 +91,7 @@ fn duplicate_ids(graph: &Graph<'_>) -> Vec<Finding> {
                 ),
             ));
         } else {
-            first_seen.insert(entry.value, json_pointer(path));
+            first_seen.insert(key, json_pointer(path));
         }
     }
 
@@ -98,15 +102,15 @@ fn empty_sections(graph: &Graph<'_>) -> Vec<Finding> {
     let child_parent_ids: BTreeSet<_> = graph
         .sections
         .iter()
-        .filter_map(|(_, section)| local_id_value(section.get("parent_id")))
+        .filter_map(|(_, section)| typed_id_value(section.get("parent_id")).map(normalize_id))
         .collect();
 
     graph
         .sections
         .iter()
         .filter_map(|(index, section)| {
-            let id = local_id_value(section.get("id"))?;
-            if section.contains_key("content_uri") || child_parent_ids.contains(id) {
+            let id = typed_id_value(section.get("id"))?;
+            if section.contains_key("content_uri") || child_parent_ids.contains(&normalize_id(id)) {
                 return None;
             }
             Some(finding(
@@ -184,7 +188,8 @@ fn reference_message(code: Code, value: Option<&Value>, expected: EntityKind) ->
     let token = value.and_then(Value::as_str).unwrap_or("<non-string>");
     if code == Code::Akb010 {
         format!(
-            "reference \"{token}\" resolves to the wrong kind; expected a {}",
+            "reference \"{token}\" is a {} id where a {} is required",
+            id_kind(token).map_or("", EntityKind::noun),
             expected.noun()
         )
     } else {
@@ -210,6 +215,19 @@ fn append_source_ids(
         path.push(Segment::Index(index));
         append_ref(findings, graph, EntityKind::Source, Some(item), path);
     }
+
+    for index in casefolded_duplicate_indices(items) {
+        let mut path = path_prefix.clone();
+        path.push(Segment::Index(index));
+        findings.push(finding(
+            Code::Akb011,
+            path,
+            format!(
+                "duplicate source id \"{}\" (case-insensitive) within this array",
+                items[index].as_str().unwrap_or_default()
+            ),
+        ));
+    }
 }
 
 fn append_link_findings(
@@ -219,7 +237,15 @@ fn append_link_findings(
     section_index: usize,
 ) {
     for (link_index, link) in indexed_objects(section.get("links")) {
+        let path = [
+            Segment::Key("sections"),
+            Segment::Index(section_index),
+            Segment::Key("links"),
+            Segment::Index(link_index),
+            Segment::Key("section_id"),
+        ];
         if link.contains_key("akb_uri") {
+            append_cross_akb_section_kind(findings, link.get("section_id"), path);
             continue;
         }
         append_ref(
@@ -227,14 +253,30 @@ fn append_link_findings(
             graph,
             EntityKind::Section,
             link.get("section_id"),
-            [
-                Segment::Key("sections"),
-                Segment::Index(section_index),
-                Segment::Key("links"),
-                Segment::Index(link_index),
-                Segment::Key("section_id"),
-            ],
+            path,
         );
+    }
+}
+
+/// Enforces the section-kind prefix on a cross-AKB link's `section_id`.
+///
+/// Existence is not checked here: cross-AKB resolution is best-effort, so no
+/// `Akb007` fires for a cross-AKB target. Only the prefix -- checkable offline
+/// -- is enforced; a non-typed token is left to the schema layer's `Akb011`.
+fn append_cross_akb_section_kind<'path>(
+    findings: &mut Vec<Finding>,
+    value: Option<&Value>,
+    path: impl IntoIterator<Item = Segment<'path>>,
+) {
+    let Some(token) = value.and_then(Value::as_str) else {
+        return;
+    };
+    if id_kind(token) == Some(EntityKind::Source) {
+        findings.push(finding(
+            Code::Akb010,
+            path,
+            reference_message(Code::Akb010, value, EntityKind::Section),
+        ));
     }
 }
 
@@ -260,16 +302,41 @@ fn append_claim_findings(
     }
 }
 
+fn original_spellings<'a>(
+    items: impl Iterator<Item = &'a (usize, &'a Object)>,
+) -> BTreeMap<String, String> {
+    // Cycle messages echo the author's casing, like the duplicate-id message;
+    // graph keys stay normalized.
+    let mut originals: BTreeMap<String, String> = BTreeMap::new();
+    for (_, item) in items {
+        if let Some(id) = item
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| is_typed_id(id))
+        {
+            originals
+                .entry(normalize_id(id))
+                .or_insert_with(|| id.to_string());
+        }
+    }
+    originals
+}
+
 fn parent_cycle_findings(
     graph: &Graph<'_>,
     parent_by_id: &BTreeMap<String, String>,
 ) -> Vec<Finding> {
     let index_by_id = index_by_id(&graph.sections);
+    let originals = original_spellings(graph.sections.iter());
 
     cycles(parent_by_id)
         .into_iter()
         .filter_map(|cycle| {
             let index = index_by_id.get(cycle.first()?)?;
+            let spelled: Vec<String> = cycle
+                .iter()
+                .map(|id| originals.get(id).cloned().unwrap_or_else(|| id.clone()))
+                .collect();
             Some(finding(
                 Code::Akb004,
                 [
@@ -277,7 +344,7 @@ fn parent_cycle_findings(
                     Segment::Index(*index),
                     Segment::Key("parent_id"),
                 ],
-                format!("parent_id cycle: {}", render_cycle(&cycle)),
+                format!("parent_id cycle: {}", render_cycle(&spelled)),
             ))
         })
         .collect()
@@ -327,27 +394,32 @@ fn section_depth(section_id: &str, parent_by_id: &BTreeMap<String, String>) -> u
 fn source_cycle_warnings(graph: &Graph<'_>) -> Vec<Advisory> {
     let mut next_by_id = BTreeMap::new();
     for (_, source) in &graph.sources {
-        let Some(source_id) = local_id_value(source.get("id")) else {
+        let Some(source_id) = typed_id_value(source.get("id")) else {
             continue;
         };
-        let Some(discovered_via_id) = local_id_value(source.get("discovered_via_id")) else {
+        let Some(discovered_via_id) = typed_id_value(source.get("discovered_via_id")) else {
             continue;
         };
-        next_by_id.insert(source_id.to_owned(), discovered_via_id.to_owned());
+        next_by_id.insert(normalize_id(source_id), normalize_id(discovered_via_id));
     }
 
     let index_by_id = index_by_id(&graph.sources);
+    let originals = original_spellings(graph.sources.iter());
     cycles(&next_by_id)
         .into_iter()
         .filter_map(|cycle| {
             let index = index_by_id.get(cycle.first()?)?;
+            let spelled: Vec<String> = cycle
+                .iter()
+                .map(|id| originals.get(id).cloned().unwrap_or_else(|| id.clone()))
+                .collect();
             Some(Advisory {
                 path: json_pointer([
                     Segment::Key("sources"),
                     Segment::Index(*index),
                     Segment::Key("discovered_via_id"),
                 ]),
-                message: format!("discovered_via_id cycle: {}", render_cycle(&cycle)),
+                message: format!("discovered_via_id cycle: {}", render_cycle(&spelled)),
             })
         })
         .collect()
@@ -417,10 +489,10 @@ fn parent_by_id(graph: &Graph<'_>) -> BTreeMap<String, String> {
         .sections
         .iter()
         .filter_map(|(_, section)| {
-            let id = local_id_value(section.get("id"))?;
-            let parent_id = local_id_value(section.get("parent_id"))?;
+            let id = typed_id_value(section.get("id"))?;
+            let parent_id = typed_id_value(section.get("parent_id"))?;
             if graph.entities.contains_kind(EntityKind::Section, parent_id) {
-                Some((id.to_owned(), parent_id.to_owned()))
+                Some((normalize_id(id), normalize_id(parent_id)))
             } else {
                 None
             }
@@ -431,7 +503,7 @@ fn parent_by_id(graph: &Graph<'_>) -> BTreeMap<String, String> {
 fn index_by_id(items: &[(usize, &Object)]) -> BTreeMap<String, usize> {
     items
         .iter()
-        .filter_map(|(index, item)| Some((local_id_value(item.get("id"))?.to_owned(), *index)))
+        .filter_map(|(index, item)| Some((normalize_id(typed_id_value(item.get("id"))?), *index)))
         .collect()
 }
 
@@ -440,14 +512,14 @@ fn id_entries<'descriptor>(graph: &Graph<'descriptor>) -> Vec<IdEntry<'descripto
         Some(IdEntry {
             kind: EntityKind::Source,
             index: *index,
-            value: local_id_value(item.get("id"))?,
+            value: typed_id_value(item.get("id"))?,
         })
     });
     let section_entries = graph.sections.iter().filter_map(|(index, item)| {
         Some(IdEntry {
             kind: EntityKind::Section,
             index: *index,
-            value: local_id_value(item.get("id"))?,
+            value: typed_id_value(item.get("id"))?,
         })
     });
 
@@ -457,7 +529,7 @@ fn id_entries<'descriptor>(graph: &Graph<'descriptor>) -> Vec<IdEntry<'descripto
 fn ids(items: &[(usize, &Object)]) -> BTreeSet<String> {
     items
         .iter()
-        .filter_map(|(_, item)| Some(local_id_value(item.get("id"))?.to_owned()))
+        .filter_map(|(_, item)| Some(normalize_id(typed_id_value(item.get("id"))?)))
         .collect()
 }
 
