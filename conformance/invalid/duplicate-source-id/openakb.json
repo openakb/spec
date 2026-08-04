@@ -5,23 +5,23 @@
   "description": "Two sources declare the same local id in the shared id space.",
   "sources": [
     {
-      "id": "dup",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     },
     {
-      "id": "dup",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/b/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "A section citing the duplicated source id.",
       "content_uri": "root.md",
-      "source_ids": ["dup"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

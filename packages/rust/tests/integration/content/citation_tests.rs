@@ -25,18 +25,18 @@ async fn test_citation_findings() {
     let dir = TempDir::new().unwrap();
     fs::write(
         dir.path().join("section.md"),
-        "A [cite:s1, missing, sec_other] and again [cite:s1, s1].\n",
+        "A [cite:SRC-000001, SRC-000009, SEC-000002] and again [cite:SRC-000001, SRC-000001].\n",
     )
     .unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [
             {
-                "id": "sec",
+                "id": "SEC-000001",
                 "content_uri": "section.md",
                 "content_type": "text/Markdown; charset=utf-8"
             },
-            { "id": "sec_other" }
+            { "id": "SEC-000002" }
         ]
     });
 
@@ -64,7 +64,7 @@ async fn test_citation_findings() {
     assert_eq!(check.warnings[0].path, "/sections/0/content_uri");
     assert_eq!(
         check.warnings[0].message,
-        "duplicate citation id in marker: s1"
+        "duplicate citation id in marker: SRC-000001"
     );
 }
 
@@ -73,13 +73,13 @@ async fn test_duplicate_ids_sorted_deduped() {
     let dir = TempDir::new().unwrap();
     fs::write(
         dir.path().join("section.md"),
-        "A [cite:b, a, b, a, c, a].\n",
+        "A [cite:SRC-000002, SRC-000001, SRC-000002, SRC-000001, SRC-000003, SRC-000001].\n",
     )
     .unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "a" }, { "id": "b" }, { "id": "c" }],
+        "sources": [{ "id": "SRC-000001" }, { "id": "SRC-000002" }, { "id": "SRC-000003" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md",
             "content_type": "text/markdown"
         }]
@@ -92,18 +92,18 @@ async fn test_duplicate_ids_sorted_deduped() {
     assert_eq!(check.kind, CheckKind::Citations);
     assert_eq!(check.outcome, Outcome::Verified);
     assert_eq!(check.warnings.len(), 1);
-    // Reported sorted and deduped: `a` (x3) and `b` (x2) are duplicates; `c` (x1)
-    // is not, and each duplicate id appears once.
+    // Reported sorted and deduped: `SRC-000001` (x3) and `SRC-000002` (x2) are
+    // duplicates; `SRC-000003` (x1) is not, and each duplicate id appears once.
     assert_eq!(
         check.warnings[0].message,
-        "duplicate citation id in marker: a, b"
+        "duplicate citation id in marker: SRC-000001, SRC-000002"
     );
 }
 
 #[tokio::test]
 async fn test_duplicate_ids_large_marker() {
     let dir = TempDir::new().unwrap();
-    let ids_list = std::iter::repeat_n("dup", 40_000)
+    let ids_list = std::iter::repeat_n("SRC-000001", 40_000)
         .collect::<Vec<_>>()
         .join(",");
     fs::write(
@@ -112,9 +112,9 @@ async fn test_duplicate_ids_large_marker() {
     )
     .unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "dup" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md",
             "content_type": "text/markdown"
         }]
@@ -130,18 +130,18 @@ async fn test_duplicate_ids_large_marker() {
     assert_eq!(check.warnings.len(), 1);
     assert_eq!(
         check.warnings[0].message,
-        "duplicate citation id in marker: dup"
+        "duplicate citation id in marker: SRC-000001"
     );
 }
 
 #[tokio::test]
 async fn test_markdown_parameters() {
     let dir = TempDir::new().unwrap();
-    fs::write(dir.path().join("section.md"), "A [cite:s1].\n").unwrap();
+    fs::write(dir.path().join("section.md"), "A [cite:SRC-000001].\n").unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md",
             "content_type": "text/Markdown; charset=utf-8"
         }]
@@ -161,7 +161,7 @@ async fn test_non_markdown_skip() {
     fs::write(dir.path().join("section.txt"), "A [cite:missing].\n").unwrap();
     let descriptor = json!({
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.txt",
             "content_type": "text/plain"
         }]
@@ -179,7 +179,7 @@ async fn test_non_markdown_hash() {
     fs::write(dir.path().join("section.txt"), "A [cite:missing].\n").unwrap();
     let descriptor = json!({
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.txt",
             "content_type": "text/plain",
             "content_hash": sri(b"A [cite:missing].\n")
@@ -200,7 +200,7 @@ async fn test_non_markdown_hash_warning() {
     let resolver = MapResolver::new([]);
     let descriptor = json!({
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "missing.txt",
             "content_type": "text/plain",
             "content_hash": "sha256-@@@"
@@ -228,7 +228,7 @@ async fn test_invalid_utf8() {
     fs::write(dir.path().join("section.md"), [0xff, 0xfe]).unwrap();
     let descriptor = json!({
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md"
         }]
     });
@@ -245,13 +245,13 @@ async fn test_invalid_utf8() {
 #[tokio::test]
 async fn test_content_hash_order() {
     let dir = TempDir::new().unwrap();
-    fs::write(dir.path().join("section.md"), "A [cite:s1].\n").unwrap();
+    fs::write(dir.path().join("section.md"), "A [cite:SRC-000001].\n").unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md",
-            "content_hash": sri(b"A [cite:s1].\n")
+            "content_hash": sri(b"A [cite:SRC-000001].\n")
         }]
     });
 
@@ -272,11 +272,11 @@ async fn test_markdown_malformed_hash() {
     // A Markdown section carries both a content_hash and citation checks. A malformed
     // hash SRI is an advisory, so the section is still fetched and its citations run.
     let dir = TempDir::new().unwrap();
-    fs::write(dir.path().join("section.md"), "A [cite:s1].\n").unwrap();
+    fs::write(dir.path().join("section.md"), "A [cite:SRC-000001].\n").unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md",
             "content_hash": "sha256-@@@"
         }]
@@ -299,7 +299,7 @@ async fn test_relative_base_reference_join() {
     // A relative base_uri resolves references RFC-3986-style without an absolute
     // authority: `..` pops a segment, a bare query keeps the base path, and a
     // trailing-slash reference stays a directory.
-    let content = b"A [cite:s1].\n".to_vec();
+    let content = b"A [cite:SRC-000001].\n".to_vec();
     let resolver = MapResolver::new([
         ("a/c/section.md".to_owned(), content.clone()),
         ("a/b/index.akb.json?content".to_owned(), content.clone()),
@@ -307,11 +307,11 @@ async fn test_relative_base_reference_join() {
     ]);
     let descriptor = json!({
         "base_uri": "a/b/index.akb.json",
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [
-            { "id": "s_a", "content_uri": "../c/section.md" },
-            { "id": "s_b", "content_uri": "?content" },
-            { "id": "s_c", "content_uri": "sub/" }
+            { "id": "SEC-000001", "content_uri": "../c/section.md" },
+            { "id": "SEC-000002", "content_uri": "?content" },
+            { "id": "SEC-000003", "content_uri": "sub/" }
         ]
     });
 
@@ -335,7 +335,7 @@ async fn test_local_prescreen() {
     let dir = TempDir::new().unwrap();
     let descriptor = json!({
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "section.md?cache=1"
         }]
     });
@@ -356,13 +356,13 @@ async fn test_local_prescreen() {
 async fn test_custom_query() {
     let resolver = MapResolver::new([(
         "https://docs.example.com/akb/index.akb.json?content".to_owned(),
-        b"A [cite:s1].\n".to_vec(),
+        b"A [cite:SRC-000001].\n".to_vec(),
     )]);
     let descriptor = json!({
         "base_uri": "https://docs.example.com/akb/index.akb.json?old",
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "content_uri": "?content"
         }]
     });

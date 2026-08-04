@@ -5,22 +5,22 @@
   "description": "A claim locator carries an empty quote string.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "A claim locator quote is the empty string.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
+      "source_ids": ["SRC-000001"],
       "provenance": [
         {
           "text": "An empty quote is not a verbatim span.",
-          "source_ids": ["s1"],
+          "source_ids": ["SRC-000001"],
           "locator": { "quote": "" }
         }
       ]

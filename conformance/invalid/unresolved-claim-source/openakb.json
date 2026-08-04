@@ -5,22 +5,22 @@
   "description": "An inline provenance claim cites a source id that is not declared.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Carries an inline claim citing a ghost source.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
+      "source_ids": ["SRC-000001"],
       "provenance": [
         {
           "text": "A grounded statement.",
-          "source_ids": ["ghost"]
+          "source_ids": ["SRC-000009"]
         }
       ]
     }

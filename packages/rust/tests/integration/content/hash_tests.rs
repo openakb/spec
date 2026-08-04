@@ -118,7 +118,7 @@ async fn test_base_uri_joined() {
         "guide_uri": "guide.md#top",
         "guide_hash": sri(b"guide\n"),
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "capture.txt#quote",
             "content_hash": sri(b"capture\n")
         }]
@@ -162,7 +162,7 @@ async fn test_base_uri_dot_segments() {
     let descriptor = json!({
         "base_uri": "docs/index.akb.json",
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "../snapshots/capture.txt",
             "content_hash": sri(b"capture\n")
         }]
@@ -186,7 +186,7 @@ async fn test_base_uri_fragment_only() {
     let descriptor = json!({
         "base_uri": "docs/capture.txt",
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "#quote",
             "content_hash": sri(b"capture\n")
         }]
@@ -244,11 +244,11 @@ async fn test_rfc_absolute_base_resolution() {
     let descriptor = json!({
         "base_uri": "https://docs.example.com/a/b/index.akb.json",
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "../capture.txt#quote",
             "content_hash": sri(b"capture\n")
         }, {
-            "id": "s2",
+            "id": "SRC-000002",
             "capture_uri": "/root.txt",
             "content_hash": sri(b"capture\n")
         }]
@@ -272,7 +272,7 @@ async fn test_resolved_uri_not_normalized() {
     let descriptor = json!({
         "base_uri": "HTTP://Docs.Example.COM:80/a/b/index.akb.json",
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "%7e/capture.txt#quote",
             "content_hash": sri(b"capture\n")
         }]
@@ -294,15 +294,15 @@ async fn test_absolute_capture_uri() {
     let descriptor = json!({
         "base_uri": "docs/index.akb.json",
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "capture.txt",
             "content_hash": sri(b"capture\n")
         }, {
-            "id": "s2",
+            "id": "SRC-000002",
             "capture_uri": "https://example.com/capture.txt",
             "content_hash": sri(b"capture\n")
         }, {
-            "id": "s3",
+            "id": "SRC-000003",
             "capture_uri": "/capture.txt",
             "content_hash": sri(b"capture\n")
         }]
@@ -322,7 +322,7 @@ async fn test_capture_missing_uri() {
     let dir = TempDir::new().unwrap();
     let descriptor = json!({
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "content_hash": sri(b"capture\n")
         }]
     });
@@ -342,11 +342,11 @@ async fn test_capture_fetch_failures() {
     let dir = TempDir::new().unwrap();
     let descriptor = json!({
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "missing.txt",
             "content_hash": sri(b"capture\n")
         }, {
-            "id": "s2",
+            "id": "SRC-000002",
             "capture_uri": "also-missing.txt"
         }]
     });
@@ -367,15 +367,15 @@ async fn test_capture_malformed_sri() {
     fs::write(dir.path().join("capture.txt"), "capture\n").unwrap();
     let descriptor = json!({
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "capture_uri": "capture.txt",
             "content_hash": "sha256-@@@"
         }, {
-            "id": "s2",
+            "id": "SRC-000002",
             "capture_uri": "missing.txt",
             "content_hash": "sha256-@@@"
         }, {
-            "id": "s3",
+            "id": "SRC-000003",
             "content_hash": "sha256-@@@"
         }]
     });
@@ -401,12 +401,12 @@ async fn test_capture_verified_failed() {
     let descriptor = json!({
         "sources": [
             {
-                "id": "s1",
+                "id": "SRC-000001",
                 "capture_uri": "capture.txt",
                 "content_hash": sri(b"capture\n")
             },
             {
-                "id": "s2",
+                "id": "SRC-000002",
                 "capture_uri": "capture.txt",
                 "content_hash": sri(b"other\n")
             }
@@ -430,7 +430,7 @@ async fn test_redacted_capture_fields() {
     let dir = TempDir::new().unwrap();
     let with_capture_fields = json!({
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "type": "redacted",
             "capture_uri": "capture.txt",
             "content_hash": sri(b"capture\n")
@@ -438,7 +438,7 @@ async fn test_redacted_capture_fields() {
     });
     let without_capture_fields = json!({
         "sources": [{
-            "id": "s1",
+            "id": "SRC-000001",
             "type": "redacted"
         }]
     });

@@ -5,19 +5,19 @@
   "description": "A local link section_id resolves to a source id instead of a section id.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Links, by section_id, to a source id rather than a section.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
-      "links": [{ "rel": "see-also", "section_id": "s1" }]
+      "source_ids": ["SRC-000001"],
+      "links": [{ "rel": "see-also", "section_id": "SRC-000001" }]
     }
   ]
 }

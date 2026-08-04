@@ -6,7 +6,7 @@
   "revision": "2026-07-03T00-00-00Z-00000000",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "redacted",
       "uri": "https://kb.example.org/redacted-source/stubs/s1",
       "captured_at": "2026-06-01T00:00:00Z"
@@ -14,11 +14,11 @@
   ],
   "sections": [
     {
-      "id": "operations",
+      "id": "SEC-000001",
       "title": "Operations",
       "description": "Operational guidance grounded in a source whose identity is withheld.",
       "content_uri": "https://kb.example.org/redacted-source/sections/operations.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

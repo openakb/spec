@@ -20,17 +20,17 @@ async fn report(descriptor: Value, dir: &TempDir) -> ContentReport {
 async fn test_sidecar_verified() {
     let dir = TempDir::new().unwrap();
     let sidecar = br#"{
-        "section_id": "sec",
+        "section_id": "SEC-000001",
         "claims": [{
             "text": "Claim text.",
-            "source_ids": ["s1"]
+            "source_ids": ["SRC-000001"]
         }]
     }"#;
     fs::write(dir.path().join("sec.prov.json"), sidecar).unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "provenance_uri": "sec.prov.json",
             "provenance_hash": sri(sidecar)
         }]
@@ -54,14 +54,14 @@ async fn test_binding_mismatch() {
     let dir = TempDir::new().unwrap();
     fs::write(
         dir.path().join("sec.prov.json"),
-        br#"{"section_id":"other","claims":[{"text":"Claim.","source_ids":["s1"]}]}"#,
+        br#"{"section_id":"SEC-000002","claims":[{"text":"Claim.","source_ids":["SRC-000001"]}]}"#,
     )
     .unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
+        "sources": [{ "id": "SRC-000001" }],
         "sections": [
-            { "id": "sec", "provenance_uri": "sec.prov.json" },
-            { "id": "other" }
+            { "id": "SEC-000001", "provenance_uri": "sec.prov.json" },
+            { "id": "SEC-000002" }
         ]
     });
 
@@ -84,13 +84,13 @@ async fn test_claim_source_unresolved() {
     let dir = TempDir::new().unwrap();
     fs::write(
         dir.path().join("sec.prov.json"),
-        br#"{"section_id":"sec","claims":[{"text":"Claim.","source_ids":["missing","other"]}]}"#,
+        br#"{"section_id":"SEC-000001","claims":[{"text":"Claim.","source_ids":["SRC-000009","SEC-000002"]}]}"#,
     )
     .unwrap();
     let descriptor = json!({
         "sections": [
-            { "id": "sec", "provenance_uri": "sec.prov.json" },
-            { "id": "other" }
+            { "id": "SEC-000001", "provenance_uri": "sec.prov.json" },
+            { "id": "SEC-000002" }
         ]
     });
 
@@ -119,12 +119,12 @@ async fn test_section_id_unresolved() {
     let dir = TempDir::new().unwrap();
     fs::write(
         dir.path().join("sec.prov.json"),
-        br#"{"section_id":"s1","claims":[{"text":"Claim.","source_ids":["s1"]}]}"#,
+        br#"{"section_id":"SRC-000001","claims":[{"text":"Claim.","source_ids":["SRC-000001"]}]}"#,
     )
     .unwrap();
     let descriptor = json!({
-        "sources": [{ "id": "s1" }],
-        "sections": [{ "id": "sec", "provenance_uri": "sec.prov.json" }]
+        "sources": [{ "id": "SRC-000001" }],
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "sec.prov.json" }]
     });
 
     let report = report(descriptor, &dir).await;
@@ -144,7 +144,7 @@ async fn test_malformed_json() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("sec.prov.json"), "{").unwrap();
     let descriptor = json!({
-        "sections": [{ "id": "sec", "provenance_uri": "sec.prov.json" }]
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "sec.prov.json" }]
     });
 
     let report = report(descriptor, &dir).await;
@@ -160,7 +160,7 @@ async fn test_malformed_json() {
 async fn test_unfetchable() {
     let dir = TempDir::new().unwrap();
     let descriptor = json!({
-        "sections": [{ "id": "sec", "provenance_uri": "missing.prov.json" }]
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "missing.prov.json" }]
     });
 
     let report = report(descriptor, &dir).await;
@@ -175,10 +175,14 @@ async fn test_unfetchable() {
 #[tokio::test]
 async fn test_malformed_provenance_hash() {
     let dir = TempDir::new().unwrap();
-    fs::write(dir.path().join("sec.prov.json"), br#"{"section_id":"sec"}"#).unwrap();
+    fs::write(
+        dir.path().join("sec.prov.json"),
+        br#"{"section_id":"SEC-000001"}"#,
+    )
+    .unwrap();
     let descriptor = json!({
         "sections": [{
-            "id": "sec",
+            "id": "SEC-000001",
             "provenance_uri": "sec.prov.json",
             "provenance_hash": "sha256-@@@"
         }]
@@ -205,7 +209,7 @@ async fn test_non_object_sidecar() {
     // are raised, then the non-object short-circuits binding and claim extraction.
     fs::write(dir.path().join("sec.prov.json"), b"[]").unwrap();
     let descriptor = json!({
-        "sections": [{ "id": "sec", "provenance_uri": "sec.prov.json" }]
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "sec.prov.json" }]
     });
 
     let report = report(descriptor, &dir).await;
@@ -220,9 +224,13 @@ async fn test_non_object_sidecar() {
 #[tokio::test]
 async fn test_sidecar_schema_prefix() {
     let dir = TempDir::new().unwrap();
-    fs::write(dir.path().join("sec.prov.json"), br#"{"section_id":"sec"}"#).unwrap();
+    fs::write(
+        dir.path().join("sec.prov.json"),
+        br#"{"section_id":"SEC-000001"}"#,
+    )
+    .unwrap();
     let descriptor = json!({
-        "sections": [{ "id": "sec", "provenance_uri": "sec.prov.json" }]
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "sec.prov.json" }]
     });
 
     let report = report(descriptor, &dir).await;

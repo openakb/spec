@@ -5,19 +5,19 @@
   "description": "A section parent_id names no declared section.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
-      "parent_id": "ghost",
+      "id": "SEC-000001",
+      "parent_id": "SEC-000009",
       "title": "Root",
       "description": "The parent pointer names no section.",
       "content_uri": "root.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

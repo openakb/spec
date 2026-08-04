@@ -20,7 +20,7 @@ const CATALOG = new Set([
   'AKB012',
 ]);
 const SCHEMA_CATCHABLE_CODES = new Set(['AKB003', 'AKB005', 'AKB008', 'AKB009', 'AKB011', 'AKB012']);
-const LOCAL_ID_PATTERN = /^[a-z0-9_-]{1,64}$/u;
+const LOCAL_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/u;
 
 // Normative JSON-Schema-keyword → error-code mapping (spec §7). Structural special cases are
 // resolved first (see mapErrorToCode): the link-level anyOf (target rule) → AKB012, the

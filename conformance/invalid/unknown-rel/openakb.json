@@ -5,22 +5,22 @@
   "description": "A link rel is neither controlled nor reverse-DNS namespaced.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "The link rel contains spaces.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
+      "source_ids": ["SRC-000001"],
       "links": [
         {
           "rel": "totally made up",
-          "section_id": "root"
+          "section_id": "SEC-000001"
         }
       ]
     }

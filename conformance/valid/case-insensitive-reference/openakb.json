@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.openakb.org/v1/openakb.schema.json",
+  "id": "valid-case-insensitive-reference",
+  "title": "Valid — case-insensitive reference",
+  "description": "A source_ids entry that differs in case from the declared source id must still resolve.",
+  "sources": [
+    {
+      "id": "SRC-00000A",
+      "type": "url",
+      "uri": "https://docs.example.com/a/"
+    }
+  ],
+  "sections": [
+    {
+      "id": "SEC-000001",
+      "title": "Root",
+      "description": "Cites the source with a case-mismatched id spelling.",
+      "content_uri": "root.md",
+      "source_ids": ["src-00000a"]
+    }
+  ]
+}

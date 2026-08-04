@@ -5,32 +5,32 @@
   "description": "An inline provenance claim cites a section id instead of a source id.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Carries an inline claim citing a section.",
       "content_uri": "root.md",
-      "source_ids": ["s1"],
+      "source_ids": ["SRC-000001"],
       "provenance": [
         {
           "text": "A grounded statement.",
-          "source_ids": ["child"]
+          "source_ids": ["SEC-000002"]
         }
       ]
     },
     {
-      "id": "child",
-      "parent_id": "root",
+      "id": "SEC-000002",
+      "parent_id": "SEC-000001",
       "title": "Child",
       "description": "The incorrectly cited section.",
       "content_uri": "child.md",
-      "source_ids": ["s1"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

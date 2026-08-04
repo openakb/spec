@@ -5,14 +5,14 @@
   "description": "A content section omits source_ids.",
   "sources": [
     {
-      "id": "s1",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/a/"
     }
   ],
   "sections": [
     {
-      "id": "root",
+      "id": "SEC-000001",
       "title": "Root",
       "description": "Content exists, but no sources are cited.",
       "content_uri": "root.md"
