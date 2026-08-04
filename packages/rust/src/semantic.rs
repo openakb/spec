@@ -6,7 +6,10 @@ use serde_json::Value;
 
 use crate::{
     Advisory, Code, Finding, PARENT_DEPTH_MAX, Segment, json_pointer,
-    shape::{EntityIndex, EntityKind, Object, indexed_objects, local_id_value, reference_code},
+    shape::{
+        EntityIndex, EntityKind, Object, id_kind, indexed_objects, normalize_id, reference_code,
+        typed_id_value,
+    },
 };
 
 const DEPTH_LIMIT: usize = PARENT_DEPTH_MAX + 1;
@@ -72,12 +75,13 @@ pub(crate) fn semantic_warnings(descriptor: &Value) -> Vec<Advisory> {
 
 fn duplicate_ids(graph: &Graph<'_>) -> Vec<Finding> {
     let mut findings = Vec::new();
-    let mut first_seen: BTreeMap<&str, String> = BTreeMap::new();
+    let mut first_seen: BTreeMap<String, String> = BTreeMap::new();
     let entries = id_entries(graph);
 
     for entry in entries {
         let path = id_path(entry.kind, entry.index);
-        if let Some(first_path) = first_seen.get(entry.value) {
+        let key = normalize_id(entry.value);
+        if let Some(first_path) = first_seen.get(&key) {
             findings.push(finding(
                 Code::Akb001,
                 path,
@@ -87,7 +91,7 @@ fn duplicate_ids(graph: &Graph<'_>) -> Vec<Finding> {
                 ),
             ));
         } else {
-            first_seen.insert(entry.value, json_pointer(path));
+            first_seen.insert(key, json_pointer(path));
         }
     }
 
@@ -98,15 +102,15 @@ fn empty_sections(graph: &Graph<'_>) -> Vec<Finding> {
     let child_parent_ids: BTreeSet<_> = graph
         .sections
         .iter()
-        .filter_map(|(_, section)| local_id_value(section.get("parent_id")))
+        .filter_map(|(_, section)| typed_id_value(section.get("parent_id")).map(normalize_id))
         .collect();
 
     graph
         .sections
         .iter()
         .filter_map(|(index, section)| {
-            let id = local_id_value(section.get("id"))?;
-            if section.contains_key("content_uri") || child_parent_ids.contains(id) {
+            let id = typed_id_value(section.get("id"))?;
+            if section.contains_key("content_uri") || child_parent_ids.contains(&normalize_id(id)) {
                 return None;
             }
             Some(finding(
@@ -184,7 +188,8 @@ fn reference_message(code: Code, value: Option<&Value>, expected: EntityKind) ->
     let token = value.and_then(Value::as_str).unwrap_or("<non-string>");
     if code == Code::Akb010 {
         format!(
-            "reference \"{token}\" resolves to the wrong kind; expected a {}",
+            "reference \"{token}\" is a {} id where a {} is required",
+            id_kind(token).map_or("", EntityKind::noun),
             expected.noun()
         )
     } else {
@@ -327,13 +332,13 @@ fn section_depth(section_id: &str, parent_by_id: &BTreeMap<String, String>) -> u
 fn source_cycle_warnings(graph: &Graph<'_>) -> Vec<Advisory> {
     let mut next_by_id = BTreeMap::new();
     for (_, source) in &graph.sources {
-        let Some(source_id) = local_id_value(source.get("id")) else {
+        let Some(source_id) = typed_id_value(source.get("id")) else {
             continue;
         };
-        let Some(discovered_via_id) = local_id_value(source.get("discovered_via_id")) else {
+        let Some(discovered_via_id) = typed_id_value(source.get("discovered_via_id")) else {
             continue;
         };
-        next_by_id.insert(source_id.to_owned(), discovered_via_id.to_owned());
+        next_by_id.insert(normalize_id(source_id), normalize_id(discovered_via_id));
     }
 
     let index_by_id = index_by_id(&graph.sources);
@@ -417,10 +422,10 @@ fn parent_by_id(graph: &Graph<'_>) -> BTreeMap<String, String> {
         .sections
         .iter()
         .filter_map(|(_, section)| {
-            let id = local_id_value(section.get("id"))?;
-            let parent_id = local_id_value(section.get("parent_id"))?;
+            let id = typed_id_value(section.get("id"))?;
+            let parent_id = typed_id_value(section.get("parent_id"))?;
             if graph.entities.contains_kind(EntityKind::Section, parent_id) {
-                Some((id.to_owned(), parent_id.to_owned()))
+                Some((normalize_id(id), normalize_id(parent_id)))
             } else {
                 None
             }
@@ -431,7 +436,7 @@ fn parent_by_id(graph: &Graph<'_>) -> BTreeMap<String, String> {
 fn index_by_id(items: &[(usize, &Object)]) -> BTreeMap<String, usize> {
     items
         .iter()
-        .filter_map(|(index, item)| Some((local_id_value(item.get("id"))?.to_owned(), *index)))
+        .filter_map(|(index, item)| Some((normalize_id(typed_id_value(item.get("id"))?), *index)))
         .collect()
 }
 
@@ -440,14 +445,14 @@ fn id_entries<'descriptor>(graph: &Graph<'descriptor>) -> Vec<IdEntry<'descripto
         Some(IdEntry {
             kind: EntityKind::Source,
             index: *index,
-            value: local_id_value(item.get("id"))?,
+            value: typed_id_value(item.get("id"))?,
         })
     });
     let section_entries = graph.sections.iter().filter_map(|(index, item)| {
         Some(IdEntry {
             kind: EntityKind::Section,
             index: *index,
-            value: local_id_value(item.get("id"))?,
+            value: typed_id_value(item.get("id"))?,
         })
     });
 
@@ -457,7 +462,7 @@ fn id_entries<'descriptor>(graph: &Graph<'descriptor>) -> Vec<IdEntry<'descripto
 fn ids(items: &[(usize, &Object)]) -> BTreeSet<String> {
     items
         .iter()
-        .filter_map(|(_, item)| Some(local_id_value(item.get("id"))?.to_owned()))
+        .filter_map(|(_, item)| Some(normalize_id(typed_id_value(item.get("id"))?)))
         .collect()
 }
 

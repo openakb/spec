@@ -3,8 +3,10 @@
 
 mod catalog_tests;
 mod citations_tests;
+mod content_tests;
 mod result_tests;
 mod schema_tests;
 mod semantic_tests;
+mod shape_tests;
 mod strict_tests;
 mod validator_tests;

@@ -6,7 +6,7 @@ use pulldown_cmark::{Event, Parser, Tag};
 use regex::bytes::Regex;
 use serde::Serialize;
 
-use crate::{LOCAL_ID_CHARSET, LOCAL_ID_MAX_LENGTH};
+use crate::{CITE_ID_CHARSET, CITE_ID_MAX_LENGTH};
 
 const MASK: u8 = b'\0';
 const COMMENT_OPEN: &[u8] = b"<!--";
@@ -15,7 +15,7 @@ const COMMENT_EMPTY: &[u8] = b"<!-->";
 const COMMENT_DASH: &[u8] = b"<!--->";
 
 static MARKER_RE: LazyLock<Regex> = LazyLock::new(|| {
-    let id = format!(r"[{LOCAL_ID_CHARSET}]{{1,{LOCAL_ID_MAX_LENGTH}}}");
+    let id = format!(r"[{CITE_ID_CHARSET}]{{1,{CITE_ID_MAX_LENGTH}}}");
     let pattern = format!(r"\[cite:[ \t]*({id}(?:[ \t]*,[ \t]*{id})*)\]");
     // PANIC: the citation marker regex is built only from fixed syntax and a numeric catalog constant.
     #[expect(

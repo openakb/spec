@@ -20,12 +20,12 @@ pub const PARENT_DEPTH_MAX: usize = 64;
 /// on both sides keeps validation total without rejecting any realistic input.
 pub const STRUCTURAL_DEPTH_MAX: usize = 1024;
 
-/// Maximum allowed length for local identifiers.
-pub const LOCAL_ID_MAX_LENGTH: usize = 64;
+/// Maximum length of an inline `[cite:]` id token (spec §4.4).
+pub const CITE_ID_MAX_LENGTH: usize = 64;
 
-/// Local identifier characters (spec §7). The hyphen is last so this string
-/// can also be used directly as a regex character-class body.
-pub const LOCAL_ID_CHARSET: &str = "abcdefghijklmnopqrstuvwxyz0123456789_-";
+/// Inline `[cite:]` id-token characters (spec §4.4): a case-insensitive superset
+/// of the typed source-id form. Hyphen last so this doubles as a regex class body.
+pub const CITE_ID_CHARSET: &str = "A-Za-z0-9_-";
 
 /// Stable OpenAKB diagnostic code.
 #[allow(missing_docs)] // Variant meanings are exposed through Code::name and fixed by the catalog.

@@ -19,9 +19,12 @@ use thiserror::Error;
 use tokio::fs;
 
 use crate::{
-    Advisory, Finding, Segment, json_pointer,
+    Advisory, Code, Finding, Segment, json_pointer,
     schema::provenance_schema_findings,
-    shape::{EntityIndex, EntityKind, Object, indexed_objects, local_id_value, reference_code_id},
+    shape::{
+        EntityIndex, EntityKind, Object, id_kind, indexed_objects, normalize_id, reference_code_id,
+        typed_id_value,
+    },
 };
 
 const SHA256_ALGORITHM: &str = "sha256";
@@ -478,21 +481,34 @@ fn citation_results(
     for (marker_index, citation) in crate::extract_citations(markdown).iter().enumerate() {
         append_duplicate_warnings(&mut warnings, &base_path, &citation.ids);
         for (id_index, source_id) in citation.ids.iter().enumerate() {
-            if let Some(code) = reference_code_id(source_id, EntityKind::Source, &graph.entities) {
-                let mut path = base_path.clone();
-                path.extend([
-                    PathSegment::Key("citations"),
-                    PathSegment::Index(marker_index),
-                    PathSegment::Index(id_index),
-                ]);
-                findings.push(Finding {
-                    code,
-                    path: pointer(path),
-                    message: format!(
-                        "citation source id {source_id:?} does not resolve to a source"
-                    ),
-                });
-            }
+            let mut path = base_path.clone();
+            path.extend([
+                PathSegment::Key("citations"),
+                PathSegment::Index(marker_index),
+                PathSegment::Index(id_index),
+            ]);
+            let code = if id_kind(source_id).is_none() {
+                // Fetched Markdown is invisible to the descriptor schema, so a
+                // non-typed token was not pre-reported there as AKB011 -- report
+                // it here; reference_code_id skips such tokens by contract, so
+                // this branch is also what keeps them from silently verifying.
+                Code::Akb011
+            } else if let Some(code) =
+                reference_code_id(source_id, EntityKind::Source, &graph.entities)
+            {
+                code
+            } else {
+                continue;
+            };
+            findings.push(Finding {
+                code,
+                path: pointer(path),
+                message: if code == Code::Akb011 {
+                    format!("citation source id {source_id:?} is not a typed source id")
+                } else {
+                    format!("citation source id {source_id:?} does not resolve to a source")
+                },
+            });
         }
     }
     (findings, warnings)
@@ -580,7 +596,7 @@ async fn append_capture_checks(
     {
         result
             .payloads
-            .insert(source_id.to_owned(), resolved_capture.payload.clone());
+            .insert(normalize_id(source_id), resolved_capture.payload.clone());
     }
 
     if let Some(hash_check) = hash_check {
@@ -596,7 +612,7 @@ async fn append_capture_checks(
                     if comparison.outcome == Outcome::Failed
                         && let Some(source_id) = source.get("id").and_then(Value::as_str)
                     {
-                        result.hash_failed.insert(source_id.to_owned());
+                        result.hash_failed.insert(normalize_id(source_id));
                     }
                     result.checks.push(comparison);
                 }
@@ -763,7 +779,11 @@ fn sidecar_findings(
                 ]),
                 message: format!("sidecar section_id {section_id:?} does not resolve to a section"),
             });
-        } else if Some(section_id) != section.get("id").and_then(Value::as_str) {
+        } else if section
+            .get("id")
+            .and_then(Value::as_str)
+            .is_none_or(|id| normalize_id(id) != normalize_id(section_id))
+        {
             binding_mismatch = true;
         }
     }
@@ -914,11 +934,15 @@ fn quote_checks(
 }
 
 fn quote_outcome(claim: &QuoteClaim, captures: &CaptureResult) -> (Outcome, String) {
-    let usable: Vec<_> = claim
+    let keys: Vec<_> = claim
         .source_ids
         .iter()
-        .filter(|source_id| !captures.hash_failed.contains(*source_id))
-        .filter_map(|source_id| captures.payloads.get(source_id))
+        .map(|source_id| normalize_id(source_id))
+        .collect();
+    let usable: Vec<_> = keys
+        .iter()
+        .filter(|key| !captures.hash_failed.contains(*key))
+        .filter_map(|key| captures.payloads.get(key))
         .collect();
     let needle = claim.quote.as_bytes();
     if usable
@@ -927,20 +951,17 @@ fn quote_outcome(claim: &QuoteClaim, captures: &CaptureResult) -> (Outcome, Stri
     {
         return (Outcome::Verified, "quote found in capture".to_owned());
     }
-    if claim.source_ids.iter().all(|source_id| {
-        captures.payloads.contains_key(source_id) && !captures.hash_failed.contains(source_id)
-    }) {
+    if keys
+        .iter()
+        .all(|key| captures.payloads.contains_key(key) && !captures.hash_failed.contains(key))
+    {
         return (
             Outcome::Failed,
             "quote absent from fetched captures".to_owned(),
         );
     }
     if usable.is_empty() {
-        if claim
-            .source_ids
-            .iter()
-            .any(|source_id| captures.hash_failed.contains(source_id))
-        {
+        if keys.iter().any(|key| captures.hash_failed.contains(key)) {
             return (
                 Outcome::Unverifiable,
                 "a cited source's capture failed its content_hash".to_owned(),
@@ -951,11 +972,7 @@ fn quote_outcome(claim: &QuoteClaim, captures: &CaptureResult) -> (Outcome, Stri
             "no cited source capture fetched".to_owned(),
         );
     }
-    if claim
-        .source_ids
-        .iter()
-        .any(|source_id| captures.hash_failed.contains(source_id))
-    {
+    if keys.iter().any(|key| captures.hash_failed.contains(key)) {
         return (
             Outcome::Unverifiable,
             "a cited source's capture failed its content_hash".to_owned(),
@@ -972,7 +989,10 @@ fn redacted_warnings(graph: &Graph<'_>, path: &str, source_ids: &[String]) -> Ve
         .iter()
         .filter(|source_id| {
             graph.sources.iter().any(|(_, source)| {
-                source.get("id").and_then(Value::as_str) == Some(source_id.as_str())
+                source
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| normalize_id(id) == normalize_id(source_id))
                     && source.get("type").and_then(Value::as_str) == Some("redacted")
             })
         })
@@ -1303,6 +1323,6 @@ fn utf8_error_detail(error: FromUtf8Error) -> String {
 fn ids(items: &[(usize, &Object)]) -> BTreeSet<String> {
     items
         .iter()
-        .filter_map(|(_, item)| Some(local_id_value(item.get("id"))?.to_owned()))
+        .filter_map(|(_, item)| Some(normalize_id(typed_id_value(item.get("id"))?)))
         .collect()
 }
