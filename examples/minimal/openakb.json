@@ -5,18 +5,18 @@
   "description": "The smallest valid OpenAKB descriptor: one content section grounded in one source.",
   "sources": [
     {
-      "id": "primary-source",
+      "id": "SRC-000001",
       "type": "url",
       "uri": "https://docs.example.com/minimal/"
     }
   ],
   "sections": [
     {
-      "id": "overview",
+      "id": "SEC-000001",
       "title": "Overview",
       "description": "A single content section with the required source citation.",
       "content_uri": "sections/overview.md",
-      "source_ids": ["primary-source"]
+      "source_ids": ["SRC-000001"]
     }
   ]
 }

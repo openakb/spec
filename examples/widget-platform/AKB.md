@@ -10,11 +10,11 @@ This guide is for maintainers of this example knowledge base. It complements the
 
 ## Conventions
 
-- One source of record (`product-docs`); cite it inline with `[cite: product-docs]` wherever a
-  claim is grounded in it.
-- The product blog is monitored as a `type: "feed"` listing source (`blog-index`). Each post
+- One source of record (`SRC-000001`, the platform documentation); cite it inline with
+  `[cite: SRC-000001]` wherever a claim is grounded in it.
+- The product blog is monitored as a `type: "feed"` listing source (`SRC-000002`). Each post
   worth grounding a section in becomes its own source carrying
-  `discovered_via_id: "blog-index"`; sections cite the post, never the index.
+  `discovered_via_id: "SRC-000002"`; sections cite the post, never the index.
 - Captured snapshots live under `captures/`. A snapshot-backed source pins its bytes with
   `content_hash` and points at the re-servable copy with `capture_uri`.
 - Add a new section as a child of the most specific existing section, and give every content
