@@ -1255,6 +1255,82 @@ def test_confusable_claim_id_unverifiable() -> None:
     assert report.ok
 
 
+def test_capture_wrong_kind_source_unverifiable() -> None:
+    """A source whose own id is a wrong-kind SEC- id must not seed the capture cache.
+
+    ``is_typed_id`` alone would accept a SEC-prefixed id -- it is a well-formed
+    typed id, just the wrong kind -- so the gate must use ``id_kind`` and require
+    ``"source"`` specifically. Before the fix, the fetched bytes were cached under
+    this source's own (invalid) id regardless of kind, so a claim repeating that id
+    falsely VERIFIED instead of being unverifiable.
+    """
+    source = {
+        "id": "SEC-000002",
+        "type": "url",
+        "uri": "https://docs.example.com/",
+        "capture_uri": "capture.bin",
+    }
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SEC-000002"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: SEC-000002].", "capture.bin": b"hay needle stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+
+
+def test_capture_malformed_source_unverifiable() -> None:
+    """A source whose own id is malformed (Unicode-confusable) must not seed the cache.
+
+    ``"SRC-0000" + KELVIN SIGN + "1"`` fails the ASCII-only source-id pattern, so
+    ``id_kind`` returns ``None`` for it. Before the fix, the bare
+    ``isinstance(source_id, str)`` gate cached its fetched bytes anyway, letting a
+    claim citing the same malformed id falsely VERIFY.
+    """
+    malformed_id = "SRC-0000K1"  # noqa: RUF001 -- the confusable is the case under test
+    source = {
+        "id": malformed_id,
+        "type": "url",
+        "uri": "https://docs.example.com/",
+        "capture_uri": "capture.bin",
+    }
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": [malformed_id], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: ...].", "capture.bin": b"hay needle stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+
+
+def test_capture_valid_source_still_verifies() -> None:
+    """Regression guard: a valid source id still seeds the cache and VERIFIES.
+
+    The ``id_kind`` gate must not exclude well-formed source ids -- behavior for
+    valid ids is unchanged by this fix.
+    """
+    source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"hay needle stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == VERIFIED
+
+
 def test_quote_partial_unfetchable() -> None:
     """Quote absence is unverifiable when another cited capture cannot fetch."""
     sources = [

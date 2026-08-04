@@ -593,6 +593,7 @@ async fn append_capture_checks(
     let resolved = fetch_capture(index, descriptor, capture_uri, resolver).await;
     if let CaptureFetch::Resolved(resolved_capture) = &resolved
         && let Some(source_id) = source.get("id").and_then(Value::as_str)
+        && id_kind(source_id) == Some(EntityKind::Source)
     {
         result
             .payloads
@@ -611,6 +612,7 @@ async fn append_capture_checks(
                     );
                     if comparison.outcome == Outcome::Failed
                         && let Some(source_id) = source.get("id").and_then(Value::as_str)
+                        && id_kind(source_id) == Some(EntityKind::Source)
                     {
                         result.hash_failed.insert(normalize_id(source_id));
                     }

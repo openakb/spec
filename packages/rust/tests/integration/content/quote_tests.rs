@@ -194,6 +194,87 @@ async fn test_confusable_claim_id_unverifiable() {
 }
 
 #[tokio::test]
+async fn test_wrong_kind_source_id_unverifiable() {
+    // A source's own id of the wrong kind (SEC- prefix) must not seed the capture
+    // cache: the gate requires `id_kind == Some(EntityKind::Source)`, not merely a
+    // well-formed typed id, so a claim repeating the same invalid id stays
+    // unverifiable instead of resolving against bytes cached under an invalid key.
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("capture.txt"), "hay needle stack").unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "SEC-000002", "capture_uri": "capture.txt" }],
+        "sections": [{
+            "id": "SEC-000001",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": ["SEC-000002"],
+                "locator": { "quote": "needle" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::Quote);
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(report.checks[0].detail, "no cited source capture fetched");
+}
+
+#[tokio::test]
+async fn test_malformed_source_id_unverifiable() {
+    // A source's own id that fails the ASCII-only source-id pattern (Unicode
+    // confusable) must not seed the capture cache either.
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("capture.txt"), "hay needle stack").unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "SRC-0000\u{212a}1", "capture_uri": "capture.txt" }],
+        "sections": [{
+            "id": "SEC-000001",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": ["SRC-0000\u{212a}1"],
+                "locator": { "quote": "needle" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::Quote);
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(report.checks[0].detail, "no cited source capture fetched");
+}
+
+#[tokio::test]
+async fn test_valid_source_id_still_verifies() {
+    // Regression guard: a well-formed source id still seeds the cache and VERIFIES.
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("capture.txt"), "hay needle stack").unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "SRC-000001", "capture_uri": "capture.txt" }],
+        "sections": [{
+            "id": "SEC-000001",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": ["SRC-000001"],
+                "locator": { "quote": "needle" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::Quote);
+    assert_eq!(report.checks[0].outcome, Outcome::Verified);
+}
+
+#[tokio::test]
 async fn test_quote_partial_gap() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("capture.txt"), "different text").unwrap();
