@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from ._shape import indexed_dicts, reference_code
+from ._shape import indexed_dicts, normalize_id, reference_code
 from .citations import extract_citations
 from .result import Advisory, Finding, json_pointer
 from .schema import provenance_validator, schema_findings
@@ -269,8 +269,8 @@ class _Graph:
         return cls(
             sources=sources,
             sections=sections,
-            source_ids=frozenset(_ids(sources)),
-            section_ids=frozenset(_ids(sections)),
+            source_ids=frozenset(normalize_id(i) for i in _ids(sources)),
+            section_ids=frozenset(normalize_id(i) for i in _ids(sections)),
         )
 
 
@@ -437,7 +437,7 @@ def _capture_checks(
             continue
         resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
         if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
-            payloads[source_id] = resolved.payload
+            payloads[normalize_id(source_id)] = resolved.payload
         if isinstance(hash_check, ContentCheck):
             checks.append(hash_check)
         if isinstance(resolved, _UnfetchedContent) and (
@@ -463,7 +463,7 @@ def _capture_checks(
                 comparison = _compare_sri(KIND_CAPTURE, path, resolved.payload, expected)
                 checks.append(comparison)
                 if comparison.outcome == FAILED and isinstance(source_id, str):
-                    hash_failed.add(source_id)
+                    hash_failed.add(normalize_id(source_id))
     return _CaptureResult(payloads=payloads, checks=checks, hash_failed=frozenset(hash_failed))
 
 
@@ -528,23 +528,18 @@ def _quote_outcome(
     claim: _QuoteClaim, captures: dict[str, bytes], hash_failed: frozenset[str]
 ) -> tuple[str, str]:
     """Three-state quote outcome; a hash-failed capture's bytes are never trusted."""
-    usable = [
-        captures[source_id]
-        for source_id in claim.source_ids
-        if source_id in captures and source_id not in hash_failed
-    ]
+    keys = [normalize_id(source_id) for source_id in claim.source_ids]
+    usable = [captures[key] for key in keys if key in captures and key not in hash_failed]
     needle = claim.quote.encode("utf-8")
     if any(needle in payload for payload in usable):
         return VERIFIED, "quote found in capture"
-    if all(
-        source_id in captures and source_id not in hash_failed for source_id in claim.source_ids
-    ):
+    if all(key in captures and key not in hash_failed for key in keys):
         return FAILED, "quote absent from fetched captures"
     if not usable:
-        if any(source_id in hash_failed for source_id in claim.source_ids):
+        if any(key in hash_failed for key in keys):
             return UNVERIFIABLE, _QUOTE_HASH_FAILED_DETAIL
         return UNVERIFIABLE, "no cited source capture fetched"
-    if any(source_id in hash_failed for source_id in claim.source_ids):
+    if any(key in hash_failed for key in keys):
         # A usable capture lacks the needle and a co-cited capture failed its hash:
         # the bytes were fetched but proven wrong, so this is a hash failure, not a
         # fetch gap.
@@ -622,7 +617,7 @@ def _sidecar_findings(
                 message=f"sidecar section_id {section_id!r} does not resolve to a section",
             )
         )
-    elif isinstance(section_id, str) and section_id != section.get("id"):
+    elif isinstance(section_id, str) and not _same_id(section_id, section.get("id")):
         binding_mismatch = True
     for claim_index, claim in indexed_dicts(sidecar.get("claims")):
         _append_sidecar_source_findings(findings, graph, section_index, claim_index, claim)
@@ -739,7 +734,7 @@ def _redacted_warnings(
         source_id
         for source_id in source_ids
         if any(
-            source.get("id") == source_id and source.get("type") == "redacted"
+            _same_id(source.get("id"), source_id) and source.get("type") == "redacted"
             for _, source in graph.sources
         )
     )
@@ -863,6 +858,13 @@ def _is_markdown(content_type: object) -> bool:
     # `text/Markdown` and `text/markdown; charset=utf-8` both count as Markdown.
     essence = content_type.split(";", 1)[0].strip().casefold()
     return essence == _MARKDOWN_TYPE
+
+
+def _same_id(left: object, right: object) -> bool:
+    """Equality under the casefolded id policy; non-strings compare as-is."""
+    if not isinstance(left, str) or not isinstance(right, str):
+        return left == right
+    return normalize_id(left) == normalize_id(right)
 
 
 def _ids(items: Iterable[tuple[int, dict[str, Any]]]) -> list[str]:

@@ -70,14 +70,14 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
         "id": "kb",
         "title": "KB",
         "description": "A test descriptor.",
-        "sources": [{"id": "s1", "type": "url", "uri": "https://docs.example.com/"}],
+        "sources": [{"id": "SRC-000001", "type": "url", "uri": "https://docs.example.com/"}],
         "sections": [
             {
-                "id": "root",
+                "id": "SEC-000001",
                 "title": "Root",
                 "description": "Root section.",
                 "content_uri": "root.md",
-                "source_ids": ["s1"],
+                "source_ids": ["SRC-000001"],
             }
         ],
     }
@@ -85,11 +85,11 @@ def _descriptor(**overrides: object) -> dict[str, Any]:
     return base
 
 
-def _sidecar(section_id: str = "root", **overrides: object) -> bytes:
+def _sidecar(section_id: str = "SEC-000001", **overrides: object) -> bytes:
     sidecar: dict[str, Any] = {
         "$schema": "https://schema.openakb.org/v1/provenance.schema.json",
         "section_id": section_id,
-        "claims": [{"text": "Claim.", "source_ids": ["s1"]}],
+        "claims": [{"text": "Claim.", "source_ids": ["SRC-000001"]}],
     }
     sidecar.update(overrides)
     return json_bytes(sidecar)
@@ -105,7 +105,7 @@ def _checks_by_kind(report: ContentReport, kind: str) -> list[ContentCheck]:
 
 def test_matching_content() -> None:
     """A matching section content hash and resolvable citations both verify."""
-    payload = b"See [cite: s1]."
+    payload = b"See [cite: SRC-000001]."
     descriptor = _descriptor(
         sections=[_descriptor()["sections"][0] | {"content_hash": _sri(payload)}]
     )
@@ -245,7 +245,7 @@ def test_unfetchable_guide() -> None:
 def test_guide_hash_without_uri() -> None:
     """A guide_hash with no guide_uri is unverifiable, mirroring capture content_hash."""
     descriptor = _descriptor(guide_hash=_sri(b"guide"))
-    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: s1]."}))
+    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: SRC-000001]."}))
 
     guide = _checks_by_kind(report, "guide-hash")[0]
     assert guide.outcome == UNVERIFIABLE
@@ -287,7 +287,7 @@ def test_content_fragment_stripped() -> None:
     descriptor = _descriptor(
         sections=[_descriptor()["sections"][0] | {"content_uri": "root.md#part"}]
     )
-    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: s1]."}))
+    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: SRC-000001]."}))
 
     assert _checks_by_kind(report, "citations")[0].outcome == VERIFIED
 
@@ -302,7 +302,7 @@ def test_invalid_utf8_markdown() -> None:
 
 def test_unresolved_citation() -> None:
     """Citation IDs that match no source or section emit AKB007."""
-    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: ghost]."}))
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: SRC-999999]."}))
 
     assert _checks_by_kind(report, "citations")[0].outcome == FAILED
     assert [finding.code for finding in report.findings] == ["AKB007"]
@@ -312,7 +312,7 @@ def test_unresolved_citation() -> None:
 def test_unknown_entity_keeps_citation() -> None:
     """An unknown HTML entity is literal text; the following [cite:] still fails (B2)."""
     report = check_content(
-        _descriptor(), FakeResolver({"root.md": b"&notanentity; [cite: ghost]."})
+        _descriptor(), FakeResolver({"root.md": b"&notanentity; [cite: SRC-999999]."})
     )
 
     assert _checks_by_kind(report, "citations")[0].outcome == FAILED
@@ -322,7 +322,7 @@ def test_unknown_entity_keeps_citation() -> None:
 
 def test_citation_to_section() -> None:
     """Inline citations must point to source IDs, not section IDs."""
-    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: root]."}))
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: SEC-000001]."}))
 
     assert _checks_by_kind(report, "citations")[0].outcome == FAILED
     assert [finding.code for finding in report.findings] == ["AKB010"]
@@ -330,7 +330,9 @@ def test_citation_to_section() -> None:
 
 def test_duplicate_marker_ids() -> None:
     """Duplicate IDs within one citation marker warn without failing."""
-    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: s1, s1]."}))
+    report = check_content(
+        _descriptor(), FakeResolver({"root.md": b"See [cite: SRC-000001, SRC-000001]."})
+    )
 
     assert _checks_by_kind(report, "citations")[0].outcome == VERIFIED
     assert len(report.warnings) == 1
@@ -341,7 +343,7 @@ def test_non_markdown_skips() -> None:
     """Non-Markdown section content types skip citation extraction."""
     section = _descriptor()["sections"][0] | {"content_type": "application/json"}
     report = check_content(
-        _descriptor(sections=[section]), FakeResolver({"root.md": b"[cite: ghost]"})
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"[cite: SRC-999999]"})
     )
 
     assert _checks_by_kind(report, "citations") == []
@@ -352,7 +354,7 @@ def test_markdown_charset_param_cites() -> None:
     """A text/markdown media type with a charset parameter still checks citations."""
     section = _descriptor()["sections"][0] | {"content_type": "text/markdown; charset=utf-8"}
     report = check_content(
-        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: ghost]."})
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: SRC-999999]."})
     )
 
     assert _checks_by_kind(report, "citations")[0].outcome == FAILED
@@ -363,7 +365,7 @@ def test_markdown_type_casefolded() -> None:
     """A mixed-case Markdown media type still triggers citation extraction."""
     section = _descriptor()["sections"][0] | {"content_type": "text/Markdown"}
     report = check_content(
-        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: ghost]."})
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: SRC-999999]."})
     )
 
     assert _checks_by_kind(report, "citations")[0].outcome == FAILED
@@ -372,7 +374,7 @@ def test_markdown_type_casefolded() -> None:
 def test_non_markdown_no_fetch() -> None:
     """Non-Markdown sections with no content_hash do not fetch content."""
     section = _descriptor()["sections"][0] | {"content_type": "application/json"}
-    resolver = RecordingResolver({"root.md": b"[cite: ghost]"})
+    resolver = RecordingResolver({"root.md": b"[cite: SRC-999999]"})
     report = check_content(_descriptor(sections=[section]), resolver)
 
     assert _checks_by_kind(report, "citations") == []
@@ -415,7 +417,7 @@ def test_malformed_type_skips() -> None:
     """Malformed content_type values are schema-owned and skip citation extraction."""
     section = _descriptor()["sections"][0] | {"content_type": 42}
     report = check_content(
-        _descriptor(sections=[section]), FakeResolver({"root.md": b"[cite: ghost]"})
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"[cite: SRC-999999]"})
     )
 
     assert _checks_by_kind(report, "citations") == []
@@ -426,7 +428,7 @@ def test_malformed_type_skips() -> None:
 def test_malformed_type_no_fetch() -> None:
     """Malformed content_type sections with no content_hash do not fetch content."""
     section = _descriptor()["sections"][0] | {"content_type": 42}
-    resolver = RecordingResolver({"root.md": b"[cite: ghost]"})
+    resolver = RecordingResolver({"root.md": b"[cite: SRC-999999]"})
     report = check_content(_descriptor(sections=[section]), resolver)
 
     assert _checks_by_kind(report, "citations") == []
@@ -437,7 +439,7 @@ def test_malformed_type_no_fetch() -> None:
 
 def test_base_uri_prefixes() -> None:
     """Relative content and guide references resolve against descriptor base_uri."""
-    payload = b"See [cite: s1]."
+    payload = b"See [cite: SRC-000001]."
     guide = b"# Guide\n"
     descriptor = _descriptor(
         base_uri="https://kb.example.org/root/",
@@ -464,7 +466,7 @@ def test_base_uri_prefixes() -> None:
 
 def test_local_query_fragment(tmp_path: Path) -> None:
     """Local content aliases with empty queries stay unverifiable through check_content."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     section = _descriptor()["sections"][0] | {"content_uri": "root.md?#frag"}
     report = check_content(_descriptor(sections=[section]), LocalFileResolver(tmp_path))
 
@@ -474,7 +476,7 @@ def test_local_query_fragment(tmp_path: Path) -> None:
 
 def test_local_param_fragment(tmp_path: Path) -> None:
     """Local content aliases with path params stay unverifiable through check_content."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     section = _descriptor()["sections"][0] | {"content_uri": "root.md;#frag"}
     report = check_content(_descriptor(sections=[section]), LocalFileResolver(tmp_path))
 
@@ -495,7 +497,7 @@ def test_local_guide_query(tmp_path: Path) -> None:
 
 def test_base_query_fragment(tmp_path: Path) -> None:
     """Fragment-only local content refs must not hide base_uri empty query aliases."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     section = _descriptor()["sections"][0] | {"content_uri": "#new"}
     descriptor = _descriptor(base_uri="root.md?#old", sections=[section])
     report = check_content(descriptor, LocalFileResolver(tmp_path))
@@ -506,7 +508,7 @@ def test_base_query_fragment(tmp_path: Path) -> None:
 
 def test_base_param_fragment(tmp_path: Path) -> None:
     """Fragment-only local content refs must not hide base_uri path parameters."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     section = _descriptor()["sections"][0] | {"content_uri": "#new"}
     descriptor = _descriptor(base_uri="root.md;#old", sections=[section])
     report = check_content(descriptor, LocalFileResolver(tmp_path))
@@ -532,7 +534,7 @@ def test_base_guide_query(tmp_path: Path) -> None:
 
 def test_join_traversal_content(tmp_path: Path) -> None:
     """Local content refs reject literal traversal before urljoin can normalize it."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     section = _descriptor()["sections"][0] | {"content_uri": "../root.md"}
     descriptor = _descriptor(base_uri="dir/base.md", sections=[section])
     report = check_content(descriptor, LocalFileResolver(tmp_path))
@@ -558,7 +560,7 @@ def test_join_traversal_guide(tmp_path: Path) -> None:
 
 def test_base_traversal_content(tmp_path: Path) -> None:
     """Local base_uri traversal is rejected before relative content references join."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     descriptor = _descriptor(base_uri="dir/../base.md")
     report = check_content(descriptor, LocalFileResolver(tmp_path))
 
@@ -585,7 +587,7 @@ def test_backslash_join_content(tmp_path: Path) -> None:
     """Local content refs reject raw backslashes before platform path handling."""
     directory = tmp_path / "dir"
     directory.mkdir()
-    (directory / "..\\root.md").write_bytes(b"See [cite: s1].")
+    (directory / "..\\root.md").write_bytes(b"See [cite: SRC-000001].")
     section = _descriptor()["sections"][0] | {"content_uri": "..\\root.md"}
     descriptor = _descriptor(base_uri="dir/base.md", sections=[section])
     report = check_content(descriptor, LocalFileResolver(tmp_path))
@@ -637,11 +639,11 @@ def test_all_unverifiable_is_ok() -> None:
 
 def test_local_resolver_accepts_str(tmp_path: Path) -> None:
     """A str base_dir is coerced to Path so fetch and check_content do not crash."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     resolver = LocalFileResolver(base_dir=str(tmp_path))
 
     assert resolver.base_dir == tmp_path
-    assert resolver.fetch("root.md") == b"See [cite: s1]."
+    assert resolver.fetch("root.md") == b"See [cite: SRC-000001]."
     assert check_content(_descriptor(), resolver).ok
 
 
@@ -718,7 +720,7 @@ def test_sidecar_bound_verifies() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar()}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": _sidecar()}),
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == VERIFIED
@@ -734,7 +736,7 @@ def test_sidecar_hash_verified() -> None:
     }
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
     )
 
     assert [check.outcome for check in _checks_by_kind(report, "sidecar")] == [
@@ -751,7 +753,7 @@ def test_sidecar_hash_malformed_warns() -> None:
     }
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar()}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": _sidecar()}),
     )
 
     hash_check = _checks_by_kind(report, "sidecar")[0]
@@ -766,7 +768,7 @@ def test_sidecar_unparseable_fails() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": b"not json"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": b"not json"}),
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
@@ -778,7 +780,7 @@ def test_sidecar_non_utf8_fails() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": b"\xff"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": b"\xff"}),
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
@@ -790,7 +792,7 @@ def test_sidecar_non_object_fails() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": json_bytes([1, 2])}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": json_bytes([1, 2])}),
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
@@ -799,11 +801,13 @@ def test_sidecar_non_object_fails() -> None:
 
 def test_sidecar_source_ids_not_list() -> None:
     """A sidecar claim whose source_ids is not a list is skipped without raising."""
-    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": "s1", "locator": {"quote": "q"}}])
+    payload = _sidecar(
+        claims=[{"text": "Claim.", "source_ids": "SRC-000001", "locator": {"quote": "q"}}]
+    )
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
@@ -816,7 +820,7 @@ def test_sidecar_schema_codes() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == FAILED
@@ -829,7 +833,7 @@ def test_sidecar_schema_path() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
     )
 
     sidecar = _checks_by_kind(report, "sidecar")[0]
@@ -840,11 +844,13 @@ def test_sidecar_schema_path() -> None:
 
 def test_sidecar_empty_quote_fails() -> None:
     """A fetched sidecar claim with an empty locator quote fails with AKB011."""
-    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": ""}}])
+    payload = _sidecar(
+        claims=[{"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": ""}}]
+    )
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
     )
 
     sidecar = _checks_by_kind(report, "sidecar")[0]
@@ -863,14 +869,16 @@ def test_sidecar_binding_mismatch() -> None:
             sections=[
                 section,
                 {
-                    "id": "other",
+                    "id": "SEC-000002",
                     "title": "Other",
                     "description": "Other section.",
-                    "source_ids": ["s1"],
+                    "source_ids": ["SRC-000001"],
                 },
             ]
         ),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar("other")}),
+        FakeResolver(
+            {"root.md": b"See [cite: SRC-000001].", "root.prov.json": _sidecar("SEC-000002")}
+        ),
     )
 
     sidecar = _checks_by_kind(report, "sidecar")[0]
@@ -886,14 +894,16 @@ def test_sidecar_mismatch_detail() -> None:
             sections=[
                 section,
                 {
-                    "id": "other",
+                    "id": "SEC-000002",
                     "title": "Other",
                     "description": "Other section.",
-                    "source_ids": ["s1"],
+                    "source_ids": ["SRC-000001"],
                 },
             ]
         ),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar("other")}),
+        FakeResolver(
+            {"root.md": b"See [cite: SRC-000001].", "root.prov.json": _sidecar("SEC-000002")}
+        ),
     )
 
     assert "section_id" in _checks_by_kind(report, "sidecar")[0].detail
@@ -904,7 +914,9 @@ def test_sidecar_section_akb007() -> None:
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": _sidecar("ghost")}),
+        FakeResolver(
+            {"root.md": b"See [cite: SRC-000001].", "root.prov.json": _sidecar("SEC-999999")}
+        ),
     )
 
     assert [finding.code for finding in report.findings] == ["AKB007"]
@@ -912,11 +924,11 @@ def test_sidecar_section_akb007() -> None:
 
 def test_sidecar_claim_akb010() -> None:
     """A sidecar claim source_id that names a section emits AKB010."""
-    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": ["root"]}])
+    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": ["SEC-000001"]}])
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "root.prov.json": payload}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
     )
 
     assert [finding.code for finding in report.findings] == ["AKB010"]
@@ -926,7 +938,7 @@ def test_sidecar_unfetchable() -> None:
     """An unavailable provenance sidecar is unverifiable."""
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
-        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     assert _checks_by_kind(report, "sidecar")[0].outcome == UNVERIFIABLE
@@ -942,7 +954,7 @@ def test_capture_hash_verified() -> None:
     }
     report = check_content(
         _descriptor(sources=[source]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": capture}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": capture}),
     )
 
     assert _checks_by_kind(report, "capture")[0].outcome == VERIFIED
@@ -956,7 +968,7 @@ def test_capture_hash_failed() -> None:
     }
     report = check_content(
         _descriptor(sources=[source]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"actual"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"actual"}),
     )
 
     assert _checks_by_kind(report, "capture")[0].outcome == FAILED
@@ -967,7 +979,7 @@ def test_capture_hashless_unverifiable() -> None:
     """A source content_hash without capture_uri is unverifiable."""
     source = _descriptor()["sources"][0] | {"content_hash": _sri(b"expected")}
     report = check_content(
-        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     assert _checks_by_kind(report, "capture")[0].outcome == UNVERIFIABLE
@@ -978,7 +990,7 @@ def test_capture_algo_warns() -> None:
     """Unsupported source content_hash without capture_uri preserves SRI warning."""
     source = _descriptor()["sources"][0] | {"content_hash": "sha512-aa=="}
     report = check_content(
-        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     capture = _checks_by_kind(report, "capture")[0]
@@ -992,7 +1004,7 @@ def test_capture_malformed_warns() -> None:
     """Malformed source content_hash without capture_uri preserves SRI warning."""
     source = _descriptor()["sources"][0] | {"content_hash": "sha256-not!base64"}
     report = check_content(
-        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     capture = _checks_by_kind(report, "capture")[0]
@@ -1006,7 +1018,7 @@ def test_capture_missing_dash_warns() -> None:
     """An SRI with no algorithm separator reports a malformed shape, not a bad algorithm."""
     source = _descriptor()["sources"][0] | {"content_hash": "sha256"}
     report = check_content(
-        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     capture = _checks_by_kind(report, "capture")[0]
@@ -1020,7 +1032,7 @@ def test_capture_missing_dash_warns() -> None:
 def test_capture_uri_fetches() -> None:
     """Non-redacted capture_uri fetches even without hash or quote usage."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
-    resolver = RecordingResolver({"root.md": b"See [cite: s1].", "capture.bin": b"capture"})
+    resolver = RecordingResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"capture"})
     report = check_content(_descriptor(sources=[source]), resolver)
 
     assert resolver.requests == ["root.md", "capture.bin"]
@@ -1034,7 +1046,7 @@ def test_capture_malformed_fetches() -> None:
         "capture_uri": "capture.bin",
         "content_hash": "sha256-not!base64",
     }
-    resolver = RecordingResolver({"root.md": b"See [cite: s1].", "capture.bin": b"capture"})
+    resolver = RecordingResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"capture"})
     report = check_content(_descriptor(sources=[source]), resolver)
 
     capture = _checks_by_kind(report, "capture")[0]
@@ -1049,7 +1061,7 @@ def test_capture_unfetchable_reports() -> None:
     """Hashless capture_uri fetch failures emit an unverifiable capture check."""
     source = _descriptor()["sources"][0] | {"capture_uri": "missing.bin"}
     report = check_content(
-        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     capture = _checks_by_kind(report, "capture")[0]
@@ -1060,7 +1072,7 @@ def test_capture_unfetchable_reports() -> None:
 
 def test_local_capture_ref_rejected(tmp_path: Path) -> None:
     """A hostile local capture_uri is rejected before fetch and stays unverifiable."""
-    (tmp_path / "root.md").write_bytes(b"See [cite: s1].")
+    (tmp_path / "root.md").write_bytes(b"See [cite: SRC-000001].")
     source = _descriptor()["sources"][0] | {"capture_uri": "../capture.bin"}
     report = check_content(_descriptor(sources=[source]), LocalFileResolver(tmp_path))
 
@@ -1077,7 +1089,7 @@ def test_capture_malformed_unfetchable() -> None:
         "content_hash": "sha256-not!base64",
     }
     report = check_content(
-        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sources=[source]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     captures = _checks_by_kind(report, "capture")
@@ -1094,11 +1106,13 @@ def test_quote_found_verifies() -> None:
     """Inline quote provenance verifies against any cited fetched capture."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
     }
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"hay needle stack"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"hay needle stack"}),
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == VERIFIED
@@ -1108,11 +1122,13 @@ def test_quote_absent_fails() -> None:
     """Inline quote provenance fails when fetched captures lack the quote."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
     }
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"hay stack"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"hay stack"}),
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == FAILED
@@ -1123,16 +1139,25 @@ def test_quote_partial_unfetchable() -> None:
     """Quote absence is unverifiable when another cited capture cannot fetch."""
     sources = [
         _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
-        {"id": "s2", "type": "url", "uri": "https://other.example.com/", "capture_uri": "s2.bin"},
+        {
+            "id": "SRC-000002",
+            "type": "url",
+            "uri": "https://other.example.com/",
+            "capture_uri": "s2.bin",
+        },
     ]
     section = _descriptor()["sections"][0] | {
         "provenance": [
-            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+            {
+                "text": "Claim.",
+                "source_ids": ["SRC-000001", "SRC-000002"],
+                "locator": {"quote": "needle"},
+            }
         ]
     }
     report = check_content(
         _descriptor(sources=sources, sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "s1.bin": b"hay stack"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "s1.bin": b"hay stack"}),
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
@@ -1143,16 +1168,20 @@ def test_quote_partial_redacted() -> None:
     """Quote absence is unverifiable when another cited source is redacted."""
     sources = [
         _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
-        {"id": "s2", "type": "redacted"},
+        {"id": "SRC-000002", "type": "redacted"},
     ]
     section = _descriptor()["sections"][0] | {
         "provenance": [
-            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+            {
+                "text": "Claim.",
+                "source_ids": ["SRC-000001", "SRC-000002"],
+                "locator": {"quote": "needle"},
+            }
         ]
     }
     report = check_content(
         _descriptor(sources=sources, sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "s1.bin": b"hay stack"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "s1.bin": b"hay stack"}),
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
@@ -1164,18 +1193,27 @@ def test_quote_all_absent_fails() -> None:
     """Quote absence fails when all cited captures are fetched and lack it."""
     sources = [
         _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
-        {"id": "s2", "type": "url", "uri": "https://other.example.com/", "capture_uri": "s2.bin"},
+        {
+            "id": "SRC-000002",
+            "type": "url",
+            "uri": "https://other.example.com/",
+            "capture_uri": "s2.bin",
+        },
     ]
     section = _descriptor()["sections"][0] | {
         "provenance": [
-            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+            {
+                "text": "Claim.",
+                "source_ids": ["SRC-000001", "SRC-000002"],
+                "locator": {"quote": "needle"},
+            }
         ]
     }
     report = check_content(
         _descriptor(sources=sources, sections=[section]),
         FakeResolver(
             {
-                "root.md": b"See [cite: s1].",
+                "root.md": b"See [cite: SRC-000001].",
                 "s1.bin": b"hay stack",
                 "s2.bin": b"other hay stack",
             }
@@ -1189,10 +1227,12 @@ def test_quote_all_absent_fails() -> None:
 def test_quote_without_capture() -> None:
     """Inline quote provenance is unverifiable without fetched captures."""
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
     }
     report = check_content(
-        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: s1]."})
+        _descriptor(sections=[section]), FakeResolver({"root.md": b"See [cite: SRC-000001]."})
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
@@ -1203,11 +1243,11 @@ def test_inline_claim_without_quote() -> None:
     """An inline provenance claim with no locator quote yields no quote check."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"]}]
+        "provenance": [{"text": "Claim.", "source_ids": ["SRC-000001"]}]
     }
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"data"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"data"}),
     )
 
     assert _checks_by_kind(report, "quote") == []
@@ -1221,11 +1261,13 @@ def test_quote_hash_failed_unverifiable() -> None:
         "content_hash": _sri(b"expected"),
     }
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
     }
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"hay needle stack"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"hay needle stack"}),
     )
 
     assert _checks_by_kind(report, "capture")[0].outcome == FAILED
@@ -1237,17 +1279,30 @@ def test_quote_good_capture_wins() -> None:
     """A verified-or-hashless capture still verifies a quote co-cited with a hash-failed one."""
     sources = [
         _descriptor()["sources"][0] | {"capture_uri": "s1.bin", "content_hash": _sri(b"expected")},
-        {"id": "s2", "type": "url", "uri": "https://other.example.com/", "capture_uri": "s2.bin"},
+        {
+            "id": "SRC-000002",
+            "type": "url",
+            "uri": "https://other.example.com/",
+            "capture_uri": "s2.bin",
+        },
     ]
     section = _descriptor()["sections"][0] | {
         "provenance": [
-            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+            {
+                "text": "Claim.",
+                "source_ids": ["SRC-000001", "SRC-000002"],
+                "locator": {"quote": "needle"},
+            }
         ]
     }
     report = check_content(
         _descriptor(sources=sources, sections=[section]),
         FakeResolver(
-            {"root.md": b"See [cite: s1].", "s1.bin": b"needle wrong", "s2.bin": b"has needle"}
+            {
+                "root.md": b"See [cite: SRC-000001].",
+                "s1.bin": b"needle wrong",
+                "s2.bin": b"has needle",
+            }
         ),
     )
 
@@ -1259,7 +1314,7 @@ def test_quote_hash_failed_detail() -> None:
     sources = [
         _descriptor()["sources"][0] | {"capture_uri": "s1.bin"},
         {
-            "id": "s2",
+            "id": "SRC-000002",
             "type": "url",
             "uri": "https://other.example.com/",
             "capture_uri": "s2.bin",
@@ -1268,12 +1323,18 @@ def test_quote_hash_failed_detail() -> None:
     ]
     section = _descriptor()["sections"][0] | {
         "provenance": [
-            {"text": "Claim.", "source_ids": ["s1", "s2"], "locator": {"quote": "needle"}}
+            {
+                "text": "Claim.",
+                "source_ids": ["SRC-000001", "SRC-000002"],
+                "locator": {"quote": "needle"},
+            }
         ]
     }
     report = check_content(
         _descriptor(sources=sources, sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "s1.bin": b"hay stack", "s2.bin": b"actual"}),
+        FakeResolver(
+            {"root.md": b"See [cite: SRC-000001].", "s1.bin": b"hay stack", "s2.bin": b"actual"}
+        ),
     )
 
     quote = _checks_by_kind(report, "quote")[0]
@@ -1286,11 +1347,11 @@ def test_empty_quote_skipped() -> None:
     """An empty locator quote is schema-owned and never vacuously verifies."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": ""}}]
+        "provenance": [{"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": ""}}]
     }
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"hay stack"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"hay stack"}),
     )
 
     assert _checks_by_kind(report, "quote") == []
@@ -1301,14 +1362,14 @@ def test_sidecar_quote_verifies() -> None:
     """Sidecar claim quotes join quote verification inputs."""
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
     payload = _sidecar(
-        claims=[{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        claims=[{"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}]
     )
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
         FakeResolver(
             {
-                "root.md": b"See [cite: s1].",
+                "root.md": b"See [cite: SRC-000001].",
                 "capture.bin": b"hay needle stack",
                 "root.prov.json": payload,
             }
@@ -1321,13 +1382,15 @@ def test_sidecar_quote_verifies() -> None:
 
 def test_redacted_quote_warns() -> None:
     """Quotes citing only redacted sources are unverifiable with an advisory."""
-    source = {"id": "s1", "type": "redacted"}
+    source = {"id": "SRC-000001", "type": "redacted"}
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
     }
     report = check_content(
         _descriptor(sources=[source], sections=[section]),
-        FakeResolver({"root.md": b"See [cite: s1]."}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001]."}),
     )
 
     assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
@@ -1338,12 +1401,12 @@ def test_redacted_quote_warns() -> None:
 def test_redacted_hash_unverifiable() -> None:
     """Redacted sources never fetch and make source hashes unverifiable."""
     source = {
-        "id": "s1",
+        "id": "SRC-000001",
         "type": "redacted",
         "capture_uri": "capture.bin",
         "content_hash": _sri(b"capture"),
     }
-    resolver = RecordingResolver({"root.md": b"See [cite: s1].", "capture.bin": b"capture"})
+    resolver = RecordingResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"capture"})
     report = check_content(_descriptor(sources=[source]), resolver)
 
     assert _checks_by_kind(report, "capture")[0].outcome == UNVERIFIABLE
@@ -1353,11 +1416,13 @@ def test_redacted_hash_unverifiable() -> None:
 
 def test_redacted_capture_ignored() -> None:
     """Redacted sources do not contribute capture bytes even with capture_uri."""
-    source = {"id": "s1", "type": "redacted", "capture_uri": "capture.bin"}
+    source = {"id": "SRC-000001", "type": "redacted", "capture_uri": "capture.bin"}
     section = _descriptor()["sections"][0] | {
-        "provenance": [{"text": "Claim.", "source_ids": ["s1"], "locator": {"quote": "needle"}}]
+        "provenance": [
+            {"text": "Claim.", "source_ids": ["SRC-000001"], "locator": {"quote": "needle"}}
+        ]
     }
-    resolver = RecordingResolver({"root.md": b"See [cite: s1].", "capture.bin": b"needle"})
+    resolver = RecordingResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"needle"})
     report = check_content(_descriptor(sources=[source], sections=[section]), resolver)
 
     assert _checks_by_kind(report, "capture")[0].outcome == UNVERIFIABLE
@@ -1370,7 +1435,7 @@ def test_full_report_combines() -> None:
     source = _descriptor()["sources"][0] | {"capture_uri": "capture.bin"}
     report = validate_with_content(
         _descriptor(sources=[source]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"capture"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"capture"}),
     )
 
     assert isinstance(report, FullReport)
@@ -1387,7 +1452,7 @@ def test_full_content_failure() -> None:
     }
     report = validate_with_content(
         _descriptor(sources=[source]),
-        FakeResolver({"root.md": b"See [cite: s1].", "capture.bin": b"actual"}),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "capture.bin": b"actual"}),
     )
 
     assert report.validation.ok
@@ -1398,7 +1463,9 @@ def test_full_content_failure() -> None:
 def test_full_structural_failure() -> None:
     """A structural validation failure flips FullReport.ok."""
     descriptor = _descriptor(title=7)
-    report = validate_with_content(descriptor, FakeResolver({"root.md": b"See [cite: s1]."}))
+    report = validate_with_content(
+        descriptor, FakeResolver({"root.md": b"See [cite: SRC-000001]."})
+    )
 
     assert not report.validation.ok
     assert report.content.ok

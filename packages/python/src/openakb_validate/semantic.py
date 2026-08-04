@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from ._shape import indexed_dicts, is_local_id, reference_code
+from ._shape import id_kind, indexed_dicts, is_typed_id, normalize_id, reference_code
 from .catalog import PARENT_DEPTH_MAX
 from .result import Advisory, Finding, json_pointer
 
@@ -57,8 +57,8 @@ class _Graph:
         return cls(
             sources=sources,
             sections=sections,
-            source_ids=frozenset(_ids(sources)),
-            section_ids=frozenset(_ids(sections)),
+            source_ids=frozenset(normalize_id(i) for i in _ids(sources)),
+            section_ids=frozenset(normalize_id(i) for i in _ids(sections)),
         )
 
 
@@ -68,19 +68,20 @@ def _duplicate_ids(graph: _Graph) -> list[Finding]:
     entries = [*_entries(graph.sources, "source"), *_entries(graph.sections, "section")]
     for entry in entries:
         path: list[str | int] = [f"{entry.kind}s", entry.index, "id"]
-        if entry.value in first_seen:
-            message = f'duplicate id "{entry.value}" first declared at {first_seen[entry.value]}'
+        key = normalize_id(entry.value)
+        if key in first_seen:
+            message = f'duplicate id "{entry.value}" first declared at {first_seen[key]}'
             findings.append(_finding("AKB001", path, message=message))
         else:
-            first_seen[entry.value] = json_pointer(path)
+            first_seen[key] = json_pointer(path)
     return findings
 
 
 def _empty_sections(graph: _Graph) -> list[Finding]:
     child_parent_ids = {
-        section.get("parent_id")
+        normalize_id(section["parent_id"])
         for _, section in graph.sections
-        if is_local_id(section.get("parent_id"))
+        if is_typed_id(section.get("parent_id"))
     }
     return [
         _finding(
@@ -90,8 +91,8 @@ def _empty_sections(graph: _Graph) -> list[Finding]:
         )
         for index, section in graph.sections
         if "content_uri" not in section
-        and is_local_id(section.get("id"))
-        and section["id"] not in child_parent_ids
+        and is_typed_id(section.get("id"))
+        and normalize_id(section["id"]) not in child_parent_ids
     ]
 
 
@@ -136,10 +137,10 @@ def _source_cycle_warnings(graph: _Graph) -> list[Advisory]:
         if (
             isinstance(source_id, str)
             and isinstance(discovered_via_id, str)
-            and is_local_id(source_id)
-            and is_local_id(discovered_via_id)
+            and is_typed_id(source_id)
+            and is_typed_id(discovered_via_id)
         ):
-            next_by_id[source_id] = discovered_via_id
+            next_by_id[normalize_id(source_id)] = normalize_id(discovered_via_id)
     index_by_id = _index_by_id(graph.sources)
     cycles = _cycles(next_by_id)
     warnings: list[Advisory] = []
@@ -170,7 +171,7 @@ def _reference_message(code: str, value: object, expected: _Kind) -> str:
     # reference_code only returns a code for grammar-valid string tokens, so value is a str here.
     token = value if isinstance(value, str) else repr(value)
     if code == "AKB010":
-        return f'reference "{token}" resolves to the wrong kind; expected a {expected}'
+        return f'reference "{token}" is a {id_kind(token)} id where a {expected} is required'
     return f'unresolved reference "{token}"; no declared {expected} has this id'
 
 
@@ -322,28 +323,28 @@ def _render_cycle(cycle: tuple[str, ...]) -> str:
 
 def _parent_by_id(graph: _Graph) -> dict[str, str]:
     return {
-        section["id"]: section["parent_id"]
+        normalize_id(section["id"]): normalize_id(section["parent_id"])
         for _, section in graph.sections
-        if is_local_id(section.get("id"))
-        and is_local_id(section.get("parent_id"))
-        and section["parent_id"] in graph.section_ids
+        if is_typed_id(section.get("id"))
+        and is_typed_id(section.get("parent_id"))
+        and normalize_id(section["parent_id"]) in graph.section_ids
     }
 
 
 def _index_by_id(items: Iterable[tuple[int, dict[str, Any]]]) -> dict[str, int]:
-    return {item["id"]: index for index, item in items if is_local_id(item.get("id"))}
+    return {normalize_id(item["id"]): index for index, item in items if is_typed_id(item.get("id"))}
 
 
 def _entries(items: Iterable[tuple[int, dict[str, Any]]], kind: _Kind) -> list[_IdEntry]:
     return [
         _IdEntry(kind=kind, index=index, value=item["id"])
         for index, item in items
-        if is_local_id(item.get("id"))
+        if is_typed_id(item.get("id"))
     ]
 
 
 def _ids(items: Iterable[tuple[int, dict[str, Any]]]) -> list[str]:
-    return [item["id"] for _, item in items if is_local_id(item.get("id"))]
+    return [item["id"] for _, item in items if is_typed_id(item.get("id"))]
 
 
 def _finding(code: str, path: list[str | int], *, message: str) -> Finding:

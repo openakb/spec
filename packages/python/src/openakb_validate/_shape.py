@@ -9,16 +9,33 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .catalog import LOCAL_ID_CHARSET, LOCAL_ID_MAX_LENGTH
+__all__ = ["id_kind", "indexed_dicts", "is_typed_id", "normalize_id", "reference_code"]
 
-__all__ = ["LOCAL_ID_RE", "indexed_dicts", "is_local_id", "reference_code"]
+_SECTION_ID_RE = re.compile(r"sec-[0-9a-z]{6}", re.IGNORECASE)
+_SOURCE_ID_RE = re.compile(r"src-[0-9a-z]{6}", re.IGNORECASE)
 
-LOCAL_ID_RE = re.compile(rf"^[{LOCAL_ID_CHARSET}]{{1,{LOCAL_ID_MAX_LENGTH}}}$")
+
+def is_typed_id(value: object) -> bool:
+    """True iff value is a string matching either typed id form (spec §7)."""
+    return isinstance(value, str) and (
+        _SECTION_ID_RE.fullmatch(value) is not None or _SOURCE_ID_RE.fullmatch(value) is not None
+    )
 
 
-def is_local_id(value: object) -> bool:
-    """True iff value is a string matching the local ID grammar (spec §7)."""
-    return isinstance(value, str) and LOCAL_ID_RE.fullmatch(value) is not None
+def id_kind(value: object) -> str | None:
+    """'section'/'source' from the id prefix, else None. Case-insensitive."""
+    if not isinstance(value, str):
+        return None
+    if _SECTION_ID_RE.fullmatch(value):
+        return "section"
+    if _SOURCE_ID_RE.fullmatch(value):
+        return "source"
+    return None
+
+
+def normalize_id(value: str) -> str:
+    """Casefold key for id comparison (ASCII lower); typed ids are ASCII."""
+    return value.lower()
 
 
 def indexed_dicts(value: object) -> list[tuple[int, dict[str, Any]]]:
@@ -34,16 +51,17 @@ def reference_code(
     source_ids: frozenset[str],
     section_ids: frozenset[str],
 ) -> str | None:
-    """AKB007/AKB010/None for one local reference token expecting a 'source' or 'section'.
+    """AKB010 (wrong-kind prefix) / AKB007 (unresolved) / None for one reference.
 
-    Tokens failing the local-ID grammar are skipped: the schema layer already reported
-    them as AKB011, and an unresolvable malformed token is one violation, not two.
+    Non-typed tokens are skipped: the schema layer already reported them as AKB011,
+    and an unresolvable malformed token is one violation, not two. `source_ids` and
+    `section_ids` hold normalized (lowercased) ids.
     """
-    if not is_local_id(value):
+    kind = id_kind(value)
+    if kind is None:
         return None
-    resolved = {
-        kind for kind, ids in (("source", source_ids), ("section", section_ids)) if value in ids
-    }
-    if expected in resolved:
-        return None
-    return "AKB010" if resolved else "AKB007"
+    if kind != expected:
+        return "AKB010"
+    registry = source_ids if expected == "source" else section_ids
+    assert isinstance(value, str)  # id_kind guarantees str
+    return None if normalize_id(value) in registry else "AKB007"
