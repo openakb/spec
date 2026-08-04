@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import re
 import string
+from collections.abc import Iterable
 from typing import Any, cast
 
-__all__ = ["id_kind", "indexed_dicts", "is_typed_id", "normalize_id", "reference_code"]
+__all__ = [
+    "casefolded_duplicate_indices",
+    "id_kind",
+    "indexed_dicts",
+    "is_typed_id",
+    "normalize_id",
+    "reference_code",
+]
 
 # Explicit ASCII classes instead of re.IGNORECASE: Python's Unicode case folding would
 # otherwise admit foldable non-ASCII characters (e.g. U+212A KELVIN SIGN, U+017F LONG S)
@@ -77,3 +85,25 @@ def reference_code(
     registry = source_ids if expected == "source" else section_ids
     value = cast("str", value)  # id_kind guarantees str
     return None if normalize_id(value) in registry else "AKB007"
+
+
+def casefolded_duplicate_indices(items: Iterable[object]) -> list[int]:
+    """Indices of id-array entries whose casefolded id repeats an earlier entry.
+
+    The schema's `uniqueItems` compares raw JSON strings, so a case-variant
+    duplicate like "SRC-00000A" and "src-00000a" passes it even though both denote
+    the same id under the case-insensitive id policy (spec Section 4.3/4.4). Only
+    grammar-valid typed ids are keyed here; a non-typed entry is already the
+    schema's AKB011 and must not be double-reported.
+    """
+    seen: set[str] = set()
+    duplicates: list[int] = []
+    for index, item in enumerate(items):
+        if not is_typed_id(item):
+            continue
+        key = normalize_id(cast("str", item))
+        if key in seen:
+            duplicates.append(index)
+        else:
+            seen.add(key)
+    return duplicates

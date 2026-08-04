@@ -893,6 +893,40 @@ def test_sidecar_empty_quote_fails() -> None:
     assert not report.ok
 
 
+def test_sidecar_casefolded_duplicate_source_ids() -> None:
+    """A sidecar claim citing the same source twice via case variants is AKB011."""
+    payload = _sidecar(claims=[{"text": "Claim.", "source_ids": ["SRC-000001", "src-000001"]}])
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
+    )
+
+    sidecar = _checks_by_kind(report, "sidecar")[0]
+    assert sidecar.outcome == FAILED
+    assert [(finding.code, finding.path) for finding in sidecar.findings] == [
+        ("AKB011", "/sections/0/provenance_uri/claims/0/source_ids/1")
+    ]
+
+
+def test_sidecar_mixed_case_across_claims_not_flagged() -> None:
+    """Case variants cited in different claims' arrays are not a within-array duplicate."""
+    payload = _sidecar(
+        claims=[
+            {"text": "A.", "source_ids": ["SRC-000001"]},
+            {"text": "B.", "source_ids": ["src-000001"]},
+        ]
+    )
+    section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(sections=[section]),
+        FakeResolver({"root.md": b"See [cite: SRC-000001].", "root.prov.json": payload}),
+    )
+
+    sidecar = _checks_by_kind(report, "sidecar")[0]
+    assert "AKB011" not in {finding.code for finding in sidecar.findings}
+
+
 def test_sidecar_binding_mismatch() -> None:
     """A sidecar bound to another section fails without inventing a code."""
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}

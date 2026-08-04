@@ -130,7 +130,7 @@ An `id` is the stable machine anchor; `title` is the human label. Tools presenti
 | `content_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the decoded content bytes. |
 | `content_length` | optional | integer, minimum 0 | Decoded content byte count: the same bytes `content_hash` covers. This is an advisory, untrusted size hint for pull budgeting, not a token estimate. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Per-section language override. |
-| `source_ids` | conditionally REQUIRED | array of unique source ids, each in the typed `SRC-` form | Every section with `content_uri` MUST cite at least one `source_ids` entry. |
+| `source_ids` | conditionally REQUIRED | array of unique source ids, each in the typed `SRC-` form; uniqueness is compared case-insensitively | Every section with `content_uri` MUST cite at least one `source_ids` entry. |
 | `provenance` | optional | array, 1-256 Claim objects | Inline claim-level provenance. |
 | `provenance_uri` | optional | URI reference | Per-section provenance sidecar. |
 | `provenance_hash` | optional | SRI-style hash, `<algo>-<base64>` | Integrity of the sidecar bytes. |
@@ -173,13 +173,13 @@ Concatenated markers, such as `[cite: a][cite: b]`, are permitted and are proven
 
 Inline claim-level provenance uses the Section `provenance` array, capped at 256 claims per section; the sidecar at `provenance_uri` is the overflow path for larger claim sets. Each Claim object:
 
-- has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique, and each id is a typed source id (§3).
+- has required `text` and `source_ids`; `source_ids` MUST contain at least one source id, its entries are unique (compared case-insensitively), and each id is a typed source id (§3).
 - MAY include `locator` with `quote`, `page`, or `anchor`; `quote`, when present, is a non-empty string, and `page` is an integer greater than or equal to 0.
 - MAY carry its own `x` extension object, as MAY the `locator`.
 
 `locator.quote` SHOULD be a verbatim span of the cited source's captured content (§4.2), so the quote remains checkable against the capture even after the live source changes.
 
-The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` is a typed section id and claim `source_ids` entries are typed source ids (§3); each sidecar claim's `source_ids` likewise contains at least one entry, and its entries are unique. Its shape is:
+The provenance sidecar is a JSON object conforming to `schema/v1/provenance.schema.json`. It has optional `$schema`, required `section_id`, and required `claims`. Sidecar `section_id` is a typed section id and claim `source_ids` entries are typed source ids (§3); each sidecar claim's `source_ids` likewise contains at least one entry, and its entries are unique, compared case-insensitively. Its shape is:
 
 ```json
 {
@@ -332,6 +332,7 @@ The following structural rules are normative:
 - Schema-required fields MUST be present at every level: top-level, Source, Section, Link, and Claim.
 - Source `id`s match `^[Ss][Rr][Cc]-[0-9A-Za-z]{6}$` and Section `id`s match `^[Ss][Ee][Cc]-[0-9A-Za-z]{6}$`: the `SRC-` or `SEC-` prefix plus six base36 characters, a fixed 10-character form, compared case-insensitively.
 - Source and Section `id`s MUST be unique across one shared id space, checked case-insensitively. Because the prefixes are disjoint, a source id and a section id cannot collide.
+- Entries within an id array — a section's `source_ids`, an inline claim's `source_ids`, or a sidecar claim's `source_ids` — MUST be unique, checked case-insensitively. The schema's `uniqueItems` keyword compares raw JSON strings and so only catches an exact-string duplicate; a case-variant duplicate (e.g. `SRC-00000A` and `src-00000a` in the same array) is instead caught by a semantic check and reported as `AKB011`, the same code `uniqueItems` uses for an exact duplicate.
 - Every reference is a typed id of the kind it references: `parent_id`, sidecar `section_id`, and link `section_id` (local or cross-AKB) name sections; Section `source_ids`, sidecar claim `source_ids`, Source `discovered_via_id`, and inline `[cite:]` ids name sources. A reference carrying the other kind's prefix is `AKB010`, checked offline for every reference including a cross-AKB link's `section_id`. A reference with the right prefix that names no declared id is `AKB007` for a local reference; a cross-AKB link's `section_id` is exempt from this existence check because its target AKB is not resolved offline (see the Local links rule below).
 - Top-level `id` and `namespace` are lowercase slugs matching `[a-z0-9_-]`, ≤64 chars.
 - Every section MUST have `content_uri` or at least one child.
@@ -381,7 +382,7 @@ Error-code catalog:
 | `AKB008` | `unknown-rel` | `rel` in the controlled vocab or a reverse-DNS `prefix:suffix` escape. |
 | `AKB009` | `missing-required-field` | Every schema-required field present, at every level: top-level, source, section, link, and claim. |
 | `AKB010` | `invalid-reference-kind` | A reference carries the wrong kind's prefix: `SEC-` where a source is required, or `SRC-` where a section is required. |
-| `AKB011` | `malformed-value` | Charset/shape (typed `SEC-`/`SRC-` id form; slug `[a-z0-9_-]` for top-level `id`/`namespace`), format (RFC 3339 UTC / RFC 3986), and type constraints hold. |
+| `AKB011` | `malformed-value` | Charset/shape (typed `SEC-`/`SRC-` id form; slug `[a-z0-9_-]` for top-level `id`/`namespace`), format (RFC 3339 UTC / RFC 3986), type constraints, and within-array id uniqueness (including case-variant duplicates, checked semantically) hold. |
 | `AKB012` | `link-missing-target` | Every link carries `section_id`, `akb_uri`, or both. |
 
 The bounded-manifest caps in v1 are the caps listed above and the schema's matching max items and max lengths. The ≤64 char limit applies to the slug fields — top-level `id` and `namespace` — and is a schema/global identifier constraint, not a content payload, URI, revision, source-type, claim-text, or anchor cap. Typed ids are a fixed 10-character form and need no length cap.
@@ -398,6 +399,8 @@ When validation is performed with the published JSON Schema, keyword violations 
 | `rel`'s `anyOf` (controlled value or reverse-DNS escape), including its branch errors | `AKB008` |
 | `required` (elsewhere) | `AKB009` |
 | `pattern`, `format`, `type`, `minimum`, `minLength`, `minItems`, `uniqueItems`, `propertyNames`, `enum` (elsewhere) | `AKB011` |
+
+`uniqueItems` compares JSON strings case-sensitively, so it catches only an exact-string duplicate within `source_ids`. A duplicate that differs solely in the case of a typed id is not schema-catchable; it is caught by the semantic check in the structural rules above and reported as the same `AKB011`, since it is the same class of malformed value under the case-insensitive id policy.
 
 `pattern` is a JSON Schema regular expression, so it is written and matched against the ECMA-262 regex dialect. Schema patterns use explicit ASCII digit classes (`[0-9]`) rather than `\d`: ECMA-262's `\d` is already ASCII-only, but some validator implementations run patterns through a host regex engine whose `\d` matches the wider set of Unicode decimal digits by default, and `[0-9]` sidesteps that divergence so independent validators converge on identical codes for identical documents regardless of host engine. The v1 patterns with digit classes, such as `$defs/timestamp` and the typed-id forms, use `[0-9]` (or `[0-9A-Za-z]`) for exactly this reason. The typed-id patterns likewise spell case-insensitivity with explicit classes (`[Ss][Ee][Cc]`, `[0-9A-Za-z]`) rather than a regex flag, since JSON Schema `pattern` has no portable case-insensitive flag; this keeps independent validators convergent.
 

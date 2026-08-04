@@ -7,8 +7,8 @@ use serde_json::Value;
 use crate::{
     Advisory, Code, Finding, PARENT_DEPTH_MAX, Segment, json_pointer,
     shape::{
-        EntityIndex, EntityKind, Object, id_kind, indexed_objects, is_typed_id, normalize_id,
-        reference_code, typed_id_value,
+        EntityIndex, EntityKind, Object, casefolded_duplicate_indices, id_kind, indexed_objects,
+        is_typed_id, normalize_id, reference_code, typed_id_value,
     },
 };
 
@@ -214,6 +214,19 @@ fn append_source_ids(
         let mut path = path_prefix.clone();
         path.push(Segment::Index(index));
         append_ref(findings, graph, EntityKind::Source, Some(item), path);
+    }
+
+    for index in casefolded_duplicate_indices(items) {
+        let mut path = path_prefix.clone();
+        path.push(Segment::Index(index));
+        findings.push(finding(
+            Code::Akb011,
+            path,
+            format!(
+                "duplicate source id \"{}\" (case-insensitive) within this array",
+                items[index].as_str().unwrap_or_default()
+            ),
+        ));
     }
 }
 

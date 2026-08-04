@@ -22,8 +22,8 @@ use crate::{
     Advisory, Code, Finding, Segment, json_pointer,
     schema::provenance_schema_findings,
     shape::{
-        EntityIndex, EntityKind, Object, id_kind, indexed_objects, normalize_id, reference_code_id,
-        typed_id_value,
+        EntityIndex, EntityKind, Object, casefolded_duplicate_indices, id_kind, indexed_objects,
+        normalize_id, reference_code_id, typed_id_value,
     },
 };
 
@@ -812,21 +812,48 @@ fn append_sidecar_source_findings(
         if let Some(code) = reference_code_id(source_id, EntityKind::Source, &graph.entities) {
             findings.push(Finding {
                 code,
-                path: pointer([
-                    PathSegment::Key("sections"),
-                    PathSegment::Index(section_index),
-                    PathSegment::Key("provenance_uri"),
-                    PathSegment::Key("claims"),
-                    PathSegment::Index(claim_index),
-                    PathSegment::Key("source_ids"),
-                    PathSegment::Index(source_index),
-                ]),
+                path: pointer(sidecar_claim_source_path(
+                    section_index,
+                    claim_index,
+                    source_index,
+                )),
                 message: format!(
                     "sidecar claim source id {source_id:?} does not resolve to a source"
                 ),
             });
         }
     }
+
+    for source_index in casefolded_duplicate_indices(source_ids) {
+        let source_id = source_ids[source_index].as_str().unwrap_or_default();
+        findings.push(Finding {
+            code: Code::Akb011,
+            path: pointer(sidecar_claim_source_path(
+                section_index,
+                claim_index,
+                source_index,
+            )),
+            message: format!(
+                "sidecar claim source id {source_id:?} duplicates another entry in this array (case-insensitive)"
+            ),
+        });
+    }
+}
+
+fn sidecar_claim_source_path(
+    section_index: usize,
+    claim_index: usize,
+    source_index: usize,
+) -> [PathSegment; 7] {
+    [
+        PathSegment::Key("sections"),
+        PathSegment::Index(section_index),
+        PathSegment::Key("provenance_uri"),
+        PathSegment::Key("claims"),
+        PathSegment::Index(claim_index),
+        PathSegment::Key("source_ids"),
+        PathSegment::Index(source_index),
+    ]
 }
 
 fn sidecar_detail(section: &Object, sidecar: &Value, binding_mismatch: bool) -> String {

@@ -290,6 +290,42 @@ def test_akb010_claim_section() -> None:
     ]
 
 
+def test_akb011_casefolded_duplicate_section_source_ids() -> None:
+    """A section's source_ids citing the same source twice via case variants is AKB011."""
+    descriptor = _descriptor(
+        sections=[_section("SEC-000001", source_ids=["SRC-000001", "src-000001"])]
+    )
+    findings = semantic_findings(descriptor)
+    assert [(finding.code, finding.path) for finding in findings] == [
+        ("AKB011", "/sections/0/source_ids/1")
+    ]
+
+
+def test_akb011_casefolded_duplicate_claim_source_ids() -> None:
+    """An inline claim's source_ids citing the same source twice via case is AKB011."""
+    descriptor = _descriptor(
+        sections=[_section("SEC-000001", provenance=[{"source_ids": ["SRC-000001", "src-000001"]}])]
+    )
+    findings = semantic_findings(descriptor)
+    assert [(finding.code, finding.path) for finding in findings] == [
+        ("AKB011", "/sections/0/provenance/0/source_ids/1")
+    ]
+
+
+def test_akb011_mixed_case_across_arrays_not_flagged() -> None:
+    """Case variants cited in different arrays are not a within-array duplicate."""
+    descriptor = _descriptor(
+        sections=[
+            _section(
+                "SEC-000001",
+                source_ids=["SRC-000001"],
+                provenance=[{"source_ids": ["src-000001"]}],
+            )
+        ]
+    )
+    assert "AKB011" not in _codes(descriptor)
+
+
 def test_invalid_tokens_skipped() -> None:
     """A parent_id failing the id pattern is left to the schema layer, not reported here."""
     descriptor = _descriptor(sections=[_section("SEC-000001", parent_id="Bad Id")])

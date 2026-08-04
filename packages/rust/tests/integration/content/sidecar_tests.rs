@@ -115,6 +115,60 @@ async fn test_claim_source_unresolved() {
 }
 
 #[tokio::test]
+async fn test_akb011_casefolded_duplicate_source_ids() {
+    // The schema's uniqueItems compares raw strings, so a case-variant duplicate
+    // passes it; the content layer must still flag it as AKB011.
+    let dir = TempDir::new().unwrap();
+    fs::write(
+        dir.path().join("sec.prov.json"),
+        br#"{"section_id":"SEC-000001","claims":[{"text":"Claim.","source_ids":["SRC-000001","src-000001"]}]}"#,
+    )
+    .unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "SRC-000001" }],
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "sec.prov.json" }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(!report.ok());
+    assert_eq!(report.checks.len(), 1);
+    let check = &report.checks[0];
+    assert_eq!(check.kind, CheckKind::Sidecar);
+    assert_eq!(check.outcome, Outcome::Failed);
+    assert_eq!(check.findings.len(), 1);
+    assert_eq!(check.findings[0].code, Code::Akb011);
+    assert_eq!(
+        check.findings[0].path,
+        "/sections/0/provenance_uri/claims/0/source_ids/1"
+    );
+}
+
+#[tokio::test]
+async fn test_akb011_mixed_case_across_claims_not_flagged() {
+    // Case variants cited in different claims' arrays are not a within-array duplicate.
+    let dir = TempDir::new().unwrap();
+    fs::write(
+        dir.path().join("sec.prov.json"),
+        br#"{"section_id":"SEC-000001","claims":[
+            {"text":"A.","source_ids":["SRC-000001"]},
+            {"text":"B.","source_ids":["src-000001"]}
+        ]}"#,
+    )
+    .unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "SRC-000001" }],
+        "sections": [{ "id": "SEC-000001", "provenance_uri": "sec.prov.json" }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert!(report.checks[0].findings.is_empty());
+}
+
+#[tokio::test]
 async fn test_section_id_unresolved() {
     let dir = TempDir::new().unwrap();
     fs::write(

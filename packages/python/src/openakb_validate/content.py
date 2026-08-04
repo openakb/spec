@@ -13,7 +13,14 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from ._shape import id_kind, indexed_dicts, is_typed_id, normalize_id, reference_code
+from ._shape import (
+    casefolded_duplicate_indices,
+    id_kind,
+    indexed_dicts,
+    is_typed_id,
+    normalize_id,
+    reference_code,
+)
 from .citations import extract_citations
 from .result import Advisory, Finding, json_pointer
 from .schema import provenance_validator, schema_findings
@@ -662,17 +669,36 @@ def _append_sidecar_source_findings(
                 Finding(
                     code=code,
                     path=json_pointer(
-                        [
-                            *_sidecar_path(section_index),
-                            "claims",
-                            claim_index,
-                            "source_ids",
-                            source_index,
-                        ]
+                        _sidecar_claim_source_path(section_index, claim_index, source_index)
                     ),
                     message=f"sidecar claim source id {source_id!r} does not resolve to a source",
                 )
             )
+    for source_index in casefolded_duplicate_indices(source_ids):
+        findings.append(
+            Finding(
+                code="AKB011",
+                path=json_pointer(
+                    _sidecar_claim_source_path(section_index, claim_index, source_index)
+                ),
+                message=(
+                    f"sidecar claim source id {source_ids[source_index]!r} duplicates another "
+                    "entry in this array (case-insensitive)"
+                ),
+            )
+        )
+
+
+def _sidecar_claim_source_path(
+    section_index: int, claim_index: int, source_index: int
+) -> list[str | int]:
+    return [
+        *_sidecar_path(section_index),
+        "claims",
+        claim_index,
+        "source_ids",
+        source_index,
+    ]
 
 
 def _inline_quote_claims(graph: _Graph) -> list[_QuoteClaim]:

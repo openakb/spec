@@ -125,6 +125,42 @@ fn test_wrong_kind_references() {
 }
 
 #[test]
+fn test_akb011_casefolded_duplicate_section_source_ids() {
+    // The schema's uniqueItems compares raw strings, so a case-variant duplicate
+    // passes it; the semantic layer must still flag it as AKB011.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001", "src-000001"]);
+
+    let paths = paths_for(&descriptor, Code::Akb011);
+
+    assert_eq!(paths, vec!["/sections/0/source_ids/1"]);
+}
+
+#[test]
+fn test_akb011_casefolded_duplicate_claim_source_ids() {
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["provenance"] = json!([
+        {"text":"Inline claim.","source_ids":["SRC-000001", "src-000001"]}
+    ]);
+
+    let paths = paths_for(&descriptor, Code::Akb011);
+
+    assert_eq!(paths, vec!["/sections/0/provenance/0/source_ids/1"]);
+}
+
+#[test]
+fn test_akb011_mixed_case_across_arrays_not_flagged() {
+    // Case variants cited in different arrays are not a within-array duplicate.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["source_ids"] = json!(["SRC-000001"]);
+    descriptor["sections"][0]["provenance"] = json!([
+        {"text":"Inline claim.","source_ids":["src-000001"]}
+    ]);
+
+    assert!(!codes(&descriptor).contains(&Code::Akb011));
+}
+
+#[test]
 fn test_link_with_akb_uri_skipped() {
     let mut descriptor = descriptor();
     descriptor["sections"][0]["links"] = json!([

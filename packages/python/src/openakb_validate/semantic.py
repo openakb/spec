@@ -6,7 +6,14 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from ._shape import id_kind, indexed_dicts, is_typed_id, normalize_id, reference_code
+from ._shape import (
+    casefolded_duplicate_indices,
+    id_kind,
+    indexed_dicts,
+    is_typed_id,
+    normalize_id,
+    reference_code,
+)
 from .catalog import PARENT_DEPTH_MAX
 from .result import Advisory, Finding, json_pointer
 
@@ -189,6 +196,16 @@ def _append_source_ids(
             expected="source",
             value=item,
             path=[*path, index],
+        )
+    for index in casefolded_duplicate_indices(value):
+        findings.append(
+            _finding(
+                "AKB011",
+                [*path, index],
+                message=(
+                    f'duplicate source id "{value[index]}" (case-insensitive) within this array'
+                ),
+            )
         )
 
 
