@@ -217,7 +217,7 @@ Every link MUST carry a target: `section_id`, `akb_uri`, or both. A link with ne
 
 The parent tree is an acyclic forest. The link graph is a general network and MAY be cyclic.
 
-Local links MUST resolve offline: a `section_id` with no `akb_uri` MUST name a section in this AKB. Cross-AKB links are best-effort because the target is remote and may change or disappear. Consumers MUST tolerate unresolvable or changed cross-AKB targets.
+Local links MUST resolve offline: a `section_id` with no `akb_uri` MUST name a section in this AKB. Cross-AKB links are best-effort because the target is remote and may change or disappear — a cross-AKB link's `section_id`, when present, is still checked offline for its `SEC-` prefix (`AKB010`), just not for existence in the remote AKB. Consumers MUST tolerate unresolvable or changed cross-AKB targets.
 
 **Pinning.** `revision` and `content_hash` are meaningful only on links with `akb_uri`; they are ignored on local links. A link's `content_hash` covers the decoded content bytes of the target section named by `section_id` — the same bytes that section's own declared `content_hash` covers (§4.3, §5) — copied from the target descriptor at pin time. On a link that carries `akb_uri` but no `section_id`, `content_hash` has no defined referent and is ignored; a validator MAY warn.
 
@@ -332,13 +332,13 @@ The following structural rules are normative:
 - Schema-required fields MUST be present at every level: top-level, Source, Section, Link, and Claim.
 - Source `id`s match `^[Ss][Rr][Cc]-[0-9A-Za-z]{6}$` and Section `id`s match `^[Ss][Ee][Cc]-[0-9A-Za-z]{6}$`: the `SRC-` or `SEC-` prefix plus six base36 characters, a fixed 10-character form, compared case-insensitively.
 - Source and Section `id`s MUST be unique across one shared id space, checked case-insensitively. Because the prefixes are disjoint, a source id and a section id cannot collide.
-- Every local reference is a typed id of the kind it references: `parent_id`, sidecar `section_id`, and local link `section_id` name sections; Section `source_ids`, sidecar claim `source_ids`, Source `discovered_via_id`, and inline `[cite:]` ids name sources. A reference carrying the other kind's prefix is `AKB010`; a reference with the right prefix that names no declared id is `AKB007`.
+- Every reference is a typed id of the kind it references: `parent_id`, sidecar `section_id`, and link `section_id` (local or cross-AKB) name sections; Section `source_ids`, sidecar claim `source_ids`, Source `discovered_via_id`, and inline `[cite:]` ids name sources. A reference carrying the other kind's prefix is `AKB010`, checked offline for every reference including a cross-AKB link's `section_id`. A reference with the right prefix that names no declared id is `AKB007` for a local reference; a cross-AKB link's `section_id` is exempt from this existence check because its target AKB is not resolved offline (see the Local links rule below).
 - Top-level `id` and `namespace` are lowercase slugs matching `[a-z0-9_-]`, ≤64 chars.
 - Every section MUST have `content_uri` or at least one child.
 - Every section with `content_uri` MUST cite at least one `source_ids` entry.
 - The `parent_id` graph MUST be acyclic.
 - References MUST resolve to existing ids of the right kind.
-- Local links MUST resolve. Cross-AKB links are best-effort and are not an offline structural failure.
+- Local links MUST resolve. Cross-AKB links are best-effort for existence and are not an offline structural failure, though a cross-AKB link's `section_id` prefix (kind) is still checked offline (`AKB010`).
 - `rel` MUST be in the controlled vocabulary or match the reverse-DNS escape pattern.
 - Every link MUST carry `section_id`, `akb_uri`, or both.
 - All schema type, charset, timestamp, URI-reference, language, hash, length, cardinality, and depth constraints MUST hold.

@@ -229,6 +229,45 @@ def test_akb010_link_source() -> None:
     ]
 
 
+def test_akb010_cross_link_source() -> None:
+    """A cross-AKB link's section_id still enforces the SEC- prefix (kind), not existence."""
+    descriptor = _descriptor(
+        sections=[
+            _section(
+                "SEC-000001",
+                links=[
+                    {
+                        "rel": "see-also",
+                        "akb_uri": "https://kb.example.org/other.openakb.json",
+                        "section_id": "SRC-000001",
+                    }
+                ],
+            )
+        ]
+    )
+    findings = semantic_findings(descriptor)
+    assert [finding.code for finding in findings] == ["AKB010"]
+
+
+def test_cross_link_section_valid() -> None:
+    """A cross-AKB link's section_id with the right SEC- prefix yields no finding."""
+    descriptor = _descriptor(
+        sections=[
+            _section(
+                "SEC-000001",
+                links=[
+                    {
+                        "rel": "see-also",
+                        "akb_uri": "https://kb.example.org/other.openakb.json",
+                        "section_id": "SEC-000001",
+                    }
+                ],
+            )
+        ]
+    )
+    assert semantic_findings(descriptor) == []
+
+
 def test_inline_claim_sources() -> None:
     """An inline claim's source_ids referencing a nonexistent id is reported as AKB007."""
     descriptor = _descriptor(

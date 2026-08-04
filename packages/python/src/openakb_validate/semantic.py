@@ -199,14 +199,33 @@ def _append_link_findings(
     section_index: int,
 ) -> None:
     for link_index, link in indexed_dicts(section.get("links")):
+        path: list[str | int] = ["sections", section_index, "links", link_index, "section_id"]
         if "akb_uri" in link:
+            _append_cross_akb_section_kind(findings, link.get("section_id"), path)
             continue
         _append_ref(
             finding=findings,
             graph=graph,
             expected="section",
             value=link.get("section_id"),
-            path=["sections", section_index, "links", link_index, "section_id"],
+            path=path,
+        )
+
+
+def _append_cross_akb_section_kind(
+    findings: list[Finding],
+    value: object,
+    path: list[str | int],
+) -> None:
+    """Enforce the section-kind prefix on a cross-AKB link's section_id.
+
+    Existence is not checked here: cross-AKB resolution is best-effort, so no
+    AKB007 fires for a cross-AKB target. Only the prefix -- checkable offline --
+    is enforced; a non-typed token is left to the schema layer's AKB011.
+    """
+    if id_kind(value) == "source":
+        findings.append(
+            _finding("AKB010", path, message=_reference_message("AKB010", value, "section"))
         )
 
 

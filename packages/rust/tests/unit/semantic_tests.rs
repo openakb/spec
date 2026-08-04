@@ -135,6 +135,27 @@ fn test_link_with_akb_uri_skipped() {
 }
 
 #[test]
+fn test_cross_link_wrong_kind() {
+    // A cross-AKB link's section_id still enforces the SEC- prefix (kind), not existence.
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["links"] = json!([
+        {"rel":"see-also","akb_uri":"https://kb.example.org/other.openakb.json","section_id":"SRC-000001"}
+    ]);
+
+    assert_eq!(codes(&descriptor), vec![Code::Akb010]);
+}
+
+#[test]
+fn test_cross_link_section_valid() {
+    let mut descriptor = descriptor();
+    descriptor["sections"][0]["links"] = json!([
+        {"rel":"see-also","akb_uri":"https://kb.example.org/other.openakb.json","section_id":"SEC-000001"}
+    ]);
+
+    assert_eq!(codes(&descriptor), Vec::new());
+}
+
+#[test]
 fn test_parent_cycle() {
     let mut descriptor = descriptor();
     descriptor["sections"] = json!([

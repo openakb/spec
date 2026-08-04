@@ -224,7 +224,15 @@ fn append_link_findings(
     section_index: usize,
 ) {
     for (link_index, link) in indexed_objects(section.get("links")) {
+        let path = [
+            Segment::Key("sections"),
+            Segment::Index(section_index),
+            Segment::Key("links"),
+            Segment::Index(link_index),
+            Segment::Key("section_id"),
+        ];
         if link.contains_key("akb_uri") {
+            append_cross_akb_section_kind(findings, link.get("section_id"), path);
             continue;
         }
         append_ref(
@@ -232,14 +240,30 @@ fn append_link_findings(
             graph,
             EntityKind::Section,
             link.get("section_id"),
-            [
-                Segment::Key("sections"),
-                Segment::Index(section_index),
-                Segment::Key("links"),
-                Segment::Index(link_index),
-                Segment::Key("section_id"),
-            ],
+            path,
         );
+    }
+}
+
+/// Enforces the section-kind prefix on a cross-AKB link's `section_id`.
+///
+/// Existence is not checked here: cross-AKB resolution is best-effort, so no
+/// `Akb007` fires for a cross-AKB target. Only the prefix -- checkable offline
+/// -- is enforced; a non-typed token is left to the schema layer's `Akb011`.
+fn append_cross_akb_section_kind<'path>(
+    findings: &mut Vec<Finding>,
+    value: Option<&Value>,
+    path: impl IntoIterator<Item = Segment<'path>>,
+) {
+    let Some(token) = value.and_then(Value::as_str) else {
+        return;
+    };
+    if id_kind(token) == Some(EntityKind::Source) {
+        findings.push(finding(
+            Code::Akb010,
+            path,
+            reference_message(Code::Akb010, value, EntityKind::Section),
+        ));
     }
 }
 
