@@ -379,6 +379,32 @@ async fn test_custom_query() {
     );
 }
 
+#[tokio::test]
+async fn test_malformed_id_excluded() {
+    // U+212A KELVIN SIGN renders identically to ASCII 'K' but fails the typed id
+    // grammar. The content registry must not admit it, so a citation using the
+    // real ASCII id resolves to nothing rather than to the malformed source --
+    // pinning parity with the reference validator.
+    let resolver =
+        MapResolver::new([("section.md".to_owned(), b"A [cite:SRC-0000K1].\n".to_vec())]);
+    let descriptor = json!({
+        "sources": [{ "id": "SRC-0000\u{212a}1" }],
+        "sections": [{
+            "id": "SEC-000001",
+            "content_uri": "section.md"
+        }]
+    });
+
+    let report = check_content(&descriptor, &resolver).await;
+
+    assert!(!report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::Citations);
+    assert_eq!(report.checks[0].outcome, Outcome::Failed);
+    assert_eq!(report.checks[0].findings.len(), 1);
+    assert_eq!(report.checks[0].findings[0].code, Code::Akb007);
+}
+
 struct MapResolver {
     payloads: BTreeMap<String, Vec<u8>>,
     fetched: Mutex<Vec<String>>,

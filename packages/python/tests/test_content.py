@@ -322,6 +322,25 @@ def test_non_typed_citation_akb011() -> None:
     assert not report.ok
 
 
+def test_malformed_id_citation_akb007() -> None:
+    """A citation cannot resolve against a source id that fails the typed grammar.
+
+    ``normalize_id`` folds full Unicode (``str.lower()``), so U+212A KELVIN SIGN
+    folds to ASCII "k" -- the same key a real ``SRC-0000K1`` citation normalizes
+    to. If the content registry admitted this malformed id, the citation below
+    would wrongly resolve against it instead of reporting AKB007.
+    """
+    malformed_id = "SRC-0000K1"  # noqa: RUF001 -- the confusable is the case under test
+    descriptor = _descriptor(
+        sources=[{"id": malformed_id, "type": "url", "uri": "https://docs.example.com/"}]
+    )
+    report = check_content(descriptor, FakeResolver({"root.md": b"See [cite: SRC-0000K1]."}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert [finding.code for finding in report.findings] == ["AKB007"]
+    assert not report.ok
+
+
 def test_unknown_entity_keeps_citation() -> None:
     """An unknown HTML entity is literal text; the following [cite:] still fails (B2)."""
     report = check_content(
