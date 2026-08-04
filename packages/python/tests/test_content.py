@@ -309,6 +309,19 @@ def test_unresolved_citation() -> None:
     assert not report.ok
 
 
+def test_non_typed_citation_akb011() -> None:
+    """A non-typed citation token in fetched content is AKB011, not silently verified.
+
+    Fetched Markdown is invisible to the descriptor schema, so its tokens cannot be
+    pre-reported as AKB011 there: the content layer reports them itself.
+    """
+    report = check_content(_descriptor(), FakeResolver({"root.md": b"See [cite: s1]."}))
+
+    assert _checks_by_kind(report, "citations")[0].outcome == FAILED
+    assert [finding.code for finding in report.findings] == ["AKB011"]
+    assert not report.ok
+
+
 def test_unknown_entity_keeps_citation() -> None:
     """An unknown HTML entity is literal text; the following [cite:] still fails (B2)."""
     report = check_content(

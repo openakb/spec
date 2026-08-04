@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from ._shape import indexed_dicts, normalize_id, reference_code
+from ._shape import id_kind, indexed_dicts, normalize_id, reference_code
 from .citations import extract_citations
 from .result import Advisory, Finding, json_pointer
 from .schema import provenance_validator, schema_findings
@@ -798,6 +798,19 @@ def _citation_results(
         path: list[str | int] = ["sections", section_index, "content_uri"]
         _append_duplicate_warnings(warnings, path, citation.ids)
         for id_index, source_id in enumerate(citation.ids):
+            if id_kind(source_id) is None:
+                # Fetched Markdown is invisible to the descriptor schema, so a
+                # non-typed token was not pre-reported there as AKB011 -- report
+                # it here; reference_code skips such tokens by contract, so this
+                # branch is also what keeps them from silently verifying.
+                findings.append(
+                    Finding(
+                        code="AKB011",
+                        path=json_pointer([*path, "citations", marker_index, id_index]),
+                        message=f"citation source id {source_id!r} is not a typed source id",
+                    )
+                )
+                continue
             code = reference_code(source_id, "source", graph.source_ids, graph.section_ids)
             if code is not None:
                 # The "/citations/<marker>/<id>" tail is a synthetic locator into the

@@ -11,8 +11,11 @@ from typing import Any
 
 __all__ = ["id_kind", "indexed_dicts", "is_typed_id", "normalize_id", "reference_code"]
 
-_SECTION_ID_RE = re.compile(r"sec-[0-9a-z]{6}", re.IGNORECASE)
-_SOURCE_ID_RE = re.compile(r"src-[0-9a-z]{6}", re.IGNORECASE)
+# Explicit ASCII classes instead of re.IGNORECASE: Python's Unicode case folding would
+# otherwise admit foldable non-ASCII characters (e.g. U+212A KELVIN SIGN, U+017F LONG S)
+# that the schema's ASCII-only `[0-9A-Za-z]{6}` pattern rejects as AKB011.
+_SECTION_ID_RE = re.compile(r"[Ss][Ee][Cc]-[0-9A-Za-z]{6}")
+_SOURCE_ID_RE = re.compile(r"[Ss][Rr][Cc]-[0-9A-Za-z]{6}")
 
 
 def is_typed_id(value: object) -> bool:

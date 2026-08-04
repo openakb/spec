@@ -33,6 +33,16 @@ def test_is_typed_id_rejects_malformed() -> None:
         assert not is_typed_id(value)
 
 
+def test_unicode_case_folds_rejected() -> None:
+    """Unicode foldables (Kelvin sign, long s) are not ASCII base36 and not typed ids."""
+    kelvin_sign = "SEC-00000" + chr(0x212A)  # U+212A KELVIN SIGN
+    long_s = "SEC-00000" + chr(0x017F)  # U+017F LONG S
+    assert not is_typed_id(kelvin_sign)
+    assert not is_typed_id(long_s)
+    assert id_kind(kelvin_sign) is None
+    assert id_kind(long_s) is None
+
+
 def test_id_kind_from_prefix_case_insensitive() -> None:
     """The prefix alone determines kind, case-insensitively."""
     assert id_kind("SEC-000001") == "section"
