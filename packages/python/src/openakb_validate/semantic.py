@@ -142,15 +142,14 @@ def _source_cycle_warnings(graph: _Graph) -> list[Advisory]:
         ):
             next_by_id[normalize_id(source_id)] = normalize_id(discovered_via_id)
     index_by_id = _index_by_id(graph.sources)
+    originals = _original_spellings(graph.sources)
     cycles = _cycles(next_by_id)
     warnings: list[Advisory] = []
     for cycle in sorted(cycles):
+        rendered = _render_cycle(tuple(originals.get(i, i) for i in cycle))
         path: list[str | int] = ["sources", index_by_id.get(cycle[0], 0), "discovered_via_id"]
         warnings.append(
-            Advisory(
-                path=json_pointer(path),
-                message=f"discovered_via_id cycle: {_render_cycle(cycle)}",
-            )
+            Advisory(path=json_pointer(path), message=f"discovered_via_id cycle: {rendered}")
         )
     return warnings
 
@@ -231,11 +230,12 @@ def _parent_cycle_findings(
     parent_by_id: dict[str, str],
 ) -> list[Finding]:
     index_by_id = _index_by_id(graph.sections)
+    originals = _original_spellings(graph.sections)
     return [
         _finding(
             "AKB004",
             ["sections", index_by_id.get(cycle[0], 0), "parent_id"],
-            message=f"parent_id cycle: {_render_cycle(cycle)}",
+            message=f"parent_id cycle: {_render_cycle(tuple(originals.get(i, i) for i in cycle))}",
         )
         for cycle in sorted(_cycles(parent_by_id))
     ]
@@ -319,6 +319,19 @@ def _canonical_cycle(cycle: list[str]) -> tuple[str, ...]:
 def _render_cycle(cycle: tuple[str, ...]) -> str:
     """Render a cycle as a closed chain, e.g. ('a', 'b') -> 'a -> b -> a'."""
     return " -> ".join([*cycle, cycle[0]])
+
+
+def _original_spellings(items: Iterable[tuple[int, dict[str, Any]]]) -> dict[str, str]:
+    """Normalized id -> the author's original spelling (first occurrence wins).
+
+    Cycle messages echo the author's casing, like the duplicate-id message;
+    graph keys stay normalized.
+    """
+    originals: dict[str, str] = {}
+    for _, item in items:
+        if isinstance(item.get("id"), str) and is_typed_id(item["id"]):
+            originals.setdefault(normalize_id(item["id"]), item["id"])
+    return originals
 
 
 def _parent_by_id(graph: _Graph) -> dict[str, str]:

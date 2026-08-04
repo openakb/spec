@@ -899,6 +899,30 @@ def test_sidecar_binding_mismatch() -> None:
     assert sidecar.findings == ()
 
 
+def test_sidecar_non_string_id() -> None:
+    """A malformed non-string section id still fails the sidecar binding check."""
+    section = _descriptor()["sections"][0] | {"id": 123, "provenance_uri": "root.prov.json"}
+    report = check_content(
+        _descriptor(
+            sections=[
+                section,
+                {
+                    "id": "SEC-000002",
+                    "title": "Other",
+                    "description": "Other section.",
+                    "source_ids": ["SRC-000001"],
+                },
+            ]
+        ),
+        FakeResolver(
+            {"root.md": b"See [cite: SRC-000001].", "root.prov.json": _sidecar("SEC-000002")}
+        ),
+    )
+    sidecar = _checks_by_kind(report, "sidecar")[0]
+    assert sidecar.outcome == FAILED
+    assert sidecar.findings == ()
+
+
 def test_sidecar_mismatch_detail() -> None:
     """Binding mismatch detail names the section_id mismatch."""
     section = _descriptor()["sections"][0] | {"provenance_uri": "root.prov.json"}

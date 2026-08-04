@@ -7,7 +7,7 @@ errors are the schema layer's job, so unexpected shapes are skipped, never raise
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, cast
 
 __all__ = ["id_kind", "indexed_dicts", "is_typed_id", "normalize_id", "reference_code"]
 
@@ -66,5 +66,5 @@ def reference_code(
     if kind != expected:
         return "AKB010"
     registry = source_ids if expected == "source" else section_ids
-    assert isinstance(value, str)  # id_kind guarantees str
+    value = cast("str", value)  # id_kind guarantees str
     return None if normalize_id(value) in registry else "AKB007"

@@ -153,7 +153,7 @@ fn test_parent_cycle() {
     assert!(
         findings[0]
             .message
-            .contains("sec-000001 -> sec-000002 -> sec-000001")
+            .contains("SEC-000001 -> SEC-000002 -> SEC-000001")
     );
 }
 
@@ -210,7 +210,7 @@ fn test_discovery_cycle_warns() {
     assert!(
         result.warnings[0]
             .message
-            .contains("src-000001 -> src-000002 -> src-000001")
+            .contains("SRC-000001 -> SRC-000002 -> SRC-000001")
     );
 }
 

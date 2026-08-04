@@ -7,8 +7,8 @@ use serde_json::Value;
 use crate::{
     Advisory, Code, Finding, PARENT_DEPTH_MAX, Segment, json_pointer,
     shape::{
-        EntityIndex, EntityKind, Object, id_kind, indexed_objects, normalize_id, reference_code,
-        typed_id_value,
+        EntityIndex, EntityKind, Object, id_kind, indexed_objects, is_typed_id, normalize_id,
+        reference_code, typed_id_value,
     },
 };
 
@@ -265,16 +265,41 @@ fn append_claim_findings(
     }
 }
 
+fn original_spellings<'a>(
+    items: impl Iterator<Item = &'a (usize, &'a Object)>,
+) -> BTreeMap<String, String> {
+    // Cycle messages echo the author's casing, like the duplicate-id message;
+    // graph keys stay normalized.
+    let mut originals: BTreeMap<String, String> = BTreeMap::new();
+    for (_, item) in items {
+        if let Some(id) = item
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| is_typed_id(id))
+        {
+            originals
+                .entry(normalize_id(id))
+                .or_insert_with(|| id.to_string());
+        }
+    }
+    originals
+}
+
 fn parent_cycle_findings(
     graph: &Graph<'_>,
     parent_by_id: &BTreeMap<String, String>,
 ) -> Vec<Finding> {
     let index_by_id = index_by_id(&graph.sections);
+    let originals = original_spellings(graph.sections.iter());
 
     cycles(parent_by_id)
         .into_iter()
         .filter_map(|cycle| {
             let index = index_by_id.get(cycle.first()?)?;
+            let spelled: Vec<String> = cycle
+                .iter()
+                .map(|id| originals.get(id).cloned().unwrap_or_else(|| id.clone()))
+                .collect();
             Some(finding(
                 Code::Akb004,
                 [
@@ -282,7 +307,7 @@ fn parent_cycle_findings(
                     Segment::Index(*index),
                     Segment::Key("parent_id"),
                 ],
-                format!("parent_id cycle: {}", render_cycle(&cycle)),
+                format!("parent_id cycle: {}", render_cycle(&spelled)),
             ))
         })
         .collect()
@@ -342,17 +367,22 @@ fn source_cycle_warnings(graph: &Graph<'_>) -> Vec<Advisory> {
     }
 
     let index_by_id = index_by_id(&graph.sources);
+    let originals = original_spellings(graph.sources.iter());
     cycles(&next_by_id)
         .into_iter()
         .filter_map(|cycle| {
             let index = index_by_id.get(cycle.first()?)?;
+            let spelled: Vec<String> = cycle
+                .iter()
+                .map(|id| originals.get(id).cloned().unwrap_or_else(|| id.clone()))
+                .collect();
             Some(Advisory {
                 path: json_pointer([
                     Segment::Key("sources"),
                     Segment::Index(*index),
                     Segment::Key("discovered_via_id"),
                 ]),
-                message: format!("discovered_via_id cycle: {}", render_cycle(&cycle)),
+                message: format!("discovered_via_id cycle: {}", render_cycle(&spelled)),
             })
         })
         .collect()

@@ -327,7 +327,7 @@ def test_akb004_message_renders_cycle() -> None:
         _section("SEC-000002", parent_id="SEC-000001"),
     ]
     finding = _sole_finding(_descriptor(sections=sections), "AKB004")
-    assert "sec-000001 -> sec-000002 -> sec-000001" in finding.message
+    assert "SEC-000001 -> SEC-000002 -> SEC-000001" in finding.message
 
 
 def test_akb005_message_states_depth() -> None:
@@ -366,7 +366,7 @@ def test_advisory_message_renders_cycle() -> None:
         {"id": "SRC-000002", "discovered_via_id": "SRC-000001"},
     ]
     warnings = semantic_warnings(_descriptor(sources=sources))
-    assert "src-000001 -> src-000002 -> src-000001" in warnings[0].message
+    assert "SRC-000001 -> SRC-000002 -> SRC-000001" in warnings[0].message
 
 
 def test_parent_cycle_three_nodes() -> None:
@@ -434,7 +434,6 @@ def test_large_ring_cycle_completes() -> None:
     assert peak_bytes < _RING_MEMORY_CEILING_BYTES, f"validate() peaked at {peak_bytes} bytes"
     cycle_findings = [finding for finding in result.findings if finding.code == "AKB004"]
     assert len(cycle_findings) == 1
-    # Cycle rendering uses normalized (lowercased) ids.
-    normalized_ids = [identifier.lower() for identifier in ids]
-    expected_message = f"parent_id cycle: {' -> '.join([*normalized_ids, normalized_ids[0]])}"
+    # Cycle rendering echoes the author's original casing.
+    expected_message = f"parent_id cycle: {' -> '.join([*ids, ids[0]])}"
     assert cycle_findings[0].message == expected_message
