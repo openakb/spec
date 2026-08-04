@@ -104,6 +104,13 @@ at v1.0.0.
 
 ### Changed
 
+- Identifiers: source and section ids are now typed, case-insensitive forms —
+  `SRC-` and `SEC-` followed by six base36 characters — replacing the free-form
+  local-id slug for those two kinds (top-level `id` and `namespace` stay slugs).
+  A reference carrying the wrong kind's prefix is `AKB010`; uniqueness and
+  reference resolution are case-insensitive. Renderers SHOULD display a
+  referenced object's `title` in place of its id. Released as `openakb-validate`
+  0.2.0 (Python and Rust).
 - Bounded-manifest caps raised to a generous tier, frozen for the v1 major: every `title`
   is now one 200-char tier, AKB and section `description` and section `purpose` allow
   2000 chars, link `description` allows 500, and `sources` allows 100,000 entries
