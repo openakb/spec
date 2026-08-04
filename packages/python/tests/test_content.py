@@ -1191,6 +1191,36 @@ def test_quote_absent_fails() -> None:
     assert not report.ok
 
 
+def test_confusable_claim_id_unverifiable() -> None:
+    """A claim's confusable source id must not collide with a real capture key.
+
+    ``normalize_id`` ASCII-lowers (mirroring Rust's ``to_ascii_lowercase``), so a
+    claim citing the U+212A KELVIN SIGN variant of ``SRC-0000K1`` normalizes to a
+    different key than the real ASCII source's capture. The quote is therefore
+    unverifiable -- not silently checked against, and failed by, the wrong
+    source's fetched bytes.
+    """
+    confusable_id = "SRC-0000K1"  # noqa: RUF001 -- the confusable is the case under test
+    source = {
+        "id": "SRC-0000K1",
+        "type": "url",
+        "uri": "https://docs.example.com/",
+        "capture_uri": "capture.bin",
+    }
+    section = _descriptor()["sections"][0] | {
+        "provenance": [
+            {"text": "Claim.", "source_ids": [confusable_id], "locator": {"quote": "needle"}}
+        ]
+    }
+    report = check_content(
+        _descriptor(sources=[source], sections=[section]),
+        FakeResolver({"root.md": b"See [cite: SRC-0000K1].", "capture.bin": b"hay stack"}),
+    )
+
+    assert _checks_by_kind(report, "quote")[0].outcome == UNVERIFIABLE
+    assert report.ok
+
+
 def test_quote_partial_unfetchable() -> None:
     """Quote absence is unverifiable when another cited capture cannot fetch."""
     sources = [

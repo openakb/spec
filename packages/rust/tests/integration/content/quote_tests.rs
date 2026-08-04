@@ -166,6 +166,34 @@ async fn test_quote_unfetched() {
 }
 
 #[tokio::test]
+async fn test_confusable_claim_id_unverifiable() {
+    // U+212A KELVIN SIGN renders identically to ASCII 'K' but ASCII-only
+    // `normalize_id` does not fold it: a claim citing the confusable variant of a
+    // real source id must not resolve against that source's capture.
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("capture.txt"), "hay stack").unwrap();
+    let descriptor = json!({
+        "sources": [{ "id": "SRC-0000K1", "capture_uri": "capture.txt" }],
+        "sections": [{
+            "id": "SEC-000001",
+            "provenance": [{
+                "text": "Claim.",
+                "source_ids": ["SRC-0000\u{212a}1"],
+                "locator": { "quote": "needle" }
+            }]
+        }]
+    });
+
+    let report = report(descriptor, &dir).await;
+
+    assert!(report.ok());
+    assert_eq!(report.checks.len(), 1);
+    assert_eq!(report.checks[0].kind, CheckKind::Quote);
+    assert_eq!(report.checks[0].outcome, Outcome::Unverifiable);
+    assert_eq!(report.checks[0].detail, "no cited source capture fetched");
+}
+
+#[tokio::test]
 async fn test_quote_partial_gap() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("capture.txt"), "different text").unwrap();

@@ -79,3 +79,14 @@ def test_normalize_id_ascii_lower() -> None:
     """Comparison keys are ASCII-lowered, so case-insensitive lookups work."""
     assert normalize_id("SRC-00000A") == "src-00000a"
     assert normalize_id("SEC-ZZZZZZ") == "sec-zzzzzz"
+
+
+def test_normalize_id_does_not_unicode_fold() -> None:
+    """Non-ASCII foldables pass through unchanged, matching Rust's ASCII-only fold.
+
+    `str.lower()` would fold U+212A KELVIN SIGN to ASCII 'k', letting a malformed
+    id normalize onto the same key as a real one; ASCII-only lowering must not.
+    """
+    kelvin_sign = "SRC-00000" + chr(0x212A)
+    assert normalize_id(kelvin_sign) == "src-00000" + chr(0x212A)
+    assert normalize_id(kelvin_sign) != "src-00000k"

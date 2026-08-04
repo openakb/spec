@@ -7,6 +7,7 @@ errors are the schema layer's job, so unexpected shapes are skipped, never raise
 from __future__ import annotations
 
 import re
+import string
 from typing import Any, cast
 
 __all__ = ["id_kind", "indexed_dicts", "is_typed_id", "normalize_id", "reference_code"]
@@ -16,6 +17,14 @@ __all__ = ["id_kind", "indexed_dicts", "is_typed_id", "normalize_id", "reference
 # that the schema's ASCII-only `[0-9A-Za-z]{6}` pattern rejects as AKB011.
 _SECTION_ID_RE = re.compile(r"[Ss][Ee][Cc]-[0-9A-Za-z]{6}")
 _SOURCE_ID_RE = re.compile(r"[Ss][Rr][Cc]-[0-9A-Za-z]{6}")
+
+# `normalize_id` translates through this instead of `str.lower()` to mirror Rust's
+# `to_ascii_lowercase`: an ASCII-only fold that leaves every non-ASCII byte
+# untouched. `str.lower()` Unicode-folds confusables (e.g. U+212A KELVIN SIGN ->
+# ASCII 'k') onto real ASCII keys, which the Rust validator never does -- that gap
+# is what let a malformed id collide with a real one and diverge between the two
+# validators. Valid typed ids are pure ASCII, so this table changes nothing for them.
+_ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
 
 
 def is_typed_id(value: object) -> bool:
@@ -38,7 +47,7 @@ def id_kind(value: object) -> str | None:
 
 def normalize_id(value: str) -> str:
     """Casefold key for id comparison (ASCII lower); typed ids are ASCII."""
-    return value.lower()
+    return value.translate(_ASCII_LOWER)
 
 
 def indexed_dicts(value: object) -> list[tuple[int, dict[str, Any]]]:

@@ -436,11 +436,7 @@ def _capture_checks(
                     checks.append(_check(UNVERIFIABLE, KIND_CAPTURE, path, "missing capture_uri"))
             continue
         resolved = _fetch_capture(index, source, reference, base_uri, resolver, local)
-        if (
-            isinstance(resolved, _ResolvedCapture)
-            and isinstance(source_id, str)
-            and is_typed_id(source_id)
-        ):
+        if isinstance(resolved, _ResolvedCapture) and isinstance(source_id, str):
             payloads[normalize_id(source_id)] = resolved.payload
         if isinstance(hash_check, ContentCheck):
             checks.append(hash_check)
@@ -466,11 +462,7 @@ def _capture_checks(
                 expected = cast("bytes", hash_check)
                 comparison = _compare_sri(KIND_CAPTURE, path, resolved.payload, expected)
                 checks.append(comparison)
-                if (
-                    comparison.outcome == FAILED
-                    and isinstance(source_id, str)
-                    and is_typed_id(source_id)
-                ):
+                if comparison.outcome == FAILED and isinstance(source_id, str):
                     hash_failed.add(normalize_id(source_id))
     return _CaptureResult(payloads=payloads, checks=checks, hash_failed=frozenset(hash_failed))
 
