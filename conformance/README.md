@@ -107,7 +107,7 @@ error codes.
 | `AKB003` | Every section with `content_uri` cites at least one source. | `invalid/content-without-source` |
 | `AKB004` | The `parent_id` graph is acyclic. | `invalid/parent-cycle` |
 | `AKB005` | Length and cardinality caps are respected. | `invalid/oversized-title` |
-| `AKB006` | Strict mode rejects unknown core properties outside `x`. | `forward-compat/unknown-core-field` |
+| `AKB006` | Strict mode rejects unknown core properties outside `x`. | `forward-compat/unknown-core-field`, `forward-compat/removed-subject-type` |
 | `AKB007` | References resolve to declared IDs. | `invalid/unresolved-parent`, `invalid/unresolved-source-ref`, `invalid/unresolved-discovered-via`, `invalid/link-target-unresolved`, `invalid/unresolved-claim-source` |
 | `AKB008` | Link `rel` values are controlled or reverse-DNS namespaced. | `invalid/unknown-rel` |
 | `AKB009` | Required top-level, source, and section fields are present. | `invalid/missing-required-field` |
