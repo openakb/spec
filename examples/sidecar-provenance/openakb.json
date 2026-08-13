@@ -4,7 +4,6 @@
   "id": "widget-api",
   "title": "Widget API",
   "description": "A sample AKB whose section carries a claim-level provenance sidecar.",
-  "subject_type": "topic",
   "language": "en",
   "sources": [
     {

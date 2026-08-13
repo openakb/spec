@@ -4,7 +4,6 @@
   "id": "widget-platform",
   "title": "Widget Platform",
   "description": "The served (canonical) form of the widget-platform AKB: absolute URIs, minted revision, stamped hashes and sizes.",
-  "subject_type": "product",
   "tags": ["sample", "documentation"],
   "language": "en",
   "guide_uri": "https://kb.example.org/widget-platform/AKB.md",

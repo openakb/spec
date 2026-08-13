@@ -46,7 +46,6 @@ An OpenAKB descriptor is a JSON object, conventionally named `openakb.json`. The
 | `namespace` | optional | `[a-z0-9_-]`, ≤64 chars | Owner or grouping segment. |
 | `title` | REQUIRED | string, 1-200 chars | Display name. |
 | `description` | REQUIRED | string, 1-2000 chars | Bounded AKB abstract. |
-| `subject_type` | optional | non-empty string | Open subject classification. |
 | `tags` | optional | array, max 32 unique items; each `[a-z0-9_-]`, max 40 chars | Discovery and filtering labels. Tags share the slug charset (`[a-z0-9_-]`); they are labels, not references. |
 | `language` | optional | language pattern `[A-Za-z0-9]+(-[A-Za-z0-9]+)*` | Primary language of AKB content. Sections MAY override. |
 | `guide_uri` | optional | URI reference | Maintainer guide, conventionally `AKB.md`. |
@@ -291,7 +290,7 @@ Authoring form vs served form:
 | source `uri` (`type: file`) | relative | absolute, self-contained | provider |
 | source `content_hash`, `capture_uri`, `content_length` | optional/absent; `capture_uri` MAY be a relative capture path | `capture_uri` absolute, self-contained; `content_hash` and `content_length` stamped from the captured bytes | provider (capture-time) |
 
-Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `subject_type`, `tags`, `language`, `refresh_class`, `cadence`, `discovered_via_id`) is author-supplied — `discovered_via_id` is set by the maintainer or infrastructure at discovery time — and carried verbatim, except for a provider-served redacted projection using the redacted source form (§4.2).
+Everything else (`id`, `namespace`, `title`, `sources[]`, `sections[]` structure, `source_ids`, `links`, `tags`, `language`, `refresh_class`, `cadence`, `discovered_via_id`) is author-supplied — `discovered_via_id` is set by the maintainer or infrastructure at discovery time — and carried verbatim, except for a provider-served redacted projection using the redacted source form (§4.2).
 
 A validator running on the authoring form MUST treat every serve-only field as optional.
 

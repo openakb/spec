@@ -4,7 +4,6 @@
   "id": "widget-platform",
   "title": "Widget Platform",
   "description": "A sample knowledge base describing a fictional product, used to illustrate the OpenAKB format.",
-  "subject_type": "product",
   "tags": ["sample", "documentation"],
   "language": "en",
   "guide_uri": "AKB.md",

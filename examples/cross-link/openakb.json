@@ -4,7 +4,6 @@
   "id": "widget-integrations",
   "title": "Widget Integrations",
   "description": "A sample AKB illustrating cross-AKB links: one pinned to a fixed revision, one floating to the target's live head.",
-  "subject_type": "topic",
   "language": "en",
   "sources": [
     {

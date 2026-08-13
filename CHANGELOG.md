@@ -104,6 +104,10 @@ at v1.0.0.
 
 ### Changed
 
+- Narrowed the pre-v1 top-level descriptor vocabulary by dropping the unused open subject
+  classification. Validator packages 0.3.0 (Python and Rust) bundle the revised schema;
+  strict mode treats the former field as `AKB006 unknown-core-property`, while lenient mode
+  retains the v1 forward-compatibility behavior for unknown members.
 - Identifiers: source and section ids are now typed, case-insensitive forms —
   `SRC-` and `SEC-` followed by six base36 characters — replacing the free-form
   local-id slug for those two kinds (top-level `id` and `namespace` stay slugs).
